@@ -1,0 +1,63 @@
+---
+title: "Empirical Bayes"
+author: "Francis DiTraglia"
+date: '2022-06-29'
+output: html_document
+---
+
+# Robbins' Formula
+
+Come up with a story to go along with this. Efron & Hastie (2016) use insurance claims. Maybe I can come up with something better. (Hiring academics based on the number of papers published over the past $k$ years? Or granting tenure based on output in the past 7 years, treated as an attempt to predict the next 7 years?)
+
+For each person $i = 1, ..., n$, suppose that $X_{i1}, X_{i2} \sim \text{iid Poisson}(\mu_i)$ where $\mu_1, \mu_2, ..., \mu_n$ are iid draws from an unknown density $g(\cdot)$. We observe $X_{i1}$ for each individual and our goal is to predict $X_{i2}$.  If we knew all of the individual means $\mu_i$, this would be easy: $\mu_i$ is the minimum mean-squared error predictor of $X_{i2}$. But all we have is $X_{i1}$. 
+
+Since $X_{i1}$ is an unbiased estimator of $\mu_i$, you might think to try using $X_{i1}$ as our predictor of $X_{i2}$. Let's see how this works. For the simulation study I'll need to choose a density $g(\cdot)$ from which to draw the $\mu_i$. If we *knew* this density, this would be a perfect opportunity to use plain-vanilla Bayes, taking $g(\mu)$ as our prior for $\mu$. But the idea here is that we are very uncertain about $g(\cdot)$ so we don't have a good idea of which prior to use. For this reason we'll pretend that we don't know $g(\cdot)$ throughout the simulation exercise.
+
+Using $X_{i1}$ to predict $X_{i2}$ leads us to dramatically *overpredict* $X_{i2}$ for people with the highest values of $X_{i1}$:
+```{r}
+set.seed(1234)
+n <- 1e4
+mu <- rexp(n)
+x1 <- rpois(n, mu)
+x2 <- rpois(n, mu)
+plot(x1, x2)
+cor(x1, x2)
+mean(x2[x1 >= 5])
+mean(x2[x1 >= 6])
+mean(x2[x1 >= 7])
+mean(x2[x1 >= 8])
+```
+**Probably want to refine this simulation design somewhat. The exponential distribution only has a single parameter which ties the mean and variance together in an unhelpful way. Generalize to gamma distribution?**
+
+Now some magic. Let's pretend *just for a moment* that we knew $g(\cdot)$. Then we could use Bayes' Theorem to calculate the posterior distribution of $\mu_i$ given $X_{i1}$ as follows. (To keep the notation simple, I'll drop the $i$ subscripts for the next few equations) Remember that $\mu$ is *positive* since it's a Poisson rate:
+$$
+\pi(\mu|X_{1} = x) = \frac{\text{dpois}(x|\mu)g(\mu)}{f(x)}, \quad f(x) \equiv\int_0^\infty \text{dpois}(x|\mu)g(\mu)\, d\mu
+$$
+Using the posterior, we can calculate the conditional mean of $\mu|X_1 = x$ as follows
+$$
+\mathbb{E}[\mu|X_1 = x] = \int_0^\infty \mu \cdot \pi(\mu|X_1 = x) \, d\mu =  \frac{\int_0^\infty \mu \cdot \text{dpois}(x|\mu)g(\mu)\, d\mu}{f(x)}
+$$
+since the denominator of $\pi(\mu|X_1 = x)$, namely $f(x)$, is a *constant* that doesn't depend on $\mu$. Here comes the trick. By the definition of the Poisson pmf and bit of algebra,
+$$
+\mu \cdot \text{dpois}(x|\mu) = \mu \cdot \left(\frac{e^{-\mu}\mu^x}{x!}\right) = \frac{e^{-\mu} \mu^{x+1}}{x!} = (x + 1) \cdot \frac{e^{-\mu}\mu^{x+1}}{(x+1)!} = (x+1) \cdot \text{dpois}(x+1|\mu)
+$$
+since $(x + 1)! = (x+1) x!$. This allows us to re-write the numerator of $\mathbb{E}[\mu|X_1 = x]$ as
+$$
+\int_0^\infty \mu \cdot \text{dpois}(x|\mu)g(\mu)\, d\mu = (x + 1)\int_0^\infty  \text{dpois}(x+1|\mu)g(\mu)\, d\mu
+$$
+where we can pull the $(x+1)$ term in front because the integral is taken over $\mu$ rather than $x$. Now take a close look at the integral on the right-hand side. Where have we seen something that looks like that before? This is nothing more than the marginal likelihood $f(\cdot)$ evaluated at $(x+1)$! Therefore, 
+$$
+(x + 1) \int_0^\infty  \text{dpois}(x+1|\mu)g(\mu)\, d\mu = (x + 1) \cdot f(x + 1).
+$$
+Substituting this into our expression for $\mathbb{E}[\mu|X_1 =x]$ from above, we have shown that
+$$
+\mathbb{E}[\mu|X_1 = x] =   \frac{(x+1) \cdot f(x+1)}{f(x)}
+$$
+This is called *Robbins' Formula*. At first glance it might not be clear why this is useful. If we don't know $g(\cdot)$ then how could we compute the marginal likelihood $f(\cdot)$? Another term for the marginal likelihood is the *marginal data density*. I like this one better because it's more explicit: $f(x)$ is the *marginal pmf of $X_{i1}$*. In other words, after all is said and done, after we've sampled the $\mu_i$ and used them to generate the $X_{i1}$, we are left with some observed data. These data have a probability mass function and it is $f(\cdot)$. Even if we don't know $f(\cdot)$, we can estimate it because we observe $X_{i1}$, for example with a plot like this:
+```{r}
+plot(prop.table(table(x1)), ylab = 'Empirical Probability', xlab = 'x')
+```
+
+We have a model for how these data arose. It involves a Poisson distribution and a density $g(\cdot)$ that we can't observe. But almost by magic we've been able to *eliminate* $g(\cdot)$ from the prediction problem entirely. We don't need to know the prior, we just need some information that can be estimated from the observed data. This is a special case of something called *Empirical Bayes*, a kind of halfway house between Bayesian and Frequentist methods.  
+
+
