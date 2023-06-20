@@ -1,0 +1,90 @@
+---
+title: "Comparing Two Means"
+format: 
+  html:
+    embed-resources: true
+---
+
+## Introduction
+
+This is based on [Kruscke (2013)](./references/Kruschke-2013.pdf) as modified and implemented [here](https://bookdown.org/content/3686/metric-predicted-variable-on-one-or-two-groups.html#two-groups). How well can Bayes help us solve the [Behrens-Fisher problem](https://en.wikipedia.org/wiki/Behrens%E2%80%93Fisher_problem)? See in particular the poor performance of "robust" standard errors in 8.1.1 of *Mostly Harmless Econometrics*. A description of the simulation exercise on which the table is based is available on my [course website](https://ditraglia.com/erm/q14-behrens-fisher.html)
+
+## Example Data
+```{r}
+#| message: false
+#| warning: false
+library(tidyverse)
+library(brms)
+library(tidybayes)
+iq <- read_csv("TwoGroupIQ.csv")
+```
+
+
+## Bayesian Model
+
+
+## Run the code verbatim
+
+```{r} 
+#| message: false
+#| warning: false
+# pooled mean and sd to set scale of priors
+mean_y <- mean(iq$Score)
+sd_y <- sd(iq$Score)
+
+stanvars <- 
+  stanvar(mean_y, name = "mean_y") +  
+  stanvar(sd_y,   name = "sd_y") +  
+  stanvar(1/29,   name = "one_over_twentynine") 
+
+example_16_03 <- 
+  brm(data = iq,
+      family = student,
+      bf(Score ~ 0 + Group, 
+         sigma ~ 0 + Group),
+      prior = c(prior(normal(mean_y, sd_y * 100), class = b),
+                prior(normal(0, log(sd_y)), class = b, dpar = sigma),
+                prior(exponential(one_over_twentynine), class = nu)),
+      chains = 4, cores = 4,
+      stanvars = stanvars,
+      seed = 16,
+      file = "fits/example_16_03")
+```
+It takes a while to run this, but because we're storing the output in `fits/example_16_03`, we can *load* this in the future to avoid re-compiling the model. This would be helpful, e.g. in a simulation study. To do this, use `update()` and supply a new dataset. (I haven't tried this yet.)
+
+Now we can take a look at the output:
+```{r}
+print(example_16_03)
+```
+and clean it up for future use:
+```{r}
+#| warning: false
+draws <- as_draws_df(example_16_03) 
+draws <- draws |> 
+  mutate(`Placebo Mean`     = b_GroupPlacebo,
+         `Smart Drug Mean`  = b_GroupSmartDrug,
+         # we need to transform the next three parameters
+         `Placebo Scale`    = b_sigma_GroupPlacebo   |> exp(),
+         `Smart Drug Scale` = b_sigma_GroupSmartDrug |> exp(),
+         Normality          = nu                     |> log10()) |> 
+  mutate(`Difference of Means`  = `Smart Drug Mean` - `Placebo Mean`,
+         `Difference of Scales` = `Smart Drug Scale` - `Placebo Scale`,
+         `Effect Size` = (`Smart Drug Mean` - `Placebo Mean`) / sqrt((`Smart Drug Scale`^2 + `Placebo Scale`^2) / 2)) |> 
+  select(.draw, `Placebo Mean`:`Effect Size`)
+
+glimpse(draws)
+```
+As a first attempt, here's a kernel density plot of the difference of means:
+```{r}
+draws |> 
+  ggplot(aes(x = `Difference of Means`)) +
+  geom_density()
+```
+and here are some posterior HDIs:
+```{r}
+hdi(draws$`Difference of Means`, 0.95)
+```
+```{r}
+t.test(Score ~ Group, iq)
+```
+
