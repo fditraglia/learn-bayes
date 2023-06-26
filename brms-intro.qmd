@@ -1,0 +1,63 @@
+---
+title: "An Introduction to `brms`"
+format: 
+  html:
+    embed-resources: true
+---
+
+## Overview 
+
+These are my notes on [Bürkner (2017)](./references/Buerkner), who provides an overview of the [`brms` package](https://paul-buerkner.github.io/brms/), along selected material from the associated [package vignettes](https://paul-buerkner.github.io/brms/articles/index.html).
+
+## What is `brms`?
+
+In short, `brms` is a user-friendly wrapper that makes it easy to implement Bayesian multilevel models using [`Stan`](https://mc-stan.org/) without actually writing any `Stan` code. 
+We describe our model, and then `brms` writes the underlying `Stan` code for us. 
+This is then passed to [`rstan`](https://mc-stan.org/rstan/), the R interface to `Stan`.
+Finally, `Stan` converts our code to C++, compiles it, fits the model, and passes the results back to `brms` for post-processing.
+We can use `brms` to store the compiled model so that we can re-run it on new data, skipping the sometimes lengthy compilation step.^[This compiled code is *machine specific*, so it will not in general run on a different machine. You'll (almost certainly) need to compile at least once.]
+
+While `brms` does not offer the full flexibility of writing your own `Stan` code, it handles many common models that arise in practice. 
+It can also provide a "stepping stone" to learning how to write `Stan` code yourself, since we can ask `brms` to show us the `Stan` code that it automatically generates for us, complete with comments! Another package that provides a stepping stone to `Stan` is [`rethinking`](https://github.com/rmcelreath/rethinking). 
+Neither `brms` nor `rethinking` dominates the other. 
+The primary goal of `rethinking` is to make Bayesian modeling with `Stan` easier and *more transparent*. 
+It relies on a simplified syntax, relative to `Stan`, but requires the user to specify the generative probabilistic model *explicitly*, relative to `brms`.
+This is intentional: `rethinking` is mainly intended for pedagogical purposes and avoids "shortcuts" in model specification: everything is meant to be *explicit*.
+There are some things that `brms` can do that `rethinking` can't, e.g. work with certain kinds of vectorized parameterizations. 
+These speed up computations for multilevel models.
+On the other hand, `rethinking` can impute missing outcomes which `brms` cannot do at present.
+
+The book [Statistical Rethinking](https://xcelab.net/rm/statistical-rethinking/) makes heavy use of `rethinking`. 
+Here is an attempt to replicate the book [using `Stan`](https://vincentarelbundock.github.io/rethinking2/), and another [using `brms`](https://bookdown.org/content/4857/).
+
+
+## `brms` Models
+
+A `brms` model relates a vector of **responses** $y$ to a pair covariate matrices $\mathbf{X}$ and $\mathbf{Z}$ via a **linear predictor** $\eta$,  an **inverse link function** $f$, and a distribution $D$.
+Specifically, 
+$$
+y_i \sim D\left(f(\eta_i), \theta \right), \quad \eta = \mathbf{X}\beta + \mathbf{Z}u.
+$$
+For example, if $D$ is the Poisson distribution and $f(\cdot) = \exp(\cdot)$ then we have the familiar Poisson regression model for the mean of $y_i$.^[Why "inverse" link function? This is a bit of annoying terminology from the literature on generalized linear models. Whereas econometricians are used to thinking of models that take the form $\mathbb{E}[Y|X]=f(X'\beta)$, statisticians prefer to write $X'\beta = f^{-1}(\mathbb{E}[Y|X])$. Historically, what I call $f^{-1}(\cdot)$ here was called the *link function* making $f(\cdot)$ the *inverse link function*, even though our present notation would suggest the opposite naming convention.] 
+The parameter $\theta$ does not arise in all models. 
+It is absent, for example, in a Poisson regression model. 
+But consider a standard linear regression model.
+In this case $D(\cdot)$ is the normal distribution and $f(\eta_i) = \eta_i$ is the mean of $y_i$
+But we need one more parameter to describe this model: the error variance.^[We could allow a more complicated specification in which the variance *itself* depends on covariates, allowing heteroskedasticity. See [this vignette](https://paul-buerkner.github.io/brms/articles/brms_distreg.html) for more.]
+
+Thus far, everything we have described fits within the framework of a "textbook" generalized linear model, as implemented by the base R function `glm()`.
+What makes this a *multilevel model* is the distinction between $\mathbf{X}\beta$ and $\mathbf{Z}u$.
+The vector $\beta$ represents **population-level** parameters, i.e. common parameters that are shared by all individuals.
+The vector $u$ represents **group-level** parameters, i.e. heterogeneous parameters.^[Using the notation $u$ to denote a vector of parameters is a bit different from our practice in econometrics, but from a Bayesian perspective there is **no distinction between a parameter and an error**; both are simply unobservables. The notation $u$ is actually quite suggestive of the kinds of settings in which multilevel models actually arise, i.e. error component models.]
+For this reason, the covariates $\mathbf{Z}$ should be understood to encode the group structure.
+This may be simple, e.g. a different intercept for each individual in a panel, or highly complex.
+But as long as we can represent it using matrix multiplication, we can fit it using `brms`.
+
+
+To complete our model specification, we need priors for the model parameters $\beta$, $u$ and $\theta$.
+
+
+\begin{aligned}
+u &\sim N(\mathbf{0}, \boldsymbol{\Sigma})\\
+\theta &\sim \text{Any 1-dimensional prior from Stan}
+\end{aligned}
