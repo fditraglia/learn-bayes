@@ -3098,7 +3098,7 @@ return!"\t\n\x0B\f\r                　\u2028\u2029
 
 <section id="overview" class="level2">
 <h2 class="anchored" data-anchor-id="overview">Overview</h2>
-<p>These are my notes on <a href="./references/Buerkner">Bürkner (2017)</a>, who provides an overview of the <a href="https://paul-buerkner.github.io/brms/"><code>brms</code> package</a>, along selected material from the associated <a href="https://paul-buerkner.github.io/brms/articles/index.html">package vignettes</a>.</p>
+<p>These are my notes on <a href="./references/Buerkner-2017.pdf">Bürkner (2017)</a>, who provides an overview of the <a href="https://paul-buerkner.github.io/brms/"><code>brms</code> package</a>, along selected material from the associated <a href="https://paul-buerkner.github.io/brms/articles/index.html">package vignettes</a>.</p>
 </section>
 <section id="what-is-brms" class="level2">
 <h2 class="anchored" data-anchor-id="what-is-brms">What is <code>brms</code>?</h2>
@@ -3117,6 +3117,13 @@ y_i \sim D\left(f(\eta_i), \theta \right), \quad \eta = \mathbf{X}\beta + \mathb
 u &amp;\sim N(\mathbf{0}, \boldsymbol{\Sigma})\\
 \theta &amp;\sim \text{Any 1-dimensional prior from Stan}
 \end{aligned}\]</span>
+</section>
+<section id="some-basic-brms-commands" class="level1">
+<h1>Some Basic <code>brms</code> Commands</h1>
+<ul>
+<li><code>brm()</code> is the function that does all the work: it fits the model.</li>
+<li><code>brmsformula()</code>, which can be abbreviated as <code>br()</code> allows us to create a model formula for use with <code>brms</code> and store it, rather than supplying the formula directly within <code>brm()</code>.</li>
+</ul>
 </section>
 
 

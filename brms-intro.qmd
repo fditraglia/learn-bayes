@@ -7,7 +7,7 @@ format:
 
 ## Overview 
 
-These are my notes on [Bürkner (2017)](./references/Buerkner), who provides an overview of the [`brms` package](https://paul-buerkner.github.io/brms/), along selected material from the associated [package vignettes](https://paul-buerkner.github.io/brms/articles/index.html).
+These are my notes on [Bürkner (2017)](./references/Buerkner-2017.pdf), who provides an overview of the [`brms` package](https://paul-buerkner.github.io/brms/), along selected material from the associated [package vignettes](https://paul-buerkner.github.io/brms/articles/index.html).
 
 ## What is `brms`?
 
@@ -61,3 +61,9 @@ To complete our model specification, we need priors for the model parameters $\b
 u &\sim N(\mathbf{0}, \boldsymbol{\Sigma})\\
 \theta &\sim \text{Any 1-dimensional prior from Stan}
 \end{aligned}
+
+# Some Basic `brms` Commands
+
+- `brm()` is the function that does all the work: it fits the model.
+- `brmsformula()`, which can be abbreviated as `br()` allows us to create a model formula for use with `brms` and store it, rather than supplying the formula directly within `brm()`.
+
