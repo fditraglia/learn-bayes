@@ -153,6 +153,192 @@ Here's the underlying STAN code used to fit the model:
 stancode(m11_10)
 ```
 
+### A Structural Model
+
+**Come back and add this**
+
+## Over-dispersion
+
+**Before putting this example in, I need to go back to the first example and make the plots that I skipped and look at the influence of Hawaii to the fits.**
+
+
+## Simulation Example with Offsets
+
+We often think of the Poisson parameter $\lambda_i$ as a *rate* of events per unit time or per unit space.
+If the observations $i$ are recorded over *different* lengths of time or distance, then we need to account for this in our model.
+We call these varying lengths of time or distance **exposures**.
+The example from the book takes $Y_i$ to be the number of manuscripts produced by monastery $i$.
+If one monastery records the number of manuscripts in a *day* while another records the number of manuscripts in a *week* we will need to account for this difference in our model.
+
+If there are $\lambda$ events per unit time, then in an interval of length $\tau$ there will be, on average, $\mu = \lambda \tau$ events.
+If, as above, we have a linear model on the log scale for $\lambda_i$, then
+$$
+\log \mu_i = \log (\lambda_i \tau_i) = \log \tau_i + \log \lambda_i = \log \tau_i + \alpha + \beta x_i.
+$$
+In other words: to translate from a model for the *rate* $\lambda_i$ to a model for the *mean number of events* $\mu_i$, on the log scale we merely need to subtract $\log \tau_i$.
+The idea here is that $\tau_i$ is known, as in the monastery example.
+In effect, we add another predictor to our log-linear model, $\log \tau_i$, but we *know in advance* that its coefficient is one. 
+This term is called an **offset**.
+
+Here's a little simulation example. 
+There are two monasteries: the first has a rate of $\lambda = 1.5$ manuscripts per day and records daily totals; the second has a rate of $\lambda = 0.5$ manuscripts per day but records weekly totals.
+```{r}
+n0 <- 30 # observe daily counts for 30 days 
+y0 <- rpois(n0, lambda = 1.5) # rate of 1.5 manuscripts / day 
+
+n1 <- 4 # observe weekly counts for 4 weeks
+y1 <- rpois(n1, lambda = 7 * 0.5) # rate of 0.5 manuscripts / day times 7 days
+
+manuscripts <- tibble(y = c(y0, y1),
+                      monastery = c(rep(0, n0), rep(1, n1)), # monastery dummy
+                      exposure = c(rep(1, n0), rep(7, n1)), # exposure in days
+                      log_days = log(exposure))
+```
+
+For this example, the book uses a normal approximation to the posterior rather than running Hamiltonian MC:
+```{r}
+m11_12 <- quap(
+  alist(
+    y ~ dpois(lambda),
+    log(lambda) <- log_days + a + b * monastery, 
+    a ~ dnorm(0, 1), # not great prior choices, but it won't matter!
+    b ~ dnorm(0, 1)
+  ), data = manuscripts
+)
+```
+Now we can compute posterior predictions of the *daily rate* for each of the two monasteries:
+```{r}
+posterior <- extract.samples(m11_12)
+lambda0 <- with(posterior, exp(a)) 
+lambda1 <- with(posterior, exp(a + b))
+precis(tibble(lambda0, lambda1, diff = lambda1 - lambda0))
+```
+So we correctly infer the difference in rates of manuscript production across the two monasteries.
+
+## Zero-inflated Counts
+
+This is a continuation of the monastery example.
+Sometimes the monks spend the whole day drinking and don't work on any manuscripts. 
+On these days, they produce zero manuscripts.
+On other days, they work on manuscripts and finish a Poisson distributed number of them where the Poisson rate is $\lambda$ manuscripts per day.
+It's possible that the monks will finish zero manuscripts even on a day that they spend working rather than drinking.
+Because there are *two* ways to obtain zero manuscripts in this model, it won't match a standard Poisson distribution. 
+Suppose that the monks flip a coin each day to decide whether to drink or work. 
+The probability that they drink is $p$ and the probability that they work is $(1 - p)$.
+Then the probability that they produce zero manuscripts on a give day is
+$$
+\begin{align*}
+\mathbb{P}(Y = 0|p, \lambda) &= \mathbb{P}(Y=0|\text{Drink},p, \lambda) \mathbb{P}(\text{Drink}|p, \lambda) + \mathbb{P}(Y=0|\text{Work},p,\lambda) \mathbb{P}(\text{Work}|p,\lambda)\\
+&= 1 \times p + \frac{e^{-\lambda}\lambda^0}{0!}\times (1 - p)\\
+&= p + (1 - p) \exp(-\lambda)
+\end{align*}
+$$
+while the probability that they produce $y > 0$ manuscripts is 
+$$
+\begin{align*}
+\mathbb{P}(Y = y|p, \lambda) &= \mathbb{P}(Y=y|\text{Drink},p, \lambda) \mathbb{P}(\text{Drink}|p, \lambda) + \mathbb{P}(Y = y|\text{Work}, p, \lambda) \mathbb{P}(\text{Work}|p, \lambda)\\
+&=  0 \times p + \frac{e^{-\lambda}\lambda^y}{y!} \times (1 - p)\\
+&= (1 - p) \frac{\lambda^y \exp(-\lambda)}{y!}.
+\end{align*}
+$$
+The preceding two equations completely describe a probability distribution for $Y$ that allows excess zeros: the **zero-inflated Poisson**. 
+Let's call it $\text{ZIPoisson}(p, \lambda)$. 
+We can use this distribution to build a regression model in which $p$ and $\lambda$ depend on covariates:
+$$
+\begin{align*}
+Y_i &\sim \text{ZIPoisson}(p_i, \lambda_i)\\
+\text{logit}(p_i)  &= \alpha_p + \beta_p x_i\\
+\log(\lambda_i)  &= \alpha_\lambda + \beta_\lambda x_i
+\end{align*}
+$$
+where $\text{logit}(p_i) \equiv \log[p_i / (1 - p_i)]$.
+We could easily include more covariates and there's no need for the covariates in each equation to be the same: this is merely an example of what is possible.
+
+Now we'll simulate some data from this model.
+For simplicity, there's no regressor here but it would be easy (and a good exercise!) to add one:
+```{r}
+p_true <- 0.2 # Monks drink on 20% of days
+lambda_true <- 1 # When working, monasteries average 1 manuscript / day
+
+n <- 365 # A year's worth of daily data on manuscript production
+
+set.seed(365) # This is the seed used in the book
+
+drink <- rbinom(n, 1, p_true) # indicator for whether the monks drink
+y <- (1 - drink) * rpois(n, lambda_true) # manuscripts produce
+```
+Note that we will only "observe" `y`; `drink` is merely used in the simulation. 
+(If we knew `drink` we could simply analyze the days when the monks were working as a plain vanilla Poisson regression!)
+Now we can fit the model:
+```{r}
+m12_3 <- ulam(
+  alist(
+    y ~ dzipois(p, lambda),
+    logit(p) <- ap,
+    log(lambda) <- al,
+    ap ~ dnorm(-1.5, 1),
+    al ~ dnorm(1, 0.5)
+  ), data = list(y = y), chains = 4
+)
+```
+These are the priors from the book.
+It's worth taking a look at them before we fit the model.
+The prior $\alpha_p \sim \text{Normal}(\mu = -1.5, \sigma = 1)$ is on the log-odds scale.
+To convert it to a probability, we need to pass it through the inverse of $\text{logit}$, namely the standard logistic CDF `plogis()`:
+```{r}
+n_sims <- 50000
+tibble(ap = rnorm(n_sims, -1.5, 1), p = plogis(ap)) |> 
+  ggplot(aes(x = p)) +
+  geom_density() +
+  geom_vline(xintercept = p_true) +
+  theme_bw()
+```
+This is a prior that "gently nudges" the estimated probability of drinking below 0.5. 
+It's not a very stark prior, but it encodes the idea that the monks probably don't spend *most* days drinking. 
+Similarly, we can examine the prior $\alpha_\lambda \sim \text{Normal}(\mu = 1, \sigma = 0.5)$ for the daily rate of manuscript production conditional on *not spending the day drinking*
+```{r}
+tibble(al = rnorm(n_sims, 1, 0.5), lambda = exp(al)) |> 
+  ggplot(aes(x = lambda)) +
+  geom_density() +
+  geom_vline(xintercept = lambda_true) +
+  theme_bw()
+```
+This is a prior that is fairly certain that the monks produce fewer than 10 manuscripts per day, on average.
+Now that we've looked at the priors, let's look at a summary of the posterior:
+```{r}
+precis(m12_3)
+```
+As we did with the prior, we can transform these parameters to make them more interpretable:
+```{r}
+posterior <- extract.samples(m12_3)
+tibble(ap = posterior$ap, p = plogis(ap)) |> 
+  ggplot(aes(x = p)) +
+  geom_density() + 
+  geom_vline(xintercept = p_true) +
+  theme_bw()
+```
+Similarly,
+```{r}
+tibble(al = posterior$al, lambda = exp(al)) |> 
+  ggplot(aes(x = lambda)) +
+  geom_density() +
+  geom_vline(xintercept = lambda_true) +
+  theme_bw()
+```
+So we see that the model is working well: the posteriors do not look like the priors, and they're tightly centered around the true parameter values.
+The diagnostics for the sampler also look good:
+```{r}
+traceplot(m12_3)
+trankplot(m12_3)
+```
+The STAN code for this one is a bit more complicated. 
+There are some details about it on page 379 of the book.
+In short: `dzipois()` is a function from the `rethinking` package that is implemented in a particular way to avoid numerical problems.
+We can see exactly how this works in the STAN code:
+```{r}
+stancode(m12_3)
+```
+
 
 
 
