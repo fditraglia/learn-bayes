@@ -1,0 +1,186 @@
+---
+title: "Poisson Regression Examples from Statistical Rethinking"
+format: 
+  html:
+    embed-resources: true
+---
+
+## Oceanic Tool Complexity Dataset
+
+```{r}
+#| message: false
+#| warning: false
+library(tidyverse)
+library(rethinking)
+data("Kline")
+dat <- as_tibble(Kline)
+rm(Kline)
+dat
+```
+
+The goal is to model the total number of tools in a society, `total_tools`, in terms of `population` and the extent of contact with other islands, `contact`. 
+
+### First Model
+The first model is as follows:
+$$
+\begin{align*}
+T_i &\sim \text{Poisson}(\lambda_i)\\
+\log \lambda_i &= \alpha_{\text{CID}[i]} + \beta_{\text{CID}[i]} \log P_i\\
+\alpha_j &\sim \text{to be specified}\\
+\beta_j &\sim \text{to be specified}
+\end{align*}
+$$
+where $T_i$ is `total_tools`, $P_i$ is `population` and $\text{CID}[i]$ is a categorical variable that indicates the value of `contact` for society $i$.
+In other words, this is a model in which $\alpha$ and $\beta$ vary with `contact`.
+Equivalently, the model includes a full set of dummy variables that encode `contact` along with interactions between these dummies and the log of `population`.
+Notice that `population` is modeled on the log scale.
+This is discussed further below when an explicit structural model replaces the log-linear predictor used here.
+
+Now let's consider priors for the $\alpha_j$ and $\beta_j$ parameters. 
+To make these easier to think about, it helps to write the model in terms of the centered and standardized value of $\log P_i$ rather than the raw value:  
+```{r}
+dat <- dat |> 
+  mutate(cid = if_else(contact == 'low', 1, 2),
+         lpop = log(population), 
+         lpopz = (lpop - mean(lpop)) / sd(lpop)) |> 
+  select(total_tools, cid, lpopz)
+```
+A value of zero for `lpopz` indicates that a given society has a log `population` equal to the sample mean.
+This helps us think about a reasonable prior for $\alpha_j$
+
+
+### A Prior for $\alpha$
+Ignore `cid` for the moment,  and consider a society with log population equal to the sample mean. 
+If we place a normal prior on $\alpha$, the model becomes
+$$
+\begin{align*}
+T_i &\sim \text{Poisson}(\lambda_i)\\
+\log \lambda_i &\sim \alpha \\
+\alpha &\sim \text{Normal}(\mu, \sigma).
+\end{align*}
+$$
+
+So what would be reasonable choices for $\mu$ and $\sigma$?
+The key point is that $\alpha$ controls the expected number of tools for a society.
+(Again, we're ignoring `contact` and considering the average society in terms of log population.)
+Under the model, the expected value of $T_i$ is $\lambda_i = e^\alpha$.
+And since $\alpha$ is normally distributed, $\lambda_i$ is [lognormal](https://en.wikipedia.org/wiki/Log-normal_distribution) with median $e^\mu$ and mean $\exp(\mu + \sigma^2 / 2)$.
+A "vague" prior might set $\mu = 0$ and $\sigma = 10$.
+But this is **totally crazy** in the present example: the implied lognormal distribution for $\lambda_i$ would have median $e^0 = 1$ and mean $\exp(50)$.
+Even if we know little or nothing about oceanic societies, we'd be pretty confident that they should have at least a *handful* of tools, and that they're unlikely to more than a hundred tools.
+The book suggests setting $\mu = 3$ and $\sigma = 0.5$, so that $\lambda_i$ has an *a priori* median of $\exp(3) \approx 20$ and mean of $\exp(3 + 0.5^2/2) \approx 23$.
+```{r}
+tibble(x = seq(from = 0.5, to = 100, by = 0.01),
+       prior_Crazy = dlnorm(x, 0, 10),
+       prior_Reasonable = dlnorm(x, 3, 0.5)) |> 
+  pivot_longer(starts_with('prior'), names_prefix = 'prior_', 
+               names_to = 'prior', values_to = 'density') |> 
+  ggplot(aes(x = x, y = density, col = prior)) +
+  geom_line() +
+  theme_bw() + 
+  xlab('mean number of tools')
+```
+### A Prior for $\beta$
+
+Again, ignore for a moment the variable `contact`.
+Given our normalization, the coefficient $\beta$ gives the effect of a one standard deviation change in log population on $\log \lambda_i$.
+Suppose we choose to put a normal prior on $\beta$. 
+Again we might be tempted to use a vague prior, e.g. $\text{Normal}(\mu = 0, \sigma = 10)$.
+But this implies totally **crazy** marginal effects *a priori*.
+The easiest way to see this is by simulation.
+We'll stick with the $\text{Normal}(\mu = 3, \sigma = 0.5)$ prior for $\alpha$ and try the "vague" prior for $\beta$:
+```{r}
+set.seed(10)
+n <- 100
+tibble(i = 1:n, 
+       a = rnorm(n, 3, 0.5),
+       b = rnorm(n, 0, 10)) |> 
+  expand_grid(x = seq(-2, 2, length.out = 100)) |> 
+  ggplot(aes(x = x, y = exp(a + b * x), group = i)) +
+  geom_line() +
+  coord_cartesian(ylim = c(0, 1000)) +
+  ylab('total tools') + 
+  xlab('z-score of log population') +
+  theme_bw()
+```
+It's wildly implausible that a tenth of a standard deviation change in log population should take total tools from close to zero to over a thousand. 
+A more reasonable prior for $\beta$ would be something like $\text{Normal}(\mu = 0, \sigma = 0.2)$, which gives a much more reasonable picture: note the different y-axis
+```{r}
+set.seed(10)
+n <- 100
+tibble(i = 1:n, 
+       a = rnorm(n, 3, 0.5),
+       b = rnorm(n, 0, 0.2)) |> 
+  expand_grid(x = seq(-2, 2, length.out = 100)) |> 
+  ggplot(aes(x = x, y = exp(a + b * x), group = i)) +
+  geom_line() +
+  ylab('total tools') + 
+  xlab('z-score of log population') +
+  theme_bw()
+```
+
+
+### Simulating from the Posterior
+Based on the experiments from above, we'll use the following priors:
+$$
+\begin{align*}
+\alpha_j &\sim \text{Normal}(3, 0.5)\\
+\beta_j & \sim \text{Normal}(0, 0.2)
+\end{align*}
+$$
+```{r}
+m11_10 <- ulam(
+  alist(
+    total_tools ~ dpois(lambda),
+    log(lambda) <- a[cid] + b[cid] * lpopz,
+    a[cid] ~ dnorm(3, 0.5),
+    b[cid] ~ dnorm(0, 0.2)
+  ), data = dat, chains = 4
+)
+
+precis(m11_10, depth = 2)
+```
+We can also look at some diagnostics:
+```{r}
+traceplot(m11_10)
+```
+```{r}
+trankplot(m11_10)
+```
+We see that the model seems to be mixing well.
+Here's the underlying STAN code used to fit the model:
+```{r}
+stancode(m11_10)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
