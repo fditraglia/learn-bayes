@@ -129,13 +129,15 @@ $$
 \end{align*}
 $$
 ```{r}
+#| warning: false
+#| message: false
 m11_10 <- ulam(
   alist(
     total_tools ~ dpois(lambda),
     log(lambda) <- a[cid] + b[cid] * lpopz,
     a[cid] ~ dnorm(3, 0.5),
     b[cid] ~ dnorm(0, 0.2)
-  ), data = dat, chains = 4
+  ), data = dat, chains = 4, cmdstan = TRUE # faster!
 )
 
 precis(m11_10, depth = 2)
@@ -155,7 +157,96 @@ stancode(m11_10)
 
 ### A Structural Model
 
-**Come back and add this**
+This is fun. 
+Rather than simply using a log link function and a linear predictor on the log scale we can actually try to **think about a production technology for tools**!
+Here's a simple model in discrete time suggested in the book.
+Suppose that the change in the average number of tools from one period to the next is given by
+$$
+\Delta T = \alpha P^\beta - \gamma T.
+$$
+The parameter $\gamma$ represents *depreciation*: from one period to the next, a fraction $\gamma$ of existing tools falls out of use and disappears.
+The parameters $\alpha$ and $\beta$ govern the creation of *new tools*.
+The rate at which new tools are developed depends on population size according to a Cobb-Douglas model.
+We would expect diminishing returns to population: $\beta < 1$.
+Notice that this model is on the scale of *population* rather than the logarithm of population.
+Notice further that this is a model in which population is exogenous.
+We could think of more complicated models, but this is a very small and limited dataset.
+In equilibrium $\Delta T = 0$, i.e.\ $\alpha P^\beta = \gamma T$.
+Solving for the equilibrium number of tools $T^*$ gives
+$$
+T^* = \frac{\alpha}{\gamma} P^\beta.
+$$
+This is a structural model.
+To turn it into a *statistical* model, we need a likelihood i.e.\ a distribution for *noise* around $T^*$. 
+Since `total_tools` is a count variable with no upper bound, the maximum entropy distribution is a Poisson. 
+So we specify the model as follows
+$$
+\begin{align*}
+T_i &\sim \text{Poisson}(\lambda_i) \\
+\lambda_i &= \alpha_{\text{CID}[i]} P^{\beta_{\text{CID}[i]}}/\gamma.
+\end{align*}
+$$
+This allows the production technology for new tools, characterized by $\alpha$ and $\beta$, to vary depending on the extent of contact that the society had with other societies. 
+The book doesn't mention this, but it seems that $\gamma$ shouldn't be separately identifiable.
+If I'm right about this, the posterior for this parameter should equal the prior.
+We'll take a look below.
+All of the parameters should be positive.
+The book places lognormal priors on $\alpha_{\text{CID}[i]}$ and standard exponential priors on $\beta_{\text{CID}[i]}$ and $\gamma$.
+```{r}
+#| warning: false
+#| message: false
+data(Kline)
+dat2 <- as_tibble(Kline) 
+rm(Kline)
+dat2 <- dat2 |> 
+  mutate(cid = if_else(contact == 'low', 1, 2)) |> 
+  select(population, cid, total_tools)
+
+m11_11 <- ulam(
+  alist(
+    total_tools ~ dpois(lambda),
+    lambda <- exp(a[cid]) * population^b[cid] / g,
+    # Not sure why the book uses a normal and then exponentiates rather
+    # than just using a lognormal. Maybe to avoid numerical issues?
+    a[cid] ~ dnorm(1, 1),
+    b[cid] ~ dexp(1),
+    g ~ dexp(1)
+  ), data = dat2, chains = 4, cmdstan = TRUE # faster!
+)
+```
+I think those warnings are OK: occasionally there's a numerical issue when working with constrained parameters.
+But as long as it happens only occasionally, it should be fine. 
+The STAN code for this model is very easy to understand: 
+```{r}
+stancode(m11_11)
+```
+
+Let's take a look at the results:
+```{r}
+precis(m11_11, depth = 2)
+```
+The other diagnostics look good:
+```{r}
+traceplot(m11_11)
+```
+
+```{r}
+trankplot(m11_11)
+```
+So what about $\gamma$? Is it identifiable here? Or does the posterior simply match the prior?
+```{r}
+posterior <- extract.samples(m11_11)
+mean(posterior$g)
+tibble(g = posterior$g) |> 
+  ggplot(aes(x = g)) +
+  geom_density() +
+  stat_function(fun = dexp, col = 'red') # defaults to exponential(1)
+```
+
+
+**add some plots etc**
+
+
 
 ## Over-dispersion
 
@@ -271,6 +362,8 @@ Note that we will only "observe" `y`; `drink` is merely used in the simulation.
 (If we knew `drink` we could simply analyze the days when the monks were working as a plain vanilla Poisson regression!)
 Now we can fit the model:
 ```{r}
+#| warning: false
+#| message: false
 m12_3 <- ulam(
   alist(
     y ~ dzipois(p, lambda),
@@ -278,7 +371,7 @@ m12_3 <- ulam(
     log(lambda) <- al,
     ap ~ dnorm(-1.5, 1),
     al ~ dnorm(1, 0.5)
-  ), data = list(y = y), chains = 4
+  ), data = list(y = y), chains = 4, cmdstan = TRUE # faster!
 )
 ```
 These are the priors from the book.
