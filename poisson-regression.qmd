@@ -243,14 +243,111 @@ tibble(g = posterior$g) |>
   stat_function(fun = dexp, col = 'red') # defaults to exponential(1)
 ```
 
+It looks like the posterior doesn't *quite* match the prior, but this might just be sampling error.
+I still don't see how this parameter is identified in the frequentist sense.
+Presumably normalizing it to one shouldn't have an effect on the results except insofar as it changes the interpretation of the $e^{\alpha_j}$ parameters.
 
-**add some plots etc**
 
+## Comparing the Statistical and Structural Models
+
+Now we'd like to see how the purely "statistical" Poisson regression model compares to the "structural" model.
+We can't compare the parameters directly, since they have different meanings. 
+But both models specify $y_i \sim \text{Poisson}(\lambda_i)$; they simply parameterize $\lambda_i$ differently. 
+It's actually a bit more helpful to think about this in terms of a function $\lambda(\text{Covariates}_i)$, since then we can imagine evaluating $\lambda_i$ for a value of $\text{Covariates}_i$ that doesn't necessarily appear in our dataset.
+We can posterior draws for the model parameters to approximate the *implied* posterior for $\lambda(\cdot)$ evaluated wherever we like. 
+It's fairly straightforward to do this "by hand" using `extract.samples()`.
+But there's a faster and simpler way in this case, using the `link()` function from `rethinking`.
+It's behavior is very similar to that of the base R function `predict()` except that it defaults to producing predictions on the scale of the *outcome* rather than the scale of the linear predictor, and it produces posterior *samples* rather than a prediction.
+If you want a prediction, then simply process the draws however you like, e.g.\ taking the mean to obtain the optimal prediction under squared error loss.
+
+We'll start with the "statistical" model and make predictions over a sequence of values of `lpopz` with `cid` set to `1`. 
+In other words, we'll make predictions for "low contact" societies:
+```{r}
+lpopz_seq <- seq(-5, 2.4, length.out = 100)
+lambda <- link(m11_10, data = data.frame(lpopz = lpopz_seq, cid = 1))
+str(lambda)
+```
+notice that the result is a matrix with as many columns as there are values of `lpopz` in `lpopz_seq`. 
+Each *row* is a collection of draws from the posterior at the corresponding value of `lpopz`.
+I'm not entirely sure why it defaults to 2000 posterior draws: this doesn't seem to accord with the documentation, but it does accord with the messages that R prints to the console so it's definitely correct.
+Thus, we can plot the posterior mean prediction as follows:
+```{r}
+plot(lpopz_seq, colMeans(lambda), type = 'l',
+     xlab = 'log population (z-score)', ylab = 'total tools')
+```
+Now that we have the idea, let's make a more useful plot that shows the data, the predicted relationship for both high and low contact societies, and HPDs.
+Let's also make the plot on the *raw* population scale since that's easier to understand:
+```{r}
+lambda_low <- link(m11_10, data = data.frame(lpopz = lpopz_seq, cid = 1))
+lambda_high <- link(m11_10, data = data.frame(lpopz = lpopz_seq, cid = 2))
+
+summarize_predictions <- function(predictions) {
+  tibble(mean = colMeans(predictions),
+         lower = apply(predictions, 2, quantile, probs = 0.05),
+         upper = apply(predictions, 2, quantile, probs = 0.95))
+}
+
+data(Kline)
+lpop_mean <- mean(log(Kline$population))
+lpop_sd <- sd(log(Kline$population))
+pop_seq <- exp(lpop_mean + lpop_sd * lpopz_seq)
+
+predictions_low <- summarize_predictions(lambda_low) |> 
+  mutate(population = pop_seq, contact = 'low')
+
+predictions_high <- summarize_predictions(lambda_high) |> 
+  mutate(population = pop_seq, contact = 'high')
+
+predictions <- bind_rows(predictions_low, predictions_high) 
+predictions |> 
+  ggplot(aes(x = population, y = mean, col = contact, lty = contact)) +
+  geom_line() + 
+  geom_point(data = Kline, aes(x = population, y = total_tools)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = contact), alpha = 0.2) +
+  ylab('total tools') +
+  ggtitle("'Statistical' Model") +
+  theme_minimal()
+```
+Notice how the mean curves *cross* at very high populations.
+This comes entirely from the single observation with high population: Hawaii.
+But this probably doesn't make sense from a scientific perspective.
+
+In the "statistical" model, the intercept is a free parameter.
+But we actually know what the intercept should be here: zero people means zero tools.
+The "structural" model imposes this, so it gives more reasonable extrapolations:
+```{r}
+# Remember that this model is on the *raw* population scale!
+lambda_low <- link(m11_11, data = data.frame(population = pop_seq, cid = 1))
+lambda_high <- link(m11_11, data = data.frame(population = pop_seq, cid = 2))
+
+predictions_low <- summarize_predictions(lambda_low) |> 
+  mutate(population = pop_seq, contact = 'low')
+
+predictions_high <- summarize_predictions(lambda_high) |> 
+  mutate(population = pop_seq, contact = 'high')
+
+predictions <- bind_rows(predictions_low, predictions_high) 
+predictions |> 
+  ggplot(aes(x = population, y = mean, col = contact, lty = contact)) +
+  geom_line() + 
+  geom_point(data = Kline, aes(x = population, y = total_tools)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = contact), alpha = 0.2) +
+  ylab('total tools') +
+  ggtitle("'Structural' Model") +
+  theme_minimal()
+```
 
 
 ## Over-dispersion
 
-**Before putting this example in, I need to go back to the first example and make the plots that I skipped and look at the influence of Hawaii to the fits.**
+I'm not going to go through all of the plots and diagnostics right now because I'm lazy!
+But to make a long story short, as we've already seen Hawaii turns out to be an *extremely* influential observation in the models from above.
+It is a low contact society with an extremely high population and large number of tools.
+Including or excluding Hawaii makes a big difference to the posterior.
+Why is this so?
+Both of the Poisson models from above assume that the rate parameter is *identical* for two societies with the same covariates.
+In other words, they don't allow for unobserved heterogeneity in the rate parameter.
+
 
 
 ## Simulation Example with Offsets
