@@ -347,8 +347,73 @@ Including or excluding Hawaii makes a big difference to the posterior.
 Why is this so?
 Both of the Poisson models from above assume that the rate parameter is *identical* for two societies with the same covariates.
 In other words, they don't allow for unobserved heterogeneity in the rate parameter.
+To build this into the model, we can add a multiplicative error term:
+$$
+y_i \sim \text{Poisson}(\lambda_i \nu_i)
+$$
+where $\lambda_i$ is the "systematic" part of the model, the part that involves covariates, and $\nu_i$ is unobserved heterogeneity.
+In this multiplicative parameterization, it makes sense for $\nu_i$ to have expected value equal to one. 
+If it is independent of $\lambda_i$ we obtain a Poisson mixture distribution. 
+This is equivalent to including an additive error term on the log scale.
+When $\nu_i$ is assumed to follow a gamma distribution with shape and rate parameters both equal to $\phi$, we obtain the Gamma-Poisson mixture aka the "Negative Binomial" model.
+This model breaks the link between the mean and variance that holds in a simple Poisson model.
+The new parameter $\phi$ allows over-dispersion. 
+Confusingly, different sources use different parameterizations. 
+According to the book, the one used in `rethinking` is such that when
+$$
+y_i \sim \text{Gamma-Poisson}(\lambda_i, \phi)
+$$
+the mean of $y_i$ is $\lambda_i$ and the variance is $\lambda_i + \lambda_i^2 / \phi$.
+So as $\phi$ tends to infinity, this approaches a standard Poisson regression model.
+This also accords with the parameterization I was taught!
+The base R function `dgampois()`, however, appears to be parameterized in terms of $1/\phi$, although I need to double-check this.
 
+We can implement this with only minimal changes to our code from above. 
+All we need to do is change the likelihood, and add a prior for the new parameter $\phi$:
+```{r}
+#| message: false
+#| warning: false
+m12_2 <- ulam(
+  alist(
+    total_tools ~ dgampois(lambda, phi),
+    lambda <- exp(a[cid]) * population^b[cid] / g,
+    # Not sure why the book uses a normal and then exponentiates rather
+    # than just using a lognormal. Maybe to avoid numerical issues?
+    a[cid] ~ dnorm(1, 1),
+    b[cid] ~ dexp(1),
+    g ~ dexp(1),
+    phi ~ dexp(1)
+  ), data = dat2, chains = 4, cmdstan = TRUE # faster!
+)
+```
+Now some diagnostics:
+```{r}
+traceplot(m12_2)
+trankplot(m12_2)
+```
+And we can redo the plot from above:
+```{r}
+lambda_low <- link(m12_2, data = data.frame(population = pop_seq, cid = 1))
+lambda_high <- link(m12_2, data = data.frame(population = pop_seq, cid = 2))
 
+predictions_low <- summarize_predictions(lambda_low) |> 
+  mutate(population = pop_seq, contact = 'low')
+
+predictions_high <- summarize_predictions(lambda_high) |> 
+  mutate(population = pop_seq, contact = 'high')
+
+predictions <- bind_rows(predictions_low, predictions_high) 
+predictions |> 
+  ggplot(aes(x = population, y = mean, col = contact, lty = contact)) +
+  geom_line() + 
+  geom_point(data = Kline, aes(x = population, y = total_tools)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = contact), alpha = 0.2) +
+  ylab('total tools') +
+  ggtitle("'Structural' Model: Gamma-Poisson Mixture") +
+  theme_minimal()
+```
+Notice how the scale of the uncertainty bands has widened: the y-axis is quite different.
+Notice also how the mean response for low-contact societies reacts less strongly to Hawaii.
 
 ## Simulation Example with Offsets
 
