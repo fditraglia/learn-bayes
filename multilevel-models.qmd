@@ -1,0 +1,244 @@
+---
+title: "Multilevel Models from Statistical Rethinking"
+format: 
+  html:
+    embed-resources: true
+---
+
+## Reed Frogs Dataset
+
+This dataset comes from an experiment in which a number of tanks with tadpoles were exposed to different conditions:
+  - `density`: the initial number of tadpoles in the tank
+  - `pred`: does the tank contain predators? (categorical)
+  - `size`: big or small tadpoles? (categorical)
+  - `surv`: number of tadpoles that survive
+  - `propsurv`: proportion that survive
+
+```{r}
+#| message: false
+#| warning: false
+library(tidyverse)
+library(rethinking)
+
+data(reedfrogs)
+
+d <- as_tibble(reedfrogs)
+d
+```
+
+
+### Simplest Varying Intercepts Model 
+
+Let $S_i$ be the number of tadpoles in tank $i$ that **survive** and $N_i$ be the number of tadpoles in the tank.
+I'm not sure why the book's notation makes a distinction between $\text{TANK}[i]$ and $i$, since as far as I can tell these are the same thing.
+This distinction is only interesting, so far as I can see, if there are multiple measures in the same tank.
+But let's continue anyhow!
+Suppose we decide to model $S_i$ as a Binomial random variable. 
+Then, giving each tank its own probability of survival yields the following model
+$$
+\begin{align*}
+S_i & \sim \text{Binomial}(N_i, p_i)\\
+\text{logit}(p_i) &= \alpha_{\text{TANK}[i]}\\
+\alpha_j &\sim \text{Normal}(\bar{\alpha} = 0, \sigma = 1.5)
+\end{align*}
+$$
+For the models that we fit below, we'll need a tank index. 
+We'll also rename the columns to match the mathematical description of the model, and keep only the columns we need below:
+```{r}
+dat <- d |> 
+  rowid_to_column('tank') |> 
+  rename(S = surv, N = density) |> 
+  select(tank, S, N)
+```
+
+And now we can fit the model. 
+Since I've installed it, we'll use `cmdstan` throughout to speed things up.
+To avoid supplying this as an option every time we fit a model, I'll set it once and for all here:
+```{r}
+set_ulam_cmdstan(TRUE)
+```
+And now we'll fit the first model:
+```{r}
+#| message: FALSE
+#| warning: FALSE
+m13_1 <- ulam(
+  alist(
+    S ~ dbinom(N, p), 
+    logit(p) <- a[tank],
+    a[tank] ~ dnorm(0, 1.5)
+  ), data = dat, chains = 4, log_lik = TRUE
+)
+```
+Since there are so many parameters here, I'm not going to make any plots for them.
+Instead we'll move on to fitting our first *multilevel model*.
+
+
+### Multilevel Tadpoles 
+
+Now we'll modify the model from above to put priors on the *parameters* of the prior for $\alpha_j$ from above, namely $\bar{\alpha}$ and $\sigma$.
+Priors on parameters that enter a prior for other parameters are called **hyperpriors**.
+In effect, we will *learn the prior* for $\alpha_j$ from the data rather than fixing it in advance:
+$$
+\begin{align*}
+S_i & \sim \text{Binomial}(N_i, p_i)\\
+\text{logit}(p_i) &= \alpha_{\text{TANK}[i]}\\
+\alpha_j &\sim \text{Normal}(\bar{\alpha}, \sigma)\\
+\bar{\alpha} &\sim \text{Normal}(0, 1.5)\\
+\sigma &\sim \text{Exponential}(1)
+\end{align*}
+$$
+To understand what's going on here, it's helpful to simulate from the multi-level prior, and transform the results to examine the prior beliefs for $p_i$
+```{r}
+set.seed(1983)
+n_sims <- 1000
+alpha_bar <- rnorm(n_sims, 0, 1.5)
+sigma <- rexp(n_sims)
+alpha <- rnorm(n_sims, alpha_bar, sigma)
+p_prior <- plogis(alpha)
+rm(n_sims, alpha_bar, sigma, alpha)
+hist(p_prior)
+```
+So we see that the implied prior beliefs for $p$ in this case are close to uniform. 
+This is a fairly reasonable starting point.
+Although the priors for $\bar{\alpha}$ and $\sigma$ may *look* informative, its hard to interpret them directly because of the nonlinear transformation.
+Now we can fit the model:
+```{r}
+#| message: false
+#| warning: false
+m13_2 <- ulam(
+  alist(
+    S ~ dbinom(N, p),
+    logit(p) <- a[tank],
+    a[tank] ~ dnorm(a_bar, sigma),
+    a_bar ~ dnorm(0, 1.5),
+    sigma ~ dexp(1)
+  ), data = dat, chains = 4, log_lik = TRUE
+)
+```
+
+### Summarizing the Multilevel Model 
+The book does something slightly strange here and I think it's wrong. 
+First it computes the posterior mean for each of the $\alpha_j$ parameters and *then* it transforms these to the probability scale.
+But that doesn't give us the posterior mean of the *probabilities*.
+It gives us the posterior mean of the *logit scale parameter* transformed to the probability scale.
+Interestingly, the book computes the posterior mean for the overall probability in what seems to me to be the right way: by first transforming the draws for $\bar{alpha}$ to the probability scale and *then* taking the mean. 
+Clearly one of these must be wrong. 
+I'm going to do things the way that seem right to me: transform first, average second.
+
+```{r}
+post <- extract.samples(m13_2)
+
+# Matrix of posterior draws for alpha: 2000 rows (draws) by 48 cols (params)
+alpha_posteriors <- post$a
+p_posteriors <- plogis(alpha_posteriors) # transform to probability scale
+
+# Vector of 2000 posterior draws for a_bar
+a_bar_posterior <- post$a_bar
+p_bar_posterior <- plogis(a_bar_posterior)
+
+grand_mean <- dat |> 
+  summarize(sum(S) / sum(N)) |> 
+  pull()
+
+# Bayesian posterior mean versus MLE for tank-specific survival probabilities
+dat |> 
+  mutate(Bayes = colMeans(p_posterior), MLE = S / N) |> 
+  select(tank, Bayes, MLE) |> 
+  pivot_longer(c(Bayes, MLE), names_to = 'type', values_to = 'estimate') |> 
+  ggplot(aes(x = tank, y = estimate, color = type)) +
+  geom_point(size = 3) +
+  ylab('estimated survival proportion') +
+  geom_vline(xintercept = c(16.5, 32.5), lty = 2) +
+  # This part is messy: I wanted to match the colors though
+  geom_hline(yintercept = mean(p_bar_posterior), col = scales::hue_pal()(2)[1]) +
+  geom_hline(yintercept = grand_mean, col = scales::hue_pal()(2)[2]) +
+  theme_minimal()
+
+
+```
+There are a few things worth noticing here.
+First, the posterior mean for $\bar{\alpha}$ transformed to the probability scale does *not* equal the grand mean, although the two are similar.
+Second, the Bayesian posterior means for the tank-level probabilities are shrunk towards the posterior mean for $\bar{\alpha}$ on the probability scale.
+This is the sense in which we have a multilevel model.
+It's basically Bayesian "random effects."
+
+The plot above shows inferences for the tanks that are *actually in our dataset*, i.e.\ the $\alpha_j$ parameters.
+We can also carry out inferences for tanks that we have *not yet observed* by drawing first from the posterior for $\bar{\alpha}$ and $\sigma$ and then using these draws to simulate $\alpha_j$ for new tanks.
+First we'll look at the posteriors for $\bar{\alpha}$ and $\sigma$
+```{r}
+hist(post$a_bar)
+hist(post$sigma)
+```
+Notice that the posterior for $\sigma$ doesn't look much like a standard exponential distribution at all!
+Our choice of hyperprior for this parameter was quite weak.
+Since we have observations for many tanks, the posterior is considerably tighter. 
+According to the book, the standard exponential is a good general choice in that it provides some shrinkage towards zero but doesn't impose much information.
+But supposedly when you only have a few clusters, it will probably be necessary to use a more informative prior.
+The book suggests a **half normal prior** for situations like these, since it has thinner tails than the exponential.
+
+Now we can simulate some new tanks and summarize the probability of survival for these simulations:
+```{r}
+new_tanks <- rnorm(8000, post$a_bar, post$sigma)
+hist(plogis(new_tanks), lwd = 2)
+```
+Notice that this is much different from the prior simulations from above, which gave us something like a uniform distribution.
+
+
+### Simulation
+
+The next part of this chapter uses the same model as above, but fits it to simulated data that came from this DGP.
+The point is to show that the partial pooling provided by a multi-level model gives *better predictions* on average, although it makes worse predictions for "extreme" tanks, since it shrinks them towards the mean.
+I'll skip this because I already understand it in other contexts, e.g. James-Stein and Empirical Bayes.
+
+## Chimpanzees
+This is an experiment that tests for prosocial preferences using chimpanzees as subjects.
+There is a long table with one lever on the right and another on the left.
+Each level operates an apparatus with two dishes. 
+Pulling the lever sends one dish towards the level, and another in the opposite direction across the table.
+The chimpanzee who chooses which lever to pull is called the *focal* chimpanzee.
+There may be another chimpanzee seated across the table depending on the experimental condition.
+In the *control condition*, the focal chimpanzee is alone at the table; in the *partner condition* there is another chimpanzee seated at the opposite end of the table.
+To learn about social preferences, experimenters can fill *both* dishes with food on one side of the table, but only *one* on the other.
+The focal chimpanzee then has to choose whether to send food to itself only or to both itself and its partner. 
+Human students who play this game nearly always send food to both their partner and themselves.
+Here is the dataset:
+```{r}
+data("chimpanzees")
+d <- as_tibble(chimpanzees)
+```
+The variables are as follows:
+- `actor` - participant id for the focal chimpanzee
+- `partner` - participant id for partner chimpanzee / `NA` if control condition
+- `condition` - `0` if control, `1` if partner
+- `prosocial_left` - 1 if prosocial option was left level
+- `pulled_left` - 1 if chimp pulls left lever
+- `chose_prosoc` - 1 if the chimp pulled the pro-social lever
+- `block` - block of trials (I don't quite understand this. Is it a session id?)
+- `trial` - trial number for each chimp
+
+First we'll construct a categorical variable to denote the four "treatments" - the four possible combinations of `prosoc_left` and `condition`.
+Even in the control condition there is still technically a pro-social option in that one of the levers sends food across the table; it's just that there's no chimp seated on the other side in the control condition.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
