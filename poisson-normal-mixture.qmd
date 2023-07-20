@@ -1,0 +1,143 @@
+---
+title: "poisson-normal-mixture"
+format: 
+  html:
+    embed-resources: true
+---
+
+## What is this?
+A simulation to see if I understand how to estimate a Poisson mixture model correctly:
+$$
+\begin{align*}
+Y_i &\sim \text{Poisson}(\lambda_i \nu_i)\\
+\log(\lambda_i) &= \alpha + \beta X_i\\
+\log(\nu_i) &\sim \text{Normal}(0, \sigma)
+\end{align*}
+$$
+If $\sigma > 0$ we have a normal-Poisson mixture; if $\sigma = 0$ we have a plain-vanilla Poisson regression.
+
+## Generate simulation data
+
+Here the regression of `y` on `x` is a plain-vanilla Poisson regression.
+The regression of `ymix` on `x` is a Poisson-normal mixture with the same conditional mean relationship between `ymix` and `x`.
+(The intercept has a different interpretation: see the derivation below.)
+
+```{r}
+#| warning: false
+#| message: false
+library(rethinking)
+library(tidyverse)
+library(patchwork)
+
+set.seed(298710)
+n <- 10000
+a <- -2
+b <- 1
+
+dat <- tibble(x = runif(n, -3, 3),
+              u = rnorm(n, 0, 2),
+              y = rpois(n, exp(a + b * x)),
+              ymix = rpois(n, exp(a + b * x + u)))
+
+plain <- dat |> 
+  ggplot(aes(x = x, y = y)) +
+  geom_point() +
+  geom_smooth() +
+  ggtitle('Plain Vanilla')
+
+mix <- dat |> 
+  ggplot(aes(x = x, y = ymix)) +
+  geom_point() +
+  geom_smooth() +
+  ggtitle('Mixture')
+
+plain + mix
+```
+
+## Do these really have the same conditional expectation function?
+Drop $i$ subscripts for simplicity.
+We have:
+$$
+\begin{align*}
+Y &\sim \text{Poisson}(\mu)\\
+\mu &= \lambda \nu \\
+\log(\lambda) &= \alpha + \beta X\\
+\log(\nu) &= U \sim \text{Normal}(0, \sigma)
+\end{align*}
+$$
+If we treat $\alpha$ and $\beta$ as fixed parameters, $\lambda$ is $X$-measurable and thus
+$$
+\mathbb{E}[Y|X] = \mathbb{E}_{U|X}\left[\mathbb{E}\left(Y|X,U\right) \right] = \mathbb{E}[\lambda \nu|X] = \lambda \mathbb{E}[\nu|X]. 
+$$
+(Alternatively, re-interpret the expectation as conditional on $\alpha$ and $\beta$ in addition to $X$.)
+Therefore, as long as $\nu$ is mean-independent of $X$ and $\mathbb{E}[\nu] = 1$ we have $\mathbb{E}[\lambda]$.
+
+In the simulation above, $U$ is standard normal.
+If $U\sim \text{Normal}(0, \sigma)$ then $\nu = \exp(U)$ is $\text{Lognormal}(0, \sigma)$.
+Recall that a Lognormal$(\mu, \sigma)$ RV has mean $\exp(\mu + \sigma^2/2)$.
+Thus, in our simulation $\mathbb{E}(\nu) = \exp(1/2) \approx 1.65$.
+This does not equal one. 
+But we can always normalize $\nu$ to have expectation equal to one as follows:
+$$
+\begin{align*}
+\lambda \nu &= \mathbb{E}(\nu)\exp(\alpha + \beta X) \left[\nu / \mathbb{E}(\nu) \right]\\
+&= \exp\left\{\log(\mathbb{E}[\nu]) \right\}\exp(\alpha + \beta X)\tilde{\nu}\\
+&= \exp\{\alpha + \log(\mathbb{E}[\nu]) + \beta X\}  \tilde{\nu}\\
+&= \exp(\tilde{\alpha} + \beta X) \tilde{\nu}
+\end{align*}
+$$
+where $\tilde{\alpha} \equiv \alpha + \log(\mathbb{E}[\nu])$ and $\tilde{nu} \equiv \nu/\mathbb{E}(\nu)$.
+For example, in the simulation $\tilde{\alpha} = \alpha + \sigma^2/2 = (\alpha + 0.5)$.
+So in sufficiently large samples, we should obtain the *same* estimates for $\beta$ from a plain-vanilla Poisson regression and a normal-Poisson mixture model, but the intercepts will differ by $\sigma^2/2$.
+
+
+## Frequentist Estimation
+
+First the "correctly specified" Poisson regression of `y` on `x`:
+```{r}
+library(broom)
+glm(y ~ x, data = dat, family = poisson) |> 
+  tidy() |> 
+  knitr::kable(digits = 2)
+```
+Now the "mis-specified" Poisson regression of `ymix` on `x`:
+```{r}
+library(broom)
+glm(ymix ~ x, data = dat, family = poisson) |> 
+  tidy() |> 
+  knitr::kable(digits = 2)
+```
+
+The slope coefficients behave as expect.
+But I'm a bit confused about the intercept in the second model.
+My calculations from above suggest that it should come out to $-1.5$ but it seems to be approximately zero instead. 
+**I need to check this!**
+
+## Bayesian Estimation
+Let's try to estimate this using the `rethinking package`.
+At first I thought this would require working out the likelihood function for the normal-Poisson mixture.
+This impression was based on the fact that `rethinking` (along with STAN) *does* have a built-in likelihood function for the gamma-Poisson mixture, i.e. negative binomial regression.
+But I think it's equivalent, and simpler, to think of this mixture as a *hierarchical model*.
+From page 407 of *Statistical Rethinking*:
+> In the previous chapter (page 369), the beta-binomaial and gamma-Poisson models were presented as ways for coping with OVER-DISPERSION of count data. Varying intercepts accomplish the same thing, allowing count outcomes to be over-dispersed. They accomplish this because when each observed count gets its own unique intercept, but these intercepts are pooled through a common distribution, the predictions expect over-dispersion just like a beta-binomial or gamma-Poisson model would. Multilevel models are also mixtures. Compared to a beta-binomal or gamma-Poisson model, a binomial or Poisson model with a varying intercept on every observed outcome will often be easier to estimate and easier to extend.
+
+I could be wrong--I should post on the STAN message board again and check--but this would seem to suggest that it will be sufficient to treat $\alpha$ as a heterogeneous parameter $\alpha_i \sim \text{Normal}(\bar{\alpha}, \sigma)$ and fit a multilevel model. 
+That's the approach I try here.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
