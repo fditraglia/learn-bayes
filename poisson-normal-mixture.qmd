@@ -30,14 +30,17 @@ library(tidyverse)
 library(patchwork)
 
 set.seed(298710)
-n <- 10000
+n <- 1000
 a <- -2
 b <- 1
 
-dat <- tibble(x = runif(n, -3, 3),
-              u = rnorm(n, 0, 2),
-              y = rpois(n, exp(a + b * x)),
-              ymix = rpois(n, exp(a + b * x + u)))
+sim_dat <- tibble(x = runif(n, -3, 3),
+                  u = rnorm(n, 0, 2), 
+                  y = rpois(n, exp(a + b * x)), 
+                  ymix = rpois(n, exp(a + b * x + u)))
+
+dat <- sim_dat |> 
+  select(x, y, ymix)
 
 plain <- dat |> 
   ggplot(aes(x = x, y = y)) +
@@ -75,7 +78,7 @@ Therefore, as long as $\nu$ is mean-independent of $X$ and $\mathbb{E}[\nu] = 1$
 In the simulation above, $U$ is standard normal.
 If $U\sim \text{Normal}(0, \sigma)$ then $\nu = \exp(U)$ is $\text{Lognormal}(0, \sigma)$.
 Recall that a Lognormal$(\mu, \sigma)$ RV has mean $\exp(\mu + \sigma^2/2)$.
-Thus, in our simulation $\mathbb{E}(\nu) = \exp(1/2) \approx 1.65$.
+Thus, in our simulation $\mathbb{E}(\nu) = \exp(2^2/2) = \exp(2) \approx 7.4$.
 This does not equal one. 
 But we can always normalize $\nu$ to have expectation equal to one as follows:
 $$
@@ -87,7 +90,7 @@ $$
 \end{align*}
 $$
 where $\tilde{\alpha} \equiv \alpha + \log(\mathbb{E}[\nu])$ and $\tilde{nu} \equiv \nu/\mathbb{E}(\nu)$.
-For example, in the simulation $\tilde{\alpha} = \alpha + \sigma^2/2 = (\alpha + 0.5)$.
+For example, in the simulation $\tilde{\alpha} = \alpha + \sigma^2/2 = (\alpha + 2)$.
 So in sufficiently large samples, we should obtain the *same* estimates for $\beta$ from a plain-vanilla Poisson regression and a normal-Poisson mixture model, but the intercepts will differ by $\sigma^2/2$.
 
 
@@ -108,10 +111,7 @@ glm(ymix ~ x, data = dat, family = poisson) |>
   knitr::kable(digits = 2)
 ```
 
-The slope coefficients behave as expect.
-But I'm a bit confused about the intercept in the second model.
-My calculations from above suggest that it should come out to $-1.5$ but it seems to be approximately zero instead. 
-**I need to check this!**
+The slope coefficients behave as expect and so does the intercept: it should be zero in the second model since $-2 + 2^2/2 = 0$!
 
 ## Bayesian Estimation
 Let's try to estimate this using the `rethinking package`.
@@ -123,16 +123,37 @@ From page 407 of *Statistical Rethinking*:
 
 I could be wrong--I should post on the STAN message board again and check--but this would seem to suggest that it will be sufficient to treat $\alpha$ as a heterogeneous parameter $\alpha_i \sim \text{Normal}(\bar{\alpha}, \sigma)$ and fit a multilevel model. 
 That's the approach I try here.
+I haven't thought carfully about the priors yet: I just want to see if the thing will run and there's plenty of data so they shouldn't matter:
 
+```{r}
+d <- dat |> 
+  rowid_to_column('id') |>  # Calling it i throws a STAN error: it uses i internally
+  select(x, y = ymix, id)
 
+pois_mix <- ulam(
+  alist(
+    y ~ dpois(lambda),
+    log(lambda) <- a[id] + b * x,
+    a[id] ~ dnorm(a_bar, sigma),
+    a_bar ~ dnorm(0, 1.5),
+    b ~ dnorm(0, 0.2),
+    sigma ~ dexp(1)
+  ), data = d, chains = 4, cmdstan = TRUE
+)
+```
 
-
-
-
-
-
-
-
+Ok, it seems to have worked. 
+Let's take a look at the outputs:
+```{r}
+precis(pois_mix)
+```
+The estimate for $\sigma$ looks good. 
+The estimate for $\beta$ is a little low, but I didn't think carefully about the prior.
+It's also pretty close to the frequentist estimate.
+Notice that the inferences are much more reasonable: the Frequentist model has the wrong standard errors.
+The estimate for $\bar{a}$ also seems to equal the true $\alpha$! 
+I *think* this is what's supposed to happen so perhaps I can declare victory here.
+The R-hat values are a little high, and the effective sample sizes are a little low, so this model could probably benefit from more carefully considering the priors and possibly using a non-centered parameterization.
 
 
 
