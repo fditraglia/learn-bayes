@@ -73,9 +73,9 @@ $$
 \mathbb{E}[Y|X] = \mathbb{E}_{U|X}\left[\mathbb{E}\left(Y|X,U\right) \right] = \mathbb{E}[\lambda \nu|X] = \lambda \mathbb{E}[\nu|X]. 
 $$
 (Alternatively, re-interpret the expectation as conditional on $\alpha$ and $\beta$ in addition to $X$.)
-Therefore, as long as $\nu$ is mean-independent of $X$ and $\mathbb{E}[\nu] = 1$ we have $\mathbb{E}[\lambda]$.
+Therefore, as long as $\nu$ is mean-independent of $X$ and $\mathbb{E}[\nu] = 1$ we have $\mathbb{E}[Y|X] = \lambda$.
 
-In the simulation above, $U$ is standard normal.
+In the simulation above, $U$ is $\text{Normal}(0, 2)$.
 If $U\sim \text{Normal}(0, \sigma)$ then $\nu = \exp(U)$ is $\text{Lognormal}(0, \sigma)$.
 Recall that a Lognormal$(\mu, \sigma)$ RV has mean $\exp(\mu + \sigma^2/2)$.
 Thus, in our simulation $\mathbb{E}(\nu) = \exp(2^2/2) = \exp(2) \approx 7.4$.
@@ -89,7 +89,7 @@ $$
 &= \exp(\tilde{\alpha} + \beta X) \tilde{\nu}
 \end{align*}
 $$
-where $\tilde{\alpha} \equiv \alpha + \log(\mathbb{E}[\nu])$ and $\tilde{nu} \equiv \nu/\mathbb{E}(\nu)$.
+where $\tilde{\alpha} \equiv \alpha + \log(\mathbb{E}[\nu])$ and $\tilde{\nu} \equiv \nu/\mathbb{E}(\nu)$.
 For example, in the simulation $\tilde{\alpha} = \alpha + \sigma^2/2 = (\alpha + 2)$.
 So in sufficiently large samples, we should obtain the *same* estimates for $\beta$ from a plain-vanilla Poisson regression and a normal-Poisson mixture model, but the intercepts will differ by $\sigma^2/2$.
 
@@ -119,11 +119,12 @@ At first I thought this would require working out the likelihood function for th
 This impression was based on the fact that `rethinking` (along with STAN) *does* have a built-in likelihood function for the gamma-Poisson mixture, i.e. negative binomial regression.
 But I think it's equivalent, and simpler, to think of this mixture as a *hierarchical model*.
 From page 407 of *Statistical Rethinking*:
+
 > In the previous chapter (page 369), the beta-binomaial and gamma-Poisson models were presented as ways for coping with OVER-DISPERSION of count data. Varying intercepts accomplish the same thing, allowing count outcomes to be over-dispersed. They accomplish this because when each observed count gets its own unique intercept, but these intercepts are pooled through a common distribution, the predictions expect over-dispersion just like a beta-binomial or gamma-Poisson model would. Multilevel models are also mixtures. Compared to a beta-binomal or gamma-Poisson model, a binomial or Poisson model with a varying intercept on every observed outcome will often be easier to estimate and easier to extend.
 
 I could be wrong--I should post on the STAN message board again and check--but this would seem to suggest that it will be sufficient to treat $\alpha$ as a heterogeneous parameter $\alpha_i \sim \text{Normal}(\bar{\alpha}, \sigma)$ and fit a multilevel model. 
 That's the approach I try here.
-I haven't thought carfully about the priors yet: I just want to see if the thing will run and there's plenty of data so they shouldn't matter:
+I haven't thought carefully about the priors yet: I just want to see if the thing will run and there's plenty of data so they shouldn't matter:
 
 ```{r}
 d <- dat |> 
@@ -153,12 +154,160 @@ It's also pretty close to the frequentist estimate.
 Notice that the inferences are much more reasonable: the Frequentist model has the wrong standard errors.
 The estimate for $\bar{a}$ also seems to equal the true $\alpha$! 
 I *think* this is what's supposed to happen so perhaps I can declare victory here.
-The R-hat values are a little high, and the effective sample sizes are a little low, so this model could probably benefit from more carefully considering the priors and possibly using a non-centered parameterization.
+The R-hat values are a little high, and the effective sample sizes are a little low, so this model could possibly benefit from more carefully considering the priors and possibly using a non-centered parameterization.
 
 
+## A more informative prior for the variance component 
 
+One possible reason for the iffy convergence diagnostics (R-hat above one) is priors that are too vague.
+Let's take a closer look at the priors from above
+```{r}
+set.seed(10)
+n <- 500
+tibble(i = 1:n, 
+       sigma = rexp(n),
+       a_bar = rnorm(n, 0, 1.5),
+       a = rnorm(n, a_bar, sigma),
+       b = rnorm(n, 0, 0.2)) |> 
+  expand_grid(x = seq(-3, 3, length.out = 100)) |> 
+  ggplot(aes(x = x, y = exp(a + b * x), group = i)) +
+  geom_line() +
+  ylab('x') + 
+  xlab('y') +
+  theme_bw()
+```
+This looks pretty extreme: there's a fairly high probability of getting a totally crazy relationship between `x` and `y`. I think this is related to the choice of prior for `sigma`. This blows up inside the `exp()` function. To see if this is the reason, let's try fixing `sigma` to one:
+```{r}
+set.seed(10)
+n <- 500
+tibble(i = 1:n, 
+       a_bar = rnorm(n, 0, 1.5),
+       a = rnorm(n, a_bar, 1),
+       b = rnorm(n, 0, 0.2)) |> 
+  expand_grid(x = seq(-3, 3, length.out = 100)) |> 
+  ggplot(aes(x = x, y = exp(a + b * x), group = i)) +
+  geom_line() +
+  ylab('x') + 
+  xlab('y') +
+  theme_bw()
+```
+This looks better. In the "Overthinking" pullout box on pages 407-408 of the book, the half-normal distribution is recommended as an alternative to the standard exponential prior for variance components in settings where the link function blows everything up. Let's try this and see if it looks reasonable: 
+```{r}
+set.seed(10)
+n <- 500
+tibble(i = 1:n, 
+       sigma = abs(rnorm(n)),
+       a_bar = rnorm(n, 0, 1.5),
+       a = rnorm(n, a_bar, sigma),
+       b = rnorm(n, 0, 0.2)) |> 
+  expand_grid(x = seq(-3, 3, length.out = 100)) |> 
+  ggplot(aes(x = x, y = exp(a + b * x), group = i)) +
+  geom_line() +
+  ylab('x') + 
+  xlab('y') +
+  theme_bw()
+```
+Ok: this looks much better. Let's see if this makes a difference for the convergence diagnostics:
+```{r}
+pois_mix2 <- ulam(
+  alist(
+    y ~ dpois(lambda),
+    log(lambda) <- a[id] + b * x,
+    a[id] ~ dnorm(a_bar, sigma),
+    a_bar ~ dnorm(0, 1.5),
+    b ~ dnorm(0, 0.2),
+    sigma ~ dhalfnorm(0, 1) 
+  ), data = d, chains = 4, cmdstan = TRUE
+)
+```
+No divergent transitions! Let's compare the results. Here's the old version from above:
+```{r}
+# vague prior for sigma
+precis(pois_mix)
+```
+and here's the new version:
+```{r}
+# weakly informative prior for sigma
+precis(pois_mix2)
+```
+The point estimates and intervals are basically the same. The effective sample size and R-hat values have improved somewhat, although they're still not great. The diagnostic plots don't look terrible, but there's some evidence that the chains aren't mixing perfectly:
+```{r}
+trankplot(pois_mix2, pars = c('a_bar', 'b', 'sigma'))
+```
+```{r}
+traceplot(pois_mix2, pars = c('a_bar', 'b', 'sigma'))
+```
 
+## Non-centered Parameterization
+Viewed as a hierarchical model, the normal-Poisson mixture model can be written as:
+$$
+\begin{align*}
+Y_i &\sim \text{Poisson}(\lambda_i)\\
+\log(\lambda_i) &= \alpha_i + b X_i\\
+\alpha_i &\sim \text{Normal}(\bar{\alpha}, \sigma) 
+\end{align*}
+$$
+This is how we specified the model using `ulam()` above. If we define $U_i \equiv (\alpha_i - \bar{\alpha}) / \sigma$ then $\alpha_i = \bar{\alpha} + \sigma U_i$. Thus, an equivalent way of writing the mmodel is:
+$$
+\begin{align*}
+Y_i &\sim \text{Poisson}(\lambda_i)\\
+\log(\lambda_i) &= \bar{\alpha} + \beta X_i + \sigma U_i\\
+U_i &\sim \text{Normal}(0, 1). 
+\end{align*}
+$$
+This is called a *non-centered* parameterization. The name doesn't make much sense, but the idea is that we "pull out" the parameters that are "inside" of $\alpha_i$. Again, it's exactly the same model, but expressed differently.
+Distributions besides normals can be re-parameterized too, e.g. $\gamma \texttt{dexp}(1)$ rather than $\texttt{dexp}(\gamma)$.
+Supposedly non-centered parameterizations often improves the performance of HMC in hierarchical models where there are relatively few observations in each "group." In our model there's only *one* observation per group, in that $\alpha_i$ varies for each observation.
 
+We can implement the non-centered parameterization with `ulam()` as follows. Notice that this implementation is quite simple compared to the examples in the book. That's because *we aren't actually interested* in the values of $\alpha_i$, so there's no need to add extra code to generate $\alpha_i$ in each step of the algorithm.
+```{r}
+pois_mix3 <- ulam(
+  alist(
+    y ~ dpois(lambda),
+    log(lambda) <- a_bar + b * x + sigma * u[id],
+    u[id] ~ dnorm(0, 1),
+    a_bar ~ dnorm(0, 1.5),
+    b ~ dnorm(0, 0.2),
+    sigma ~ dhalfnorm(0, 1) 
+  ), data = d, chains = 4, cmdstan = TRUE
+)
+```
 
+So how did it work? Here was the previous version: 
+```{r}
+precis(pois_mix2)
+```
+and here is the new version:
+```{r}
+precis(pois_mix3)
+```
+Again, the inferences are basically unchanged but the number of effective examples for $\bar{\alpha}$ and $\beta$ improved, as did the R-hat values. R-hat still isn't perfect. Maybe there are ways to make some further improvements but I don't know what other approaches to try. I should try to find some more references for this.
+
+Out of curiosity, let's run a version with the original exponential prior for $\sigma$ to see how that works with the non-centered parameterization:
+```{r}
+pois_mix4 <- ulam(
+  alist(
+    y ~ dpois(lambda),
+    log(lambda) <- a_bar + b * x + sigma * u[id],
+    u[id] ~ dnorm(0, 1),
+    a_bar ~ dnorm(0, 1.5),
+    b ~ dnorm(0, 0.2),
+    sigma ~ dexp(1) 
+  ), data = d, chains = 4, cmdstan = TRUE
+)
+```
+
+Here's the non-centered parameterization with a half-normal prior for $\sigma$
+```{r}
+precis(pois_mix3)
+```
+and here's the non-centered parameterization with a standard exponential prior for $\sigma$
+```{r}
+precis(pois_mix4)
+```
+It looks like the non-centered parameterization with the *vaguer* prior actually works best here. Perhaps that's because the true value of $\sigma$ in this example is $2$ but the half-normal is somewhat skeptical about such large values compared to the exponential? I'm not sure, but it's a pretty big different in performance. Again the point estimates and uncertainty intervals are almost completely unchanged. 
+
+### An Aside about Mixtures 
+Mixture models always involve a "latent" variable. Here, the latent variable is the error term $U_i$. There are two ways to estimate models like this. One is to integrate out the latent variable. That's what we did in the gamma-Poisson mixture: the negative binomial model. For the normal-Gamma mixture, however, there's no closed form for the integral. The other option is to treat the latent variable as a parameter in a hierarchical model. Here we're using the latter approach. Since this always leads to a model with one observation per parameter, I think this means that non-centered parameterizations should *always* be helpful when dealing with mixture models in this way. Note that STAN can't sample discrete parameters, so for discrete mixtures you *must* integrate out the latent variable. This is how we estimated the zero-inflated Poisson, so this approach will only work for continuous mixtures. 
 
 
