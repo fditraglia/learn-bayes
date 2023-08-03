@@ -1,0 +1,167 @@
+---
+title: "endogenous-poisson-normal-mixture"
+format: 
+  html:
+    embed-resources: true
+---
+
+## The Model 
+$$
+\begin{align}
+Y_i & \sim \text{Poisson}(\lambda_i)\\
+X_i & \sim \text{Poisson}(\mu_i) \\
+\log(\lambda_i) &= \alpha + \beta X_i + U_i \\
+\log(\mu_i) &= \gamma + \delta Z_i + V_i \\
+\begin{bmatrix}
+U_i \\ V_i
+\end{bmatrix} &\sim \text{Normal}( \mathbf{0}, \Sigma)\\
+\Sigma &\equiv 
+\begin{bmatrix} \sigma_U^2 & \sigma_U \sigma_V \rho \\
+\sigma_U \sigma_V \rho & \sigma_V^2\end{bmatrix}
+\end{align}
+$$
+```{r}
+#| warning: false
+#| message: false
+library(rethinking)
+library(tidyverse)
+library(patchwork)
+library(mvtnorm)
+
+set.seed(298710)
+n <- 2500
+rho <- 0.5 
+S <- matrix(c(1, rho, 
+              rho, 1), 2, 2, byrow = TRUE)
+
+errors <- rmvnorm(n, sigma = S)
+
+
+a <- -2
+b <- 1
+s <- 2
+p <- 0.1
+
+#sim_dat <- tibble(x = runif(n, -3, 3),
+#                  u = rnorm(n, 0, s), 
+#                  y = rpois(n, exp(a + b * x)), 
+#                  ymix = rpois(n, exp(a + b * x + u)),
+#                  ymix_zi = ymix * rbinom(n, 1, 1 - p))
+
+#dat <- sim_dat |> 
+#  select(x, y, ymix, ymix_zi)
+#
+#plain <- dat |> 
+#  ggplot(aes(x = x, y = y)) +
+#  geom_point() +
+#  geom_smooth() +
+#  ggtitle('Plain Vanilla')
+#
+#mix <- dat |> 
+#  ggplot(aes(x = x, y = ymix)) +
+#  geom_point() +
+#  geom_smooth() +
+#  ggtitle('Mixture')
+#
+#mix_zi <- dat |> 
+#  ggplot(aes(x = x, y = ymix_zi)) +
+#  geom_point() +
+#  geom_smooth() +
+#  ggtitle('Zero-inflated Mixture')
+#
+#plain + mix + mix_zi
+```
+
+## Mullahy Approach
+
+Suppose that
+$$
+\mathbb{E}(Y|X,\eta) = \exp(\alpha + \beta X) \eta = \exp(\alpha + \beta X + U)
+$$
+where $U \equiv \log(\eta)$. Then we can always write 
+$$
+Y = \mathbb{E}(Y|X,\eta) + \epsilon = \exp(\alpha + \beta X) \eta + \epsilon
+$$
+where $\mathbb{E}(\epsilon|X,\eta) = 0$. Now assume that the instrument $Z$ satisfies
+$$
+\mathbb{E}(Y|X,\eta,Z) = \mathbb{E}(Y|X,\eta) \quad \text{and} \quad \mathbb{E}(\eta|Z) = \tau.
+$$
+Then it follows that 
+$$
+\begin{align*}
+\mathbb{E}(\epsilon|X,Z,\eta) &= \mathbb{E}[Y - \exp(\alpha + \beta X) \eta | X,Z,\eta] = \mathbb{E}(Y|X,Z,\eta) - \exp(\alpha + \beta X) \eta \\
+&= \mathbb{E}(Y|X,\eta) - \mathbb{E}(Y|X,\eta) = 0
+\end{align*}
+$$
+by the exclusion restriction from above. Now define
+$$
+T(Y,X;\alpha, \beta) = Y / \exp(\alpha + \beta X).
+$$
+Then we have
+$$
+\begin{align}
+\mathbb{E}[T(Y,X;\alpha, \beta) - 1 | Z] &= \mathbb{E}\left[\left.\frac{Y}{\exp(\alpha + \beta X)}  - 1 \right| Z\right] \\
+&= \mathbb{E}\left[ \left.\frac{\exp(\alpha + \beta X)\eta + \epsilon}{\exp(\alpha + \beta X)} - 1\right| Z\right] \\
+&= \mathbb{E}[\eta - 1|Z] + \mathbb{E}\left[\left. \frac{\epsilon}{\exp(\alpha + \beta X)} \right|Z\right]\\
+&= (\tau - 1) + \mathbb{E}\left[ \frac{1}{\exp(\alpha + \beta X)} \mathbb{E}\left(\left. \epsilon \right| X, Z, \eta\right)\right]\\
+&= (\tau - 1) + \mathbb{E}\left[ \frac{1}{\exp(\alpha + \beta X)} \times 0\right]\\
+&= (\tau - 1)
+\end{align}
+$$
+And since we have an intercept $\alpha$ we can normalize $\tau$ to one so the moment condition becomes zero. Therefore, the conditional moment equalities are
+$$
+\mathbb{E}\left[ \left.\frac{Y}{\exp(\alpha + \beta X)} - 1 \right| Z\right] = 0.
+$$
+To carry out estimation, we can convert this into a collection of unconditional moment equalities by multiplying the the moment function by any function of $Z$:
+$$
+\mathbb{E}\left[ \left\{\frac{Y}{\exp(\alpha + \beta X)} - 1 \right\} \varphi(Z)\right] = 0.
+$$
+An obvious choice here would be $\varphi(Z) = (1, Z)$, so the moment equations would be
+$$
+\begin{align*}
+\mathbb{E}\left[ \left\{\frac{Y}{\exp(\alpha + \beta X)} - 1 \right\} \right] &= 0\\
+\mathbb{E}\left[ \left\{\frac{Y}{\exp(\alpha + \beta X)} - 1 \right\} Z\right] &= 0.
+\end{align*}
+$$
+This is a two-dimensional non-linear optimization problem. Solving the first moment equation for $\alpha$ gives
+$$
+\alpha = \log \mathbb{E}[Y / \exp(\beta X)].
+$$
+In other words, $\exp(\alpha) = \mathbb{E}[Y/\exp(\beta X)]$. This allows us to "concentrate out" $\alpha$ from the second equation to obtain a one-dimensional root finding problem:
+$$
+\mathbb{E}\left[ \left\{ \frac{Y}{\mathbb{E}[Y/\exp(\beta X)] \exp(\beta X) } - 1 \right\} Z\right] = 0.
+$$
+We can simplify this as to become
+$$
+\frac{1}{\mathbb{E}[Y/\exp(\beta X)]}\mathbb{E}\left[ \left\{ \frac{Y}{\exp(\beta X) } - \mathbb{E}\left[\frac{Y}{\exp(\beta X)}\right] \right\} Z\right] = 0.
+$$
+But since the first factor in the product can never be zero, the moment equation simplifies further to
+$$
+\mathbb{E}\left[ \left\{ \frac{Y}{\exp(\beta X) } - \mathbb{E}\left[\frac{Y}{\exp(\beta X)}\right] \right\} Z\right] = 0.
+$$
+Notice that, by the definition of covariance, this is simply
+$$
+\text{Cov}\left(\frac{Y}{\exp(\beta X)}, Z\right) = 0.
+$$
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
