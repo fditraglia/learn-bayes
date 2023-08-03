@@ -1,0 +1,130 @@
+---
+title: "zero-inflated-poisson-normal-mixture"
+format: 
+  html:
+    embed-resources: true
+---
+
+## The Model and Simulation Data
+Recall the zero-inflated Poisson model $\text{ZIPoisson}(p, \lambda)$, namely:
+$$
+\begin{align*}
+\mathbb{P}(Y = 0|p, \lambda) &= p + (1 - p) \exp(-\lambda)\\
+\mathbb{P}(Y = y|y>0, p, \lambda) &= (1 - p) \frac{\lambda^y \exp(-\lambda)}{y!}.
+\end{align*}
+$$
+We can use this distribution to build a regression model as follows: 
+$$
+\begin{align*}
+Y_i &\sim \text{ZIPoisson}(p_i, \lambda_i)\\
+\text{logit}(p_i)  &= \alpha_p + \beta_p W_i\\
+\log(\lambda_i)  &= \alpha_\lambda + \beta_\lambda X_i
+\end{align*}
+$$
+where $\text{logit}(p_i) \equiv \log[p_i / (1 - p_i)]$. We can *further* extend this model by adding a normal error term to the equation for $\log(\lambda_i)$. To keep things simple, I'll remove the covariate $W_i$ and rename parameters to get rid of sub-scripts:
+$$
+\begin{align*}
+Y_i &\sim \text{ZIPoisson}(p_i, \lambda_i)\\
+\text{logit}(p_i)  &= \gamma \\
+\log(\lambda_i)  &= \alpha + \beta X_i + \sigma U_i\\
+U_i &\sim \text{Normal}(0, 1)
+\end{align*}
+$$
+Here's some simulated data from: (1) a plain-vanilla Poisson regression, (2) a normal-Poisson mixture, and (3) a zero-inflated normal-Poisson mixture. Intuitively, zero-inflation should make it *harder* to learn the parameters $(\alpha, \beta, \sigma)$ because it amounts to a kind of censoring. For this reason, I'll use a larger sample size in the simulation that I did for the normal-Poisson mixture we looked at before:
+```{r}
+#| warning: false
+#| message: false
+library(rethinking)
+library(tidyverse)
+library(patchwork)
+
+set.seed(298710)
+n <- 2500
+a <- -2
+b <- 1
+s <- 2
+p <- 0.1
+
+sim_dat <- tibble(x = runif(n, -3, 3),
+                  u = rnorm(n, 0, s), 
+                  y = rpois(n, exp(a + b * x)), 
+                  ymix = rpois(n, exp(a + b * x + u)),
+                  ymix_zi = ymix * rbinom(n, 1, 1 - p))
+
+dat <- sim_dat |> 
+  select(x, y, ymix, ymix_zi)
+
+plain <- dat |> 
+  ggplot(aes(x = x, y = y)) +
+  geom_point() +
+  geom_smooth() +
+  ggtitle('Plain Vanilla')
+
+mix <- dat |> 
+  ggplot(aes(x = x, y = ymix)) +
+  geom_point() +
+  geom_smooth() +
+  ggtitle('Mixture')
+
+mix_zi <- dat |> 
+  ggplot(aes(x = x, y = ymix_zi)) +
+  geom_point() +
+  geom_smooth() +
+  ggtitle('Zero-inflated Mixture')
+
+plain + mix + mix_zi
+```
+
+## Frequentist Poisson Regression
+
+Recall that the true regression slope and intercept in this simulation are $\alpha=$`r a`, $\beta=$ `r b`. Frequentist estimation of the plain-vanilla model should work perfectly, as it does here:
+```{r}
+library(broom)
+glm(y ~ x, data = dat, family = poisson) |> 
+  tidy() |> 
+  knitr::kable(digits = 2)
+```
+
+For the mixture model, Frequenstist estimation of a plain-vanilla Poisson model should be overly-sensitive to extreme values and get the wrong intercept^[See my normal-Poisson document for details] but still give the right slope in large samples, as it does here:
+```{r}
+glm(ymix ~ x, data = dat, family = poisson) |> 
+  tidy() |> 
+  knitr::kable(digits = 2)
+```
+For the zero-inflated mixture model, Frequentist estimatino of a plain-vanilla Poisson regression model should fail completely, as it does here:this 
+```{r}
+glm(ymix_zi ~ x, data = dat, family = poisson) |> 
+  tidy() |> 
+  knitr::kable(digits = 2)
+```
+
+## Bayesian Estimation
+
+Based on my experiments with normal-Poisson mixtures that *do not* feature zero-inflation, I've chosen to write the above model in a non-centered form. I'll use some simple default, weakly informative priors: 
+```{r}
+d <- dat |> 
+  rowid_to_column('id') |>  # Calling it i throws a STAN error: it uses i internally
+  select(x, y = ymix_zi, id)
+
+zipois_mix <- ulam(
+  alist(
+    y ~ dzipois(p, lambda),
+    logit(p) <- g,
+    g ~ dnorm(-1.5, 1),
+    log(lambda) <- a + b * x + sigma * u[id],
+    u[id] ~ dnorm(0, 1),
+    a ~ dnorm(0, 1.5),
+    b ~ dnorm(0, 0.2),
+    sigma ~ dexp(1)
+  ), data = d, chains = 4, cores = 4, cmdstan = TRUE
+)
+```
+
+```{r}
+precis(zipois_mix)
+```
+Something funny is going on here. The results look basically perfect, but the diagnostics would suggest something is wrong. What gives?
+
+
+
+
