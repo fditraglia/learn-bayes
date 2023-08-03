@@ -30,47 +30,53 @@ library(mvtnorm)
 
 set.seed(298710)
 n <- 2500
-rho <- 0.5 
-S <- matrix(c(1, rho, 
-              rho, 1), 2, 2, byrow = TRUE)
+rho <- 0.9
+sV <- 0.5
+sU <- 0.4
+S <- matrix(c(sU^2, rho * sU * sV, 
+              rho * sU * sV, sV^2), 2, 2, byrow = TRUE)
 
 errors <- rmvnorm(n, sigma = S)
 
-
-a <- -2
+a <- 3
 b <- 1
-s <- 2
-p <- 0.1
+g <- 0
+d <- 0.2
 
-#sim_dat <- tibble(x = runif(n, -3, 3),
-#                  u = rnorm(n, 0, s), 
-#                  y = rpois(n, exp(a + b * x)), 
-#                  ymix = rpois(n, exp(a + b * x + u)),
-#                  ymix_zi = ymix * rbinom(n, 1, 1 - p))
 
-#dat <- sim_dat |> 
-#  select(x, y, ymix, ymix_zi)
-#
-#plain <- dat |> 
-#  ggplot(aes(x = x, y = y)) +
-#  geom_point() +
-#  geom_smooth() +
-#  ggtitle('Plain Vanilla')
-#
-#mix <- dat |> 
-#  ggplot(aes(x = x, y = ymix)) +
-#  geom_point() +
-#  geom_smooth() +
-#  ggtitle('Mixture')
-#
-#mix_zi <- dat |> 
-#  ggplot(aes(x = x, y = ymix_zi)) +
-#  geom_point() +
-#  geom_smooth() +
-#  ggtitle('Zero-inflated Mixture')
-#
-#plain + mix + mix_zi
+sim_dat <- tibble(u = errors[, 1],
+                  v = errors[, 2],
+                  z = runif(n, -0.3, 0.3),
+                  x = rpois(n, exp(g + d * z + v)),
+                  y = rpois(n, exp(a + b * (x - mean(x)) + u)))
+
+
+dat <- sim_dat |> 
+  select(x, y, z)
+
+y_z <- dat |> 
+  ggplot(aes(x = z, y = y)) +
+  geom_point()
+
+y_x <- dat |> 
+  ggplot(aes(x = x, y = y)) +
+  geom_point()
+
+x_z <- dat |> 
+  ggplot(aes(x = z, y = x)) +
+  geom_point()
+
+y_z + y_x + x_z
 ```
+## How much endogeneity have we created?
+```{r}
+library(broom)
+glm(y ~ x, family = poisson, data = dat) |> 
+  tidy() |> 
+  knitr::kable(digits = 2)
+```
+It seems hard to generate significant bias in the plain-vanilly Poisson regression slope without using a totally crazy DGP. We need to think about this some more.
+
 
 ## Mullahy Approach
 
@@ -127,13 +133,13 @@ This is a two-dimensional non-linear optimization problem. Solving the first mom
 $$
 \alpha = \log \mathbb{E}[Y / \exp(\beta X)].
 $$
-In other words, $\exp(\alpha) = \mathbb{E}[Y/\exp(\beta X)]$. This allows us to "concentrate out" $\alpha$ from the second equation to obtain a one-dimensional root finding problem:
+In other words, $\exp(\alpha) = \mathbb{E}[Y/\exp(\beta X)]$. This allows us to "concentrate out" $\alpha$ from the second equation to obtain a one-dimensional root finding problem. Since this works for any $\varphi(Z)$ function, I'll present the general case:
 $$
-\mathbb{E}\left[ \left\{ \frac{Y}{\mathbb{E}[Y/\exp(\beta X)] \exp(\beta X) } - 1 \right\} Z\right] = 0.
+\mathbb{E}\left[ \left\{ \frac{Y}{\mathbb{E}[Y/\exp(\beta X)] \exp(\beta X) } - 1 \right\} \varphi(Z)\right] = 0.
 $$
 We can simplify this as to become
 $$
-\frac{1}{\mathbb{E}[Y/\exp(\beta X)]}\mathbb{E}\left[ \left\{ \frac{Y}{\exp(\beta X) } - \mathbb{E}\left[\frac{Y}{\exp(\beta X)}\right] \right\} Z\right] = 0.
+\frac{1}{\mathbb{E}[Y/\exp(\beta X)]}\mathbb{E}\left[ \left\{ \frac{Y}{\exp(\beta X) } - \mathbb{E}\left[\frac{Y}{\exp(\beta X)}\right] \right\} \varphi(Z)\right] = 0.
 $$
 But since the first factor in the product can never be zero, the moment equation simplifies further to
 $$
@@ -141,12 +147,40 @@ $$
 $$
 Notice that, by the definition of covariance, this is simply
 $$
-\text{Cov}\left(\frac{Y}{\exp(\beta X)}, Z\right) = 0.
+\text{Cov}\left(\frac{Y}{\exp(\beta X)}, \varphi(Z)\right) = 0.
 $$
+for any function of $Z$, in particular for $\varphi(Z) = Z$.
 
+Let's test this out on the simulation data:
+```{r}
+f <- function(b) {
+  with(dat, cov(y / exp(b * x), z))
+}
+f_vectorized <- Vectorize(f)
+b_seq <- seq(0.75, 2, 0.01)
+plot(b_seq, f_vectorized(b_seq), type = 'l')
+abline(h = 0, lty = 2, lwd = 2, col = 'red')
+uniroot(f, c(0, 1.2))
+uniroot(f, c(1.2, 2))
+```
+Let's check the implied value of alpha
+```{r}
+b_mullahy_1 <- uniroot(f, c(0, 1.2))$root
+with(dat, log(mean(y / exp(b_mullahy_1 * x)))) # implied alpha
 
+b_mullahy_2 <- uniroot(f, c(1.2, 2))$root
+with(dat, log(mean(y / exp(b_mullahy_2 * x)))) # implied alpha
+```
+Interesting: two roots, one of which is "correct" and another of which is wrong but not very far away! I wonder if this is one of those situations in which you can (possibly) show point identification using the full set of conditional moment restrictions but a *particular* choice of unconditional moment equations doesn't necessarily give you point identification even if the number of equations is greater than or equal to the number of unknowns.
 
+Let's check whether an additional moment restriction would rule out the extraneous root by evaluating an "overidentifying restriction" at a different function of $Z$
+```{r}
+with(dat, cov(y / exp(b_mullahy_1 * x), z^2))
+with(dat, cov(y / exp(b_mullahy_1 * x), z^3))
 
+with(dat, cov(y / exp(b_mullahy_2 * x), z^2))
+with(dat, cov(y / exp(b_mullahy_2 * x), z^3))
+```
 
 
 
