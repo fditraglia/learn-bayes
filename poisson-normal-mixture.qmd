@@ -293,9 +293,14 @@ pois_mix4 <- ulam(
     a_bar ~ dnorm(0, 1.5),
     b ~ dnorm(0, 0.2),
     sigma ~ dexp(1) 
-  ), data = d, chains = 4, cmdstan = TRUE
+  ), data = d, chains = 4, cores = 4, cmdstan = TRUE
 )
 ```
+Here's the STAN code:
+```{r}
+
+```
+
 
 Here's the non-centered parameterization with a half-normal prior for $\sigma$
 ```{r}
