@@ -1,0 +1,155 @@
+---
+title: "Getting Started with STAN and CmdStanR"
+format: 
+  html:
+    embed-resources: true
+---
+
+## What is this?
+
+I've experimented with STAN via the `ulam()` command from `rethinking`, but have reached the point where this approach is getting too cumbersome and difficult to debug. It's time to switch to using STAN directly!
+
+## CmdStanR
+
+Stan is distinct from R: you have to write `.stan` files and compile them. But it's convenient to do this using R as a front-end so we can manipulate data in advance, summarize results, etc. There are two main ways of doing this. The first is [Rstan](https://mc-stan.org/users/interfaces/rstan) and the second is [CmdStanR](https://mc-stan.org/cmdstanr/). Without getting into the [differences](https://mc-stan.org/cmdstanr/articles/cmdstanr.html#comparison-with-rstan) here, it appears that CmdStanR is a better approach on the whole. I'll begin by working through [Getting started with CmdStanR](https://mc-stan.org/cmdstanr/articles/cmdstanr.html). One thing worth pointing out is that CmdStanR relies on the [R6 package](https://r6.r-lib.org/articles/Introduction.html) for object-oriented programming. At some point I need to read up on this. But for the moment, the key thing to know is that `$` is used to access *values* and *methods* in R6.
+
+### Installation
+The `CmdStanR` package isn't on CRAN, but it can be installed from <https://mc-stan.org>. I've already installed it:
+```{r}
+library(cmdstanr)
+check_cmdstan_toolchain()
+```
+
+
+### Compiling a model
+There's an example program that comes with `CmdStanR` called `bernoulli.stan`. It estimates a Bernoulli probability from an iid sample. We can get the path to this example program as follows:
+```{r}
+path_to_example <- file.path(cmdstan_path(), 'examples', 'bernoulli', 'bernoulli.stan')
+path_to_example
+```
+The next step is to creat a CmdStanModel object from the underlying `.stan` file. There's no data yet: all we're going to do is compile the `.stan` file:
+```{r}
+example_model <- cmdstan_model(path_to_example)
+```
+That ran extremely quickly, so either the model is very fast to compile or there's already a compiled version cached somewhere. I think it must be the latter. We can view the path to the executable file as follows:
+```{r}
+example_model$exe_file()
+```
+and we can print out the underlying `.stan` code as well:
+```{r}
+example_model$print()
+```
+So the probabilistic model is as follows:
+$$
+\begin{align*}
+Y &\sim \text{Bernoulli}(\theta)\\
+\theta &\sim \text{Uniform}(0, 1).
+\end{align*}
+$$
+### Fitting the Model
+
+Now we'll use the compiled STAN model to run Hamiltonian MCMC. But first we need some data. We pass this in as a list where the names of the list elements correspond to the names within the `.stan` file:
+```{r}
+example_data <- list(N = 10, y = c(0, 1, 0, 0, 0, 0, 0, 0, 0, 1))
+```
+Now we'll run four MCMC chains in parallel, printing out a status update after every 500 iterations. Notice that this runs *extremely quickly* because we've compiled the model:
+```{r}
+example_fit <- example_model$sample(
+  data = example_data,
+  seed = 123, # random seed for MCMC
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500 # print status update after every 500 iterations
+)
+```
+
+### Summarizing the Posterior
+
+The `$summary()` method relies on the function `summarize_draws()` from the [`posterior` package](https://cran.r-project.org/web/packages/posterior/vignettes/posterior.html). Calling this method without any arguments generates output that is analogous to that of the `precis()` command from the `rethinking` package, although for some reason it doesn't display correctly in the quarto notebook preview, it does display correctly after rendering. If I pass it to `knitr::kable()` it looks better and gives a preview: 
+```{r}
+example_fit$summary() |> knitr::kable(digits = 2)
+```
+The row `lp__` refers to the *log unnormalized posterior density*. For some discussion see pthis post](https://discourse.mc-stan.org/t/basic-question-what-is-lp-in-posterior-samples-of-a-brms-regression/17567) from the STAN forums.
+
+For a more detailed summary that doesn't rely on the `posterior` package, we can use the `$cmdstand_summary()` method. This prints nicely in the preview:
+```{r}
+example_fit$cmdstan_summary()
+```
+Apparently the `$summary()` method is fairly flexible compared to `$cmdstan_summary()` in that we can customize the output or extract other quantities of interest. Here are a few examples. Here's how we can compute the posterior probability that $\theta$ is less than 0.5:
+```{r}
+example_fit$summary('theta', prob_less_than_half = \(x) mean(x <= 0.5))
+```
+And here's how we can augment the default summary statistics with some additional quantiles of the posterior. I'm not exactly sure why we use the function `quantile2()` from the `posterior` package here instead of the base R function. The documentation for `quantile2()` doesn't explain how it's different. 
+```{r}
+example_fit$summary(
+  variables = NULL, # summarize all variables 
+  posterior::default_summary_measures(),
+  extra_quantiles = \(x) posterior::quantile2(x, probs = c(0.0275, 0.975))
+) |> knitr::kable(digits = 2)
+```
+
+### Posterior Draws
+
+Extract these using the `$draws()` method from the `posterior` package. Apparently these can be extracted in various different formats, e.g. as an array, a dataframe and so on. Here are two examples. First extract draws as an array:
+```{r}
+posterior_draws_array <- example_fit$draws() # defaults to format = 'array'
+str(posterior_draws_array)
+posterior_draws_array
+```
+Second, extract draws as a dataframe:
+```{r}
+posterior_draws_dataframe <- example_fit$draws(format = 'df')
+str(posterior_draws_dataframe)
+posterior_draws_dataframe
+```
+There are also functions for converting between one format and another. For example, we can convert from array to dataframe as follows:
+```{r}
+posterior_draws_dataframe2 <- posterior::as_draws_df(posterior_draws_array)
+identical(posterior_draws_dataframe, posterior_draws_dataframe2)
+```
+
+### Plotting the Posterior
+There are many ways to do this. Here's a simple example using the `bayesplot` package
+```{r}
+library(bayesplot)
+example_fit$draws('theta') |> mcmc_hist()
+```
+
+### Diagnostics
+
+This gives a ton of information and I don't know what all of it means:
+```{r}
+example_fit$sampler_diagnostics()
+```
+We can obtain a summary as follows. Here there are no warnings, but if there were some it would print them out: 
+```{r}
+example_fit$diagnostic_summary()
+```
+Another way to obtain diagnostics is by using `$cmdstan_diagnose()`. In this case everything looks good, which is unsurprisingly since it's a conjugate model and we don't need MCMC in the first place!
+```{r}
+example_fit$cmdstan_diagnose()
+```
+
+
+### Saving Your Results
+
+Suppose you've compiled your model and fitted it to data. Now you'd like to save the resulting CmdStanR object so you can process it further at another time without re-running everything. The recommended way to do this is by using the `$save_object()` method to create an `.RDS` file. I'm not actually going to run this, but I'll show the code:
+```{r}
+#| eval: FALSE
+example_fit$save_object(file = 'your-filename-here.RDS')
+fit_from_file <- readRDS('your-filename-here.RDS')
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
