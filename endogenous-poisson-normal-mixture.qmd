@@ -28,27 +28,27 @@ library(tidyverse)
 library(patchwork)
 library(mvtnorm)
 
-set.seed(298710)
+set.seed(2817)
 n <- 2500
-rho <- 0.9
-sV <- 0.5
-sU <- 0.4
+rho <- -0.8
+sV <- 1
+sU <- 1 
 S <- matrix(c(sU^2, rho * sU * sV, 
               rho * sU * sV, sV^2), 2, 2, byrow = TRUE)
 
 errors <- rmvnorm(n, sigma = S)
 
-a <- 3
-b <- 1
+a <- 0
+b <- 0.15
 g <- 0
-d <- 0.2
+d <- 0.3
 
 
 sim_dat <- tibble(u = errors[, 1],
                   v = errors[, 2],
                   z = runif(n, -0.3, 0.3),
-                  x = rpois(n, exp(g + d * z + v)),
-                  y = rpois(n, exp(a + b * (x - mean(x)) + u)))
+                  x = rpois(n, exp(g + d * (z - mean(z)) / sd(z) + v)),
+                  y = rpois(n, exp(a + b * (x - mean(x)) / sd(x) + u)))
 
 
 dat <- sim_dat |> 
@@ -75,7 +75,6 @@ glm(y ~ x, family = poisson, data = dat) |>
   tidy() |> 
   knitr::kable(digits = 2)
 ```
-It seems hard to generate significant bias in the plain-vanilly Poisson regression slope without using a totally crazy DGP. We need to think about this some more.
 
 
 ## Mullahy Approach
@@ -157,13 +156,15 @@ f <- function(b) {
   with(dat, cov(y / exp(b * x), z))
 }
 f_vectorized <- Vectorize(f)
-b_seq <- seq(0.75, 2, 0.01)
+b_seq <- seq(-1, 1, 0.01)
 plot(b_seq, f_vectorized(b_seq), type = 'l')
 abline(h = 0, lty = 2, lwd = 2, col = 'red')
-uniroot(f, c(0, 1.2))
-uniroot(f, c(1.2, 2))
+uniroot(f, c(-1, 1))
 ```
-Let's check the implied value of alpha
+
+**Note:** We played around with various choices of parameters. For some of them there are multiple roots and for some there are no roots. The same goes for *fixed* parameters but setting a different random seed. When there are multiple roots, you can't seem to rule them out with additional moment conditions, i.e. by checking whether, say, the covariance with $z^2$ is also zero. Depending on the data it seems like you can end up in situations where the model is not identified from any particular set of conditional moment restrictions that you choose, even if it might be identified from the full set of unconditional moment restrictions.
+
+<!-- Let's check the implied value of alpha
 ```{r}
 b_mullahy_1 <- uniroot(f, c(0, 1.2))$root
 with(dat, log(mean(y / exp(b_mullahy_1 * x)))) # implied alpha
@@ -181,9 +182,47 @@ with(dat, cov(y / exp(b_mullahy_1 * x), z^3))
 with(dat, cov(y / exp(b_mullahy_2 * x), z^2))
 with(dat, cov(y / exp(b_mullahy_2 * x), z^3))
 ```
+-->
 
 
+## Bayesian Estimation
 
+This doesn't work and I don't know why:
+```{r}
+#| warning: false
+d <- dat |> 
+  rowid_to_column('id') |>  # Calling it i throws a STAN error: it uses i internally
+  select(x, y, z, id)
+
+iv_pois <- ulam(
+  alist(
+    y ~ dpois(lambda),
+    x ~ dpois(mu),
+    c(u[id], v[id]) ~ multi_normal(c(0, 0), Rho, Sigma),
+    log(lambda) <- a + b * x + u[id],
+    log(mu) <- g + d * z + v[id],
+    c(a, g) ~ normal(0, 1.5),
+    c(b, d) ~ normal(0, 0.2),
+    Rho ~ lkj_corr(2),
+    Sigma ~ exponential(1)
+  ), data = d, chains = 4, cores = 4, cmdstan = TRUE
+)
+```
+
+```{r}
+#| warning: false
+#m14.6 <- ulam(
+#  alist(
+#    c(W, E) ~ multi_normal(c(muW, muE), Rho, Sigma),
+#    muW <- aW + bEW * E,
+#    muE <- aE + bQE * Q, 
+#    c(aW, aE) ~ normal(0, 0.2), # indep priors
+#    c(bEW, bQE) ~ normal(0, 0.5), # indep priors
+#    Rho ~ lkj_corr(2), 
+#    Sigma ~ exponential(1)),
+#  data = dat_sim, chains = 4, cores = 4)
+#precis(m14.6, depth = 3)
+```
 
 
 
