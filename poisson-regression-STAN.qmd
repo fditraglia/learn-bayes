@@ -1,0 +1,138 @@
+---
+title: "Poisson Regression with STAN"
+format: 
+  html:
+    embed-resources: true
+---
+
+## What is this?
+In this document, I implement the Poisson regression models from `poisson-regression.qmd` that were implemented using `ulam()` from the `rethinking` package, but now I use STAN instead. The first step is to extract the STAN code that `rethinking` actually runs under the hood to make sure that I understand it.
+
+
+
+## Plain Vanilla Poisson Regression
+OK, this isn't one of the examples from `poisson-regression.qmd` but I wanted to start with the simplest possible example!
+$$
+\begin{align*}
+Y_i &\sim \text{Poisson}(\lambda_i)\\
+\log (\lambda_i) &= \alpha + \beta (X_i - \bar{X})/S_X\\
+\alpha &\sim \text{Normal}(3, 0.5)\\
+\beta &\sim \text{Normal}(0, 0.2)
+\end{align*}
+$$
+These are reasonable weakly informative priors in a setting where counts are generally between 0 and 100, given that $X_i$ enters the model as a z-score.
+
+Now, we'll follow procedure outlined in `CmdStanR-getting-started.qmd`. First, load `cmdstanr` and check that everything is set up correctly:
+```{r}
+library(cmdstanr)
+check_cmdstan_toolchain()
+```
+
+Next compile the first model, which is stored in `poisson-regression-basic.stan` in the current working directory. Since this directory is associated with an Rstudio project, there is no need to provide an absolute path:
+```{r}
+basic_poisreg <- cmdstan_model('poisson-regression-basic.stan')
+```
+Now we can look at the path to the executable:
+```{r}
+basic_poisreg$exe_file()
+```
+and print out the underlying `.stan` file:
+```{r}
+basic_poisreg$print()
+```
+It's worth commenting on this a bit, since it took me a while to get it working. (Fortunately, STAN gives relatively informative error messages!) Here are some errors that I made initially:
+
+- A STAN `vector` can only store real values, but an `array` can store anything, including integers that are bounded.
+- Rstudio uses `rstan` for its `.stan` [syntax checking](https://github.com/rstudio/rstudio/issues/6802), but the version of `rstan` that I installed from `CRAN` was out of date, so it didn't support the `array` type. This meant that the editor highlighted an "error" that was not in fact an error, and would not have created any problems given that I'm using CmdStanR. To fix this I simply installed the latest version of `rstan` following [these instructions](https://discourse.mc-stan.org/t/parser-error-when-running-birats-example-in-rstan/29336).
+- Forgetting a semicolon! So easy to miss!
+- Getting confused about how you can and cannot mix matrix / vector / scalar [operations](https://mc-stan.org/docs/functions-reference/matrix-arithmetic-operators.html).
+- Forgetting to check the types that are expected by [`poisson_log_glm()`](https://mc-stan.org/docs/functions-reference/poisson-log-glm.html). This function is only worth using if you have more than one predictor.
+- Not realizing that a `transformed data` block must come [before](https://mc-stan.org/docs/reference-manual/overview-of-stans-program-blocks.html) the `parameters` block.
+
+And here are some other comments on the `.stan` file:
+
+- The [`poisson_log()` function](https://mc-stan.org/docs/functions-reference/poisson-distribution-log-parameterization.html) avoids the need to exponentiate `alpha + beta * x`. In other words, it lets us express the model on the log scale. This is mainly for convenience, but I think it actually does squeeze out a bit of efficiency when it comes to calculating gradients. Its big brother [`poisson_log_glm()`](https://mc-stan.org/docs/functions-reference/poisson-log-glm.html) can *definitely* give efficiency gains. This removes the need for multiplication of `x` by `beta` but is really intended for the case where there are multiple predictors and the multiplication in question is matrix multiplication. That's where there are efficiency gains in the gradient calculation.
+- It doesn't matter whether the "likelihood" or the "priors" come first in the model block. They are both treated the same way, since this block merely [increments the log posterior](https://discourse.mc-stan.org/t/correct-ordering-of-lines-in-the-model-block/661/3), and it doesn't matter in which order you take a summation, unless there are numerical issues of some kind.
+- The `transformed data` block isn't necessary, but it's convenient. We could transform $X$ within R, but this prevents us from making a mistake and providing data on the wrong scale without realizing it.
+
+Now let's simulate some data: 
+```{r}
+set.seed(1848)
+n <- 100
+x <- runif(n, -1, 2)
+y <- rpois(n, exp(0.8 + 0.4 * scale(x)))
+dat <- list(N = n, x = x, y = y)
+rm(n, x, y)
+```
+and then estimate the model:
+```{r}
+fit1 <- basic_poisreg$sample(
+  data = dat, 
+  seed = 1234, # random seed for MCMC
+  chains = 4, 
+  parallel_chains = 4, 
+  refresh = 500 # print status update after every 500 iterations
+)
+```
+
+Now a quick summary of the posterior to make sure it worked. Recall that the true parameter values were $\alpha = 0.8$ and $\beta = 0.4$. Looks good!
+```{r}
+fit1$summary() |> 
+  knitr::kable(digits = 2)
+```
+
+
+
+## Extracting STAN code from `rethinking`
+
+
+The goal is to model the total number of tools in a society, `total_tools`, in terms of `population` and the extent of contact with other islands, `contact`. The first model is as follows:
+$$
+\begin{align*}
+T_i &\sim \text{Poisson}(\lambda_i)\\
+\log \lambda_i &= \alpha_{\text{CID}[i]} + \beta_{\text{CID}[i]} \log P_i\\
+\alpha_j &\sim \text{to be specified}\\
+\beta_j &\sim \text{to be specified}
+\end{align*}
+$$
+where $T_i$ is `total_tools`, $P_i$ is `population` and $\text{CID}[i]$ is a categorical variable that indicates the value of `contact` for society $i$.
+In other words, this is a model in which $\alpha$ and $\beta$ vary with `contact`.
+Equivalently, the model includes a full set of dummy variables that encode `contact` along with interactions between these dummies and the log of `population`.
+Notice that `population` is modeled on the log scale.
+
+Now we load the raw data and set it up for later analysis. It helps to write the model in terms of the centered and standardized value of $\log P_i$ rather than the raw value:  
+```{r}
+#| message: false
+#| warning: false
+#library(tidyverse)
+#library(rethinking)
+#data("Kline")
+#dat <- as_tibble(Kline)
+#rm(Kline)
+#dat
+#
+#dat <- dat |> 
+#  mutate(cid = if_else(contact == 'low', 1, 2),
+#         lpop = log(population), 
+#         lpopz = (lpop - mean(lpop)) / sd(lpop)) |> 
+#  select(total_tools, cid, lpopz)
+```
+
+Now we specify the model but with the option `sample = FALSE` so that `rethinking` doesn't actually run anything; it just sets up the model:
+```{r}
+#m11_10 <- ulam(
+#  alist(
+#    total_tools ~ dpois(lambda),
+#    log(lambda) <- a[cid] + b[cid] * lpopz,
+#    a[cid] ~ dnorm(3, 0.5),
+#    b[cid] ~ dnorm(0, 0.2)
+#  ), data = dat, sample = FALSE 
+#)
+```
+Now we can use `stancode()` to extract the underlying STAN code: 
+```{r}
+#stancode(m11_10)
+```
+
+This is fairly clear, but there are a few ways that it could be cleaned up. One is to pass the number of observations and the number of contact indicators as data rather than hard-coding them to equal `10` and `2`. Another is to use the `poisson_log_glm()` function from STAN rather than explicitly creating `lambda[i]` and exponentiating it. This is explained in the [STAN function reference](https://mc-stan.org/docs/functions-reference/poisson-log-glm.html). Supposedly this is much more efficient than doing things "by hand" but at the moment I'm not entirely clear on how to specify the multi-level structure in this way, although the documentation seems to suggest that this is possible. I think [this article](https://mc-stan.org/docs/stan-users-guide/hierarchical-logistic-regression.html) from the STAN manual should help.
+
