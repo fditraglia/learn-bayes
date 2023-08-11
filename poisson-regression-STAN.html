@@ -3132,7 +3132,7 @@ return!"\t\n\x0B\f\r                　\u2028\u2029
 
 <section id="what-is-this" class="level2">
 <h2 class="anchored" data-anchor-id="what-is-this">What is this?</h2>
-<p>In this document, I implement the Poisson regression models from <code>poisson-regression.qmd</code> that were implemented using <code>ulam()</code> from the <code>rethinking</code> package, but now I use STAN instead. The first step is to extract the STAN code that <code>rethinking</code> actually runs under the hood to make sure that I understand it.</p>
+<p>In this document, I implement the Poisson regression models from <code>poisson-regression.qmd</code> that were implemented using <code>ulam()</code> from the <code>rethinking</code> package, but now I use STAN instead. I also re-implement the Poisson-normal mixture from <code>poisson-normal-mixture.qmd</code>, again using STAN rather than <code>ulam()</code>.</p>
 </section>
 <section id="plain-vanilla-poisson-regression" class="level2">
 <h2 class="anchored" data-anchor-id="plain-vanilla-poisson-regression">Plain Vanilla Poisson Regression</h2>
@@ -3513,7 +3513,7 @@ Chain 4 finished in 0.0 seconds.
 
 All 4 chains finished successfully.
 Mean chain execution time: 0.0 seconds.
-Total execution time: 0.2 seconds.</code></pre>
+Total execution time: 0.1 seconds.</code></pre>
 </div>
 </div>
 <p>Now let’s take a quick look at the posterior to see if it agrees with the results from <code>poisson-regression.qmd</code> computed via <code>ulam()</code>. Yes: everything looks good, bearing in mind that <code>precis()</code> reports 89% rather than 90% posterior credible intervals!</p>
@@ -4013,7 +4013,7 @@ Chain 4 finished in 0.0 seconds.
 
 All 4 chains finished successfully.
 Mean chain execution time: 0.0 seconds.
-Total execution time: 0.2 seconds.</code></pre>
+Total execution time: 0.1 seconds.</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>fit4_WRONG<span class="sc">$</span><span class="fu">summary</span>() <span class="sc">|&gt;</span> </span>
 <span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -4199,7 +4199,7 @@ Chain 4 finished in 0.0 seconds.
 
 All 4 chains finished successfully.
 Mean chain execution time: 0.0 seconds.
-Total execution time: 0.1 seconds.</code></pre>
+Total execution time: 0.2 seconds.</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a>fit4<span class="sc">$</span><span class="fu">summary</span>() <span class="sc">|&gt;</span> </span>
 <span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -4308,6 +4308,97 @@ Total execution time: 0.1 seconds.</code></pre>
 </table>
 </div>
 </div>
+</section>
+<section id="zero-inflated-poisson-model" class="level2">
+<h2 class="anchored" data-anchor-id="zero-inflated-poisson-model">Zero-inflated Poisson Model</h2>
+<p>Continuing with the Monks and manuscripts spiel, Example 12-3 from <em>Statistical Rethinking</em> fits a zero-inflated Poisson model of the form: <span class="math display">\[
+\begin{align*}
+Y_i &amp;\sim \text{ZIPoisson}(p, \lambda)\\
+\text{logit}(p)  &amp;= \alpha_p \\
+\log(\lambda)  &amp;= \alpha_\lambda\\
+\alpha_p &amp;\sim \text{Normal}(-1.5, 1)\\
+\alpha_\lambda &amp;\sim \text{Normal}(1, 0.5)
+\end{align*}
+\]</span> The idea is that the monks take the day off and spend it drinking instead with probability <span class="math inline">\(p\)</span>. When they drink, they produce zero manuscripts. When they don’t drink, they produce a Poisson-distributed number of manuscripts, with rate <span class="math inline">\(\lambda\)</span>. Hence, the distribution of <span class="math inline">\(Y|p,\lambda\)</span> is given by <span class="math display">\[
+\begin{align*}
+\mathbb{P}(Y = y|p, \lambda) &amp;= \mathbb{P}(Y=y|\text{Drink},p, \lambda) \mathbb{P}(\text{Drink}|p, \lambda) + \mathbb{P}(Y = y|\text{Work}, p, \lambda) \mathbb{P}(\text{Work}|p, \lambda)\\
+&amp;=  0 \times p + \frac{e^{-\lambda}\lambda^y}{y!} \times (1 - p)\\
+&amp;= (1 - p) \frac{\lambda^y \exp(-\lambda)}{y!}.
+\end{align*}
+\]</span> The indicator for whether or not the monks drink is an unobserved latent variable. Since the current version of STAN can’t sample discrete parameters, we instead “integrate out” the latent variable.</p>
+<p>Here’s the simulated data and <code>ulam()</code> model</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb48"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a>p_true <span class="ot">&lt;-</span> <span class="fl">0.2</span> <span class="co"># Monks drink on 20% of days</span></span>
+<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a>lambda_true <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="co"># When working, monasteries average 1 manuscript / day</span></span>
+<span id="cb48-3"><a href="#cb48-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb48-4"><a href="#cb48-4" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">365</span> <span class="co"># A year&#39;s worth of daily data on manuscript production</span></span>
+<span id="cb48-5"><a href="#cb48-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb48-6"><a href="#cb48-6" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">365</span>) <span class="co"># This is the seed used in the book</span></span>
+<span id="cb48-7"><a href="#cb48-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb48-8"><a href="#cb48-8" aria-hidden="true" tabindex="-1"></a>drink <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, p_true) <span class="co"># indicator for whether the monks drink</span></span>
+<span id="cb48-9"><a href="#cb48-9" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> (<span class="dv">1</span> <span class="sc">-</span> drink) <span class="sc">*</span> <span class="fu">rpois</span>(n, lambda_true) <span class="co"># manuscripts produce</span></span>
+<span id="cb48-10"><a href="#cb48-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb48-11"><a href="#cb48-11" aria-hidden="true" tabindex="-1"></a>m12_3 <span class="ot">&lt;-</span> <span class="fu">ulam</span>(</span>
+<span id="cb48-12"><a href="#cb48-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">alist</span>(</span>
+<span id="cb48-13"><a href="#cb48-13" aria-hidden="true" tabindex="-1"></a>    y <span class="sc">~</span> <span class="fu">dzipois</span>(p, lambda),</span>
+<span id="cb48-14"><a href="#cb48-14" aria-hidden="true" tabindex="-1"></a>    <span class="fu">logit</span>(p) <span class="ot">&lt;-</span> ap,</span>
+<span id="cb48-15"><a href="#cb48-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">log</span>(lambda) <span class="ot">&lt;-</span> al,</span>
+<span id="cb48-16"><a href="#cb48-16" aria-hidden="true" tabindex="-1"></a>    ap <span class="sc">~</span> <span class="fu">dnorm</span>(<span class="sc">-</span><span class="fl">1.5</span>, <span class="dv">1</span>),</span>
+<span id="cb48-17"><a href="#cb48-17" aria-hidden="true" tabindex="-1"></a>    al <span class="sc">~</span> <span class="fu">dnorm</span>(<span class="dv">1</span>, <span class="fl">0.5</span>)</span>
+<span id="cb48-18"><a href="#cb48-18" aria-hidden="true" tabindex="-1"></a>  ), <span class="at">data =</span> <span class="fu">list</span>(<span class="at">y =</span> y), <span class="at">sample =</span> <span class="cn">FALSE</span></span>
+<span id="cb48-19"><a href="#cb48-19" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb48-20"><a href="#cb48-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb48-21"><a href="#cb48-21" aria-hidden="true" tabindex="-1"></a><span class="fu">stancode</span>(m12_3)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>data{
+    array[365] int y;
+}
+parameters{
+     real ap;
+     real al;
+}
+model{
+     real p;
+     real lambda;
+    al ~ normal( 1 , 0.5 );
+    ap ~ normal( -1.5 , 1 );
+    lambda = al;
+    lambda = exp(lambda);
+    p = ap;
+    p = inv_logit(p);
+    for ( i in 1:365 ) {
+        if ( y[i]==0 )
+            target += log_mix( p , 0 , poisson_lpmf(0|lambda) );
+        if ( y[i] &gt; 0 )
+            target += log1m( p ) + poisson_lpmf(y[i] | lambda );
+    }
+}</code></pre>
+</div>
+</div>
+<p>This is the first time we’ve encountered the <code>target += [SOMETHING]</code> syntax instead of a “sampling statment” of the form <code>[SOMETHING] ~ [DISTRIBUTION]([pars])</code> The notation <code>~</code> is convenient, but a bit misleading. Unlike JAGS and BUGS, STAN is an <em>imperative</em> rather than a <em>declarative</em> programming language. To understand what’s going on, consider a vector of <span class="math inline">\(N\)</span> iid observations <span class="math inline">\(\mathbf{Y}\)</span> from a distribution with parameter <span class="math inline">\(\theta\)</span>. Bayes theorem, without the normalizing constant, gives <span class="math display">\[
+\begin{align*}
+\pi(\theta|\mathbf{Y}) &amp;\propto f(\mathbf{Y}|\theta) \times \pi(\theta) \\
+&amp;= \prod_{i=1}^N f(Y_i|\theta)\times \pi(\theta).
+\end{align*}
+\]</span> STAN works with the un-normalized <em>log posterior</em>, namely: <span class="math display">\[
+\begin{align*}
+\log \pi(\theta|\mathbf{Y}) &amp;\propto \log f(\mathbf{Y}|\theta) + \log \pi(\theta)\\
+&amp;= \left[\sum_{i=1}^n \log f(Y_i|\theta) \right] + \log \pi(\theta)
+\end{align*}
+\]</span> What a prior sampling statement such as <code>theta ~ normal(0, 1);</code> actually does is <em>increment</em> the log posterior. Similarly, a “likelihood” sampling statement such as <code>y ~ normal(theta, 1)</code> actually does is loop over all elements of the vector <code>y</code> to increment the log posterior by <span class="math display">\[
+\log f(Y_i|\theta) = (\text{Constant}) - \frac{1}{2} (y_i - \theta)^2.
+\]</span> Sampling statements drop the constant term. Another way of building up the log posterior that keeps the constants but is more explicit about what’s actually happening is the following:</p>
+<pre><code>for(i in 1:10) {
+  target += normal_lpdf(y[i] | mu, 1) 
+}</code></pre>
+<p>So that’s what <code>target</code> is! So why does it appear in the STAN code generated by <code>ulam()</code> above? The answer can be found in the chapter on <a href="https://mc-stan.org/docs/stan-users-guide/mixture-modeling.html">finite mixtures</a> from the STAN user guide. The key point here is that STAN cannot sample discrete parameters, so we need to “integrate them out” instead. There’s an example of the zero-inflated Poisson model in <a href="https://mc-stan.org/docs/stan-users-guide/zero-inflated.html">this section</a>. I’ll summarize the main ideas here.</p>
+<ul>
+<li>We program the log likelihood “by hand” using the <code>target +=</code> approach described above.</li>
+<li><code>log_mix()</code> can be used in place of <code>log_sum_exp()</code> to <a href="https://mc-stan.org/docs/stan-users-guide/vectorizing-mixtures.html">vectorize a mixture</a></li>
+<li>For numerical stability, we rely on several helper functions: <code>poisson_lpfm()</code> (but probably we want the log-parameterized version?), <code>log1m()</code> and <code>log_sum_exp()</code>.</li>
+<li>Maybe start with a flat prior version (just omit the priors) to keep things simple. Then there’s no need to deal with the log-parameterization.</li>
+<li>It’s possible to implement this <a href="https://mc-stan.org/docs/stan-users-guide/zero-inflated.html#optimizing-the-zero-inflated-poisson-model">more efficiently</a> by doing some initial calculations for the zero counts.</li>
+</ul>
 </section>
 
 </main>
