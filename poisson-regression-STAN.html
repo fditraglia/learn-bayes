@@ -3347,47 +3347,270 @@ Total execution time: 0.2 seconds.</code></pre>
 </div>
 </div>
 </section>
-<section id="extracting-stan-code-from-rethinking" class="level2">
-<h2 class="anchored" data-anchor-id="extracting-stan-code-from-rethinking">Extracting STAN code from <code>rethinking</code></h2>
-<p>The goal is to model the total number of tools in a society, <code>total_tools</code>, in terms of <code>population</code> and the extent of contact with other islands, <code>contact</code>. The first model is as follows: <span class="math display">\[
+<section id="varying-effects-poisson-regression" class="level2">
+<h2 class="anchored" data-anchor-id="varying-effects-poisson-regression">Varying-Effects Poisson Regression</h2>
+<p>This is a slightly more complicated version of the above, based on an example from <em>Statistical Rethinking</em>. The goal is to model the total number of tools in a society, <code>total_tools</code>, in terms of <code>population</code> and the extent of contact with other islands, <code>contact</code>. The first model is as follows: <span class="math display">\[
 \begin{align*}
 T_i &amp;\sim \text{Poisson}(\lambda_i)\\
-\log \lambda_i &amp;= \alpha_{\text{CID}[i]} + \beta_{\text{CID}[i]} \log P_i\\
-\alpha_j &amp;\sim \text{to be specified}\\
-\beta_j &amp;\sim \text{to be specified}
+\log \lambda_i &amp;= \alpha_{\text{CID}[i]} + \beta_{\text{CID}[i]} \text{(logPopZ)}_i\\
+\alpha_j &amp;\sim \text{Normal}(3, 0.5)\\
+\beta_j &amp;\sim \text{Normal}(0, 0.2)
 \end{align*}
-\]</span> where <span class="math inline">\(T_i\)</span> is <code>total_tools</code>, <span class="math inline">\(P_i\)</span> is <code>population</code> and <span class="math inline">\(\text{CID}[i]\)</span> is a categorical variable that indicates the value of <code>contact</code> for society <span class="math inline">\(i\)</span>. In other words, this is a model in which <span class="math inline">\(\alpha\)</span> and <span class="math inline">\(\beta\)</span> vary with <code>contact</code>. Equivalently, the model includes a full set of dummy variables that encode <code>contact</code> along with interactions between these dummies and the log of <code>population</code>. Notice that <code>population</code> is modeled on the log scale.</p>
-<p>Now we load the raw data and set it up for later analysis. It helps to write the model in terms of the centered and standardized value of <span class="math inline">\(\log P_i\)</span> rather than the raw value:</p>
+\]</span> where <span class="math inline">\(T_i\)</span> is <code>total_tools</code>, <span class="math inline">\(\text{(logPopZ)}_i\)</span> is a centered and standardized version of the logarithm of <code>population</code> and <span class="math inline">\(\text{CID}[i]\)</span> is a categorical variable that indicates the value of <code>contact</code> for society <span class="math inline">\(i\)</span>. In other words, this is a model in which <span class="math inline">\(\alpha\)</span> and <span class="math inline">\(\beta\)</span> vary with <code>contact</code>. Equivalently, the model includes a full set of dummy variables that encode <code>contact</code> along with interactions between these dummies and the log of <code>population</code>.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co">#library(tidyverse)</span></span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="co">#library(rethinking)</span></span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="co">#data(&quot;Kline&quot;)</span></span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="co">#dat &lt;- as_tibble(Kline)</span></span>
-<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="co">#rm(Kline)</span></span>
-<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="co">#dat</span></span>
-<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
-<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="co">#dat &lt;- dat |&gt; </span></span>
-<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="co">#  mutate(cid = if_else(contact == &#39;low&#39;, 1, 2),</span></span>
-<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a><span class="co">#         lpop = log(population), </span></span>
-<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a><span class="co">#         lpopz = (lpop - mean(lpop)) / sd(lpop)) |&gt; </span></span>
-<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a><span class="co">#  select(total_tools, cid, lpopz)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(rethinking)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;Kline&quot;</span>)</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">as_tibble</span>(Kline)</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(Kline)</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>dat</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 10 × 5
+   culture    population contact total_tools mean_TU
+   &lt;fct&gt;           &lt;int&gt; &lt;fct&gt;         &lt;int&gt;   &lt;dbl&gt;
+ 1 Malekula         1100 low              13     3.2
+ 2 Tikopia          1500 low              22     4.7
+ 3 Santa Cruz       3600 low              24     4  
+ 4 Yap              4791 high             43     5  
+ 5 Lau Fiji         7400 high             33     5  
+ 6 Trobriand        8000 high             19     4  
+ 7 Chuuk            9200 high             40     3.8
+ 8 Manus           13000 low              28     6.6
+ 9 Tonga           17500 high             55     5.4
+10 Hawaii         275000 low              71     6.6</code></pre>
 </div>
-<p>Now we specify the model but with the option <code>sample = FALSE</code> so that <code>rethinking</code> doesn’t actually run anything; it just sets up the model:</p>
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> dat <span class="sc">|&gt;</span> </span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">cid =</span> <span class="fu">if_else</span>(contact <span class="sc">==</span> <span class="st">&#39;low&#39;</span>, <span class="dv">1</span>, <span class="dv">2</span>),</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>         <span class="at">lpop =</span> <span class="fu">log</span>(population), </span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>         <span class="at">lpopz =</span> (lpop <span class="sc">-</span> <span class="fu">mean</span>(lpop)) <span class="sc">/</span> <span class="fu">sd</span>(lpop)) <span class="sc">|&gt;</span> </span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(total_tools, cid, lpopz)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Let’s start by looking at the STAN code that is automatically generated by <code>ulam()</code> from <code>rethinking</code> when we implement the model as described in the book. By setting <code>sample = FALSE</code> we set up the model without actually running anything. Then we can used <code>stancode()</code> to extract the underlying STAN code:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co">#m11_10 &lt;- ulam(</span></span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="co">#  alist(</span></span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="co">#    total_tools ~ dpois(lambda),</span></span>
-<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="co">#    log(lambda) &lt;- a[cid] + b[cid] * lpopz,</span></span>
-<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="co">#    a[cid] ~ dnorm(3, 0.5),</span></span>
-<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a><span class="co">#    b[cid] ~ dnorm(0, 0.2)</span></span>
-<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="co">#  ), data = dat, sample = FALSE </span></span>
-<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a><span class="co">#)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>m11_10 <span class="ot">&lt;-</span> <span class="fu">ulam</span>(</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">alist</span>(</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>    total_tools <span class="sc">~</span> <span class="fu">dpois</span>(lambda),</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">log</span>(lambda) <span class="ot">&lt;-</span> a[cid] <span class="sc">+</span> b[cid] <span class="sc">*</span> lpopz,</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>    a[cid] <span class="sc">~</span> <span class="fu">dnorm</span>(<span class="dv">3</span>, <span class="fl">0.5</span>),</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>    b[cid] <span class="sc">~</span> <span class="fu">dnorm</span>(<span class="dv">0</span>, <span class="fl">0.2</span>)</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>  ), <span class="at">data =</span> dat, <span class="at">sample =</span> <span class="cn">FALSE</span> </span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a><span class="fu">stancode</span>(m11_10)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>data{
+    array[10] int total_tools;
+     vector[10] lpopz;
+    array[10] int cid;
+}
+parameters{
+     vector[2] a;
+     vector[2] b;
+}
+model{
+     vector[10] lambda;
+    b ~ normal( 0 , 0.2 );
+    a ~ normal( 3 , 0.5 );
+    for ( i in 1:10 ) {
+        lambda[i] = a[cid[i]] + b[cid[i]] * lpopz[i];
+        lambda[i] = exp(lambda[i]);
+    }
+    total_tools ~ poisson( lambda );
+}</code></pre>
 </div>
-<p>Now we can use <code>stancode()</code> to extract the underlying STAN code:</p>
+</div>
+<p>This is fairly clear, but there are a few ways that it could be cleaned up and optimized, drawing on my simple Poisson regression example from above. The first is to both the number of observations and the number of contact indicators as data rather than hard-coding them to equal <code>10</code> and <code>2</code>. The second is to use <code>poisson_log()</code> rather than constructing <code>lambda</code> and exponentiating it. This is better for numerical stability. <a href="https://mc-stan.org/docs/stan-users-guide/hierarchical-logistic-regression.html">This example</a> suggests some ways of eliminating <code>for</code> loops. The reason to avoid <code>for</code> loops is not that they’re slow in STAN: everything compiles down to C++ so there’s no speed penalty from loops as such. Instead it’s an issue of more efficiently computing the gradients used in Hamiltonian MCMC. But in this case, there’s only a single <code>for</code> loop and it doesn’t seem straightforward to eliminate it: this is where the varying means <span class="math inline">\(\lambda_i\)</span> are constructed by indexing into the appropriate group for each observation. For this reason, I’ll content myself with making only minor modifications, including transforming <code>population</code> within STAN:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co">#stancode(m11_10)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>m11_10_stan <span class="ot">&lt;-</span> <span class="fu">cmdstan_model</span>(<span class="st">&#39;poisson-regression-rethinking-11-10.stan&#39;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>This is fairly clear, but there are a few ways that it could be cleaned up. One is to pass the number of observations and the number of contact indicators as data rather than hard-coding them to equal <code>10</code> and <code>2</code>. Another is to use the <code>poisson_log_glm()</code> function from STAN rather than explicitly creating <code>lambda[i]</code> and exponentiating it. This is explained in the <a href="https://mc-stan.org/docs/functions-reference/poisson-log-glm.html">STAN function reference</a>. Supposedly this is much more efficient than doing things “by hand” but at the moment I’m not entirely clear on how to specify the multi-level structure in this way, although the documentation seems to suggest that this is possible. I think <a href="https://mc-stan.org/docs/stan-users-guide/hierarchical-logistic-regression.html">this article</a> from the STAN manual should help.</p>
+<p>This time my STAN program compiled on the first try with no errors! Clearly I’m making progress.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>m11_10_stan<span class="sc">$</span><span class="fu">print</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>data {
+  int&lt;lower=0&gt; N_obs; 
+  int&lt;lower=0&gt; N_groups; 
+  array[N_obs] int&lt;lower=0&gt; total_tools; 
+  vector[N_obs] pop; 
+  array[N_obs] int&lt;lower=1,upper=N_groups&gt; group; 
+}
+
+transformed data {
+  vector[N_obs] lpopz = (log(pop) - mean(log(pop))) / sd(log(pop));
+}
+
+parameters {
+  vector[N_groups] alpha;
+  vector[N_groups] beta;
+}
+
+model{
+ vector[N_obs] lambda; 
+ 
+ alpha ~ normal(3, 0.5);
+ beta ~ normal(0, 0.2);
+ 
+ for (i in 1:N_obs) {
+   lambda[i] = alpha[group[i]] + beta[group[i]] * lpopz[i];
+ }
+ 
+ total_tools ~ poisson_log(lambda);
+}</code></pre>
+</div>
+</div>
+<p>Now we’ll set up the data to match the variable names I used in my STAN program and the fact that I transform <code>pop</code> within the program rather than doing so in advance:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(<span class="st">&quot;Kline&quot;</span>)</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">N_obs =</span> <span class="fu">nrow</span>(Kline),</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>            <span class="at">N_groups =</span> <span class="fu">length</span>(<span class="fu">unique</span>(Kline<span class="sc">$</span>contact)),</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">group =</span> <span class="fu">if_else</span>(Kline<span class="sc">$</span>contact <span class="sc">==</span> <span class="st">&#39;low&#39;</span>, <span class="dv">1</span>, <span class="dv">2</span>),</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>            <span class="at">pop =</span> Kline<span class="sc">$</span>population,</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>            <span class="at">total_tools =</span> Kline<span class="sc">$</span>total_tools)</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a><span class="fu">rm</span>(Kline)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Now we can estimate the model. The first time I ran this it threw an error: it turned out that I <em>did</em> have a mistake in my STAN program, but one that only became apparent at runtime: I declared one of the data arrays to be of the wrong size, and STAN caught this as soon as I passed in the data.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>fit2 <span class="ot">&lt;-</span> m11_10_stan<span class="sc">$</span><span class="fu">sample</span>(</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">1234</span>,</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">4</span>, </span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">parallel_chains =</span> <span class="dv">4</span>,</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">500</span></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Running MCMC with 4 parallel chains...
+
+Chain 1 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 1 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 1 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 2 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 2 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 3 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 4 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 1 finished in 0.0 seconds.
+Chain 2 finished in 0.0 seconds.
+Chain 3 finished in 0.0 seconds.
+Chain 4 finished in 0.0 seconds.
+
+All 4 chains finished successfully.
+Mean chain execution time: 0.0 seconds.
+Total execution time: 0.1 seconds.</code></pre>
+</div>
+</div>
+<p>Now let’s take a quick look at the posterior to see if it agrees with the results from <code>poisson-regression.qmd</code> computed via <code>ulam()</code>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>fit2<span class="sc">$</span><span class="fu">summary</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<colgroup>
+<col style="width: 12%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 7%">
+<col style="width: 7%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 7%">
+<col style="width: 12%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">variable</th>
+<th style="text-align: right;">mean</th>
+<th style="text-align: right;">median</th>
+<th style="text-align: right;">sd</th>
+<th style="text-align: right;">mad</th>
+<th style="text-align: right;">q5</th>
+<th style="text-align: right;">q95</th>
+<th style="text-align: right;">rhat</th>
+<th style="text-align: right;">ess_bulk</th>
+<th style="text-align: right;">ess_tail</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">lp__</td>
+<td style="text-align: right;">911.47</td>
+<td style="text-align: right;">911.79</td>
+<td style="text-align: right;">1.41</td>
+<td style="text-align: right;">1.20</td>
+<td style="text-align: right;">908.70</td>
+<td style="text-align: right;">913.10</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2143.15</td>
+<td style="text-align: right;">2758.99</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">alpha[1]</td>
+<td style="text-align: right;">3.32</td>
+<td style="text-align: right;">3.32</td>
+<td style="text-align: right;">0.09</td>
+<td style="text-align: right;">0.09</td>
+<td style="text-align: right;">3.17</td>
+<td style="text-align: right;">3.45</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3446.58</td>
+<td style="text-align: right;">2682.58</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">alpha[2]</td>
+<td style="text-align: right;">3.61</td>
+<td style="text-align: right;">3.61</td>
+<td style="text-align: right;">0.07</td>
+<td style="text-align: right;">0.07</td>
+<td style="text-align: right;">3.49</td>
+<td style="text-align: right;">3.73</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3701.77</td>
+<td style="text-align: right;">2979.62</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">beta[1]</td>
+<td style="text-align: right;">0.38</td>
+<td style="text-align: right;">0.38</td>
+<td style="text-align: right;">0.05</td>
+<td style="text-align: right;">0.05</td>
+<td style="text-align: right;">0.29</td>
+<td style="text-align: right;">0.46</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3552.99</td>
+<td style="text-align: right;">2984.64</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">beta[2]</td>
+<td style="text-align: right;">0.19</td>
+<td style="text-align: right;">0.19</td>
+<td style="text-align: right;">0.16</td>
+<td style="text-align: right;">0.16</td>
+<td style="text-align: right;">-0.07</td>
+<td style="text-align: right;">0.45</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3951.62</td>
+<td style="text-align: right;">3129.31</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 </section>
 
 </main>
