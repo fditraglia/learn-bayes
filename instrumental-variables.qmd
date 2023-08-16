@@ -1,5 +1,5 @@
 ---
-title: "Instrumental Variables with STAN"
+title: "Instrumental Variables with Rethinking"
 format: 
   html:
     embed-resources: true
