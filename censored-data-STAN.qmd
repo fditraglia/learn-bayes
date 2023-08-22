@@ -1,0 +1,108 @@
+---
+title: "Censored Data"
+format: 
+  html:
+    embed-resources: true
+---
+
+## What is this?
+
+This document provides some simple examples of working with **censored data** in STAN, building on [this article](https://mc-stan.org/docs/stan-users-guide/censored-data.html) from the STAN users guide. The aforementioned users guide draws a distinction between *censoring* and *truncation*, namely: 
+
+> **Truncated data** are data for which measurements are only reported if they fall above a lower bound, below an upper bound, or between a lower and upper bound ... If the truncation points are unknown, they may be estimated as parameters.
+
+> **Censoring** hides values from points that are too large, too small, or both. Unlike with truncated data, the number of data points that were censored is known. The textbook example is the household scale which does not report values above 300 pounds.
+
+I'm not sure if these definitions are completely universal. Wooldridge (2010) distinguishes models with a "corner solution outcome" (Chapter 17) from "true data-censoring problems" (Chapter 19) as follows:
+
+> The word "censored" implies that we are not observing the entire possible range of the response variable but that is not the case for corner solution reponses. For example in a model of charitable contributions, the variable we are interested in explaining ... is the actual amount of charitable contributions. That this outcome might be zero for a non-trival fraction of the population does not mean that chritable contributions are somehow "censored at zero." 
+
+> Typically, data censoring arises because of a survey sampling scheme or institution constraints. There, we will be interested in an underlying response variable that we do not fully observe because it is censored above or below certain values.
+
+So Wooldridge and the STAN users guide appear to agree on the definition of censoring, but choose to contrast it with different alternatives. Truncated data, as defined above, seems to be a simple special case of **sample selection**. For example, suppose we want to calculate the correlation between entrance exam scores and first-year university grades. If we only observe first-year university grades for students who were admitted, and we only admit students whose entrance exam score is above $L$, this could be viewed as a truncated data problem. 
+
+## Bathroom Scale Example
+
+This example comes from the [STAN users guide](https://mc-stan.org/docs/stan-users-guide/censored-data.html). Consider a bathroom scale with a maximum capacity of $U$ kilograms. If we weigh an object that is less than $U$ kg, the scale gives an accurate reading. Suppose there's no measurement error. If we weigh an object that is greater than or equal to the weight limit, the scale is greater than or equal to $U$ kg, the scale reads $\geq U$. Again assume there's no measurement error. In some datasets we might now know the censoring threshold, in which case we can treat it as a parameter to be estimated. But to keep things simple, suppose for the moment that $U$ is a known value.
+
+Now suppose that we use the bathroom scale to weigh an iid sample of $n$ people drawn from a $\text{Normal}(\mu, \sigma^2)$ population. Our goal is to infer the parameters $\mu$ and $\sigma$. The full model is as follows:
+$$
+Y_i \sim\text{iid Normal}(\mu, \sigma^2), \quad C_i = \mathbb{1}(Y_i \geq U), \quad C_i \text{ observed}, \quad \text{observe } Y_i \text{ iff } C_i \neq 0.
+$$
+There are two different ways to approach this model:
+
+1. Treat the $Y_i$ for which $C_i = 1$ as *parameters to be estimated*.  
+2. Integrate out the observations of $Y_i$ for which $C_i = 1$ without estimating them.
+
+Since the current version of STAN can only handle continuous parameter spaces, the first approach is only applicable to models with continuous censored data. The second approach is more general, and can be applied to discrete or continuous examples. We'll consider each approach in turn. But first we'll generate some simulated data for use below, and show that ignoring censoring gives misleading results. First we'll simulate the data:
+
+```{r}
+#| message: false
+#| warning: false
+library(tidyverse)
+library(broom)
+set.seed(1983)
+u <- 150
+N_total <- 500
+mu_true <- 130
+sigma_true <- 25
+y_true <- rnorm(N_total, mu_true, sigma_true)
+y_obs <- ifelse(y_true < u, y_true, NA)
+```
+
+Completely ignoring the censoring gives very misleading results in this example:
+```{r}
+y_obs |> 
+  t.test(mu = mu_true) |> 
+  tidy() |> 
+  knitr::kable(digits = 2)
+```
+
+Filling in the value of $U$ for the censored observations works better, but given the true parameter values and the value of $U$ in this example, the results are still misleading:
+```{r}
+y_obs |> 
+  replace_na(u) |> 
+  t.test(mu = mu_true) |> 
+  tidy() |> 
+  knitr::kable(digits = 2)
+```
+
+The slightly tricky thing about censored data is that STAN, unlike R, doesn't operate on missing values, so we need to represent the censoring in a different way. We'll address this by creating a list that contains the following items: a vector with the non-censored observations, a scalar that denotes the number of non-censored observations, a scalar that denotes the number of censored observations, and a scalar that denotes the censoring threshold. (Ok you're technically right that R doesn't have scalars -- call them length one vectors if you must!) 
+```{r}
+dat <- list(y_obs = y_obs[!is.na(y_obs)], 
+            N_obs = sum(!is.na(y_obs)), 
+            N_cens = sum(is.na(y_obs)), 
+            u = u)
+```
+
+
+### First Approach: Censored Data as Parameters 
+
+We'll use `cmdstanr` to access STAN throughout this document. See `CmdStanR-getting-started.qmd` for more details. In the summary table, I'll only display inferences for `mu` and `sigma`, although inferences for each of the censored observations are also available. Here I use flat priors for `mu` and `sigma`, the default if you don't specify otherwise. This isn't a great choice in more complicated models, but it should work fine here. All of the diagnostics look good, the posterior inferences are accurate for both of our parameters of interest:
+```{r}
+#| warning: false
+#| message: false
+library(cmdstanr)
+
+censored_normal_impute <- cmdstan_model('censored-normal-impute.stan')
+
+fit1 <- censored_normal_impute$sample(
+  data = dat,
+  seed = 123,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500
+)
+
+fit1$summary(variables = c('mu', 'sigma')) |> 
+  knitr::kable(digits = 2)
+```
+
+
+
+### Second Approach: Integrate Out Censored Data 
+
+
+## Further Reading / References
+
+- <https://discourse.mc-stan.org/t/censored-data-with-varying-known-censoring-points/15563> shows how to handle multiple known censoring thresholds, and suggests that the "integrating out" approach is actually more efficient
