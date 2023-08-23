@@ -23,11 +23,11 @@ So Wooldridge and the STAN users guide appear to agree on the definition of cens
 
 ## Bathroom Scale Example
 
-This example comes from the [STAN users guide](https://mc-stan.org/docs/stan-users-guide/censored-data.html). Consider a bathroom scale with a maximum capacity of $U$ kilograms. If we weigh an object that is less than $U$ kg, the scale gives an accurate reading. Suppose there's no measurement error. If we weigh an object that is greater than or equal to the weight limit, the scale is greater than or equal to $U$ kg, the scale reads $\geq U$. Again assume there's no measurement error. In some datasets we might now know the censoring threshold, in which case we can treat it as a parameter to be estimated. But to keep things simple, suppose for the moment that $U$ is a known value.
+This example comes from the [STAN users guide](https://mc-stan.org/docs/stan-users-guide/censored-data.html). Consider a bathroom scale with a maximum capacity of $U$ kilograms. If we weigh an object that is less than $U$ kg, the scale gives an accurate reading. Suppose there's no measurement error. If we weigh an object that is greater than or equal to the weight limit, the scale reads $\geq U$. Again assume there's no measurement error. In some datasets we might not know the censoring threshold, in which case we can treat it as a parameter to be estimated. But to keep things simple, suppose for the moment that $U$ is a known value.
 
 Now suppose that we use the bathroom scale to weigh an iid sample of $n$ people drawn from a $\text{Normal}(\mu, \sigma^2)$ population. Our goal is to infer the parameters $\mu$ and $\sigma$. The full model is as follows:
 $$
-Y_i \sim\text{iid Normal}(\mu, \sigma^2), \quad C_i = \mathbb{1}(Y_i \geq U), \quad C_i \text{ observed}, \quad \text{observe } Y_i \text{ iff } C_i \neq 0.
+Y_i \sim\text{iid Normal}(\mu, \sigma^2), \quad C_i = \mathbb{1}(Y_i \geq U), \quad C_i \text{ observed}, \quad \text{observe } Y_i \text{ iff } C_i = 0.
 $$
 There are two different ways to approach this model:
 
@@ -42,12 +42,12 @@ Since the current version of STAN can only handle continuous parameter spaces, t
 library(tidyverse)
 library(broom)
 set.seed(1983)
-u <- 150
+U <- 150
 N_total <- 500
 mu_true <- 130
 sigma_true <- 25
 y_true <- rnorm(N_total, mu_true, sigma_true)
-y_obs <- ifelse(y_true < u, y_true, NA)
+y_obs <- ifelse(y_true < U, y_true, NA)
 ```
 
 Completely ignoring the censoring gives very misleading results in this example:
@@ -61,7 +61,7 @@ y_obs |>
 Filling in the value of $U$ for the censored observations works better, but given the true parameter values and the value of $U$ in this example, the results are still misleading:
 ```{r}
 y_obs |> 
-  replace_na(u) |> 
+  replace_na(U) |> 
   t.test(mu = mu_true) |> 
   tidy() |> 
   knitr::kable(digits = 2)
@@ -72,20 +72,27 @@ The slightly tricky thing about censored data is that STAN, unlike R, doesn't op
 dat <- list(y_obs = y_obs[!is.na(y_obs)], 
             N_obs = sum(!is.na(y_obs)), 
             N_cens = sum(is.na(y_obs)), 
-            u = u)
+            U = U)
 ```
 
 
 ### First Approach: Censored Data as Parameters 
 
-We'll use `cmdstanr` to access STAN throughout this document. See `CmdStanR-getting-started.qmd` for more details. In the summary table, I'll only display inferences for `mu` and `sigma`, although inferences for each of the censored observations are also available. Here I use flat priors for `mu` and `sigma`, the default if you don't specify otherwise. This isn't a great choice in more complicated models, but it should work fine here. All of the diagnostics look good, the posterior inferences are accurate for both of our parameters of interest:
+We'll use `cmdstanr` to access STAN throughout this document. See `CmdStanR-getting-started.qmd` for more details. In the summary table, I'll only display inferences for `mu` and `sigma`, although inferences for each of the censored observations are also available. Here I use flat priors for `mu` and `sigma`, the default if you don't specify otherwise. This isn't a great choice in more complicated models, but it should work fine here. The STAN code for this model is as follows:
 ```{r}
 #| warning: false
 #| message: false
 library(cmdstanr)
 
 censored_normal_impute <- cmdstan_model('censored-normal-impute.stan')
+censored_normal_impute$print()
+```
+The syntax here is relatively straightforward. Two things are worth commenting on. First, the `<lower=max(y_obs)>` in the `data { ... }` block isn't strictly necessary. This just provides a bit of sanity checking for the data: there should be no observed value of $Y$ that is above the censoring threshold. By adding this to the model we ensure that STAN will throw an error if we pass it data that violate the constraints of the model.
 
+Second, this is essentially a random effects model: `y_cens` is the vector of unobserved random effects, all of which are drawn from a common normal distribution with mean `mu` and standard deviation `sigma`. This normal distribution serves as the likelihood for the uncensored observations and the "prior" for the censored observations, which are treated as parameters. But these parameters are essentially being "shrunk towards each other" because they come from a common distribution. 
+
+We can fit and summarize the model as follows. I'll only display the inferences for $\mu$ and $\sigma$, since these are the parameters of interest. All of the diagnostics look good, the posterior inferences are accurate for both of parameters of interest:
+```{r}
 fit1 <- censored_normal_impute$sample(
   data = dat,
   seed = 123,
@@ -101,6 +108,76 @@ fit1$summary(variables = c('mu', 'sigma')) |>
 
 
 ### Second Approach: Integrate Out Censored Data 
+
+In this approach, rather than treating them as parameters to estimate, we add terms to the likelihood function that directly account for the contribution made by the censored observations. This approach is a bit more general since it can be used for models with discrete outcome variables. My understanding is that it is also a bit more computationally efficient. 
+
+A censored observation corresponds to the event $\{Y_i > U\}$. Under the model normal model from above, and conditional on the model parameters, this censoring event has the following probability:
+$$
+\mathbb{P}(Y_i > U|\mu, \sigma) = 1 - \mathbb{P}(Y_i \leq U|\mu, \sigma) = 1 - \Phi\left( \frac{U - \mu}{\sigma}\right)
+$$
+where $\Phi(\cdot)$ denotes the standard normal CDF. This gives the likelihood contribution from an observation with $C_i = 1$. In contrast, the likelihood of an observation that is *not* censored, $C_i = 0$, is given by
+$$
+f(Y_i|\mu, \sigma) = \varphi\left( \frac{Y_i - \mu}{\sigma}\right)
+$$
+where $\varphi(\cdot)$ denotes the standard normal pdf. Using these expressions, we can write the overall likelihood of *all the data*, both censored and uncensored, as follows:
+$$
+L(\mu, \sigma|\mathbf{y}, U) = \prod_{i=1}^n \varphi\left( \frac{y_i - \mu}{\sigma}\right)^{1 - C_i} \left[1 - \Phi\left( \frac{U - \mu}{\sigma}\right)\right]^{C_i}.
+$$
+Hence, the log-likelihood is given by
+$$
+\ell(\mu, \sigma|\mathbf{y}, U) = \sum_{i=1}^n (1 - C_i) \log \varphi\left( \frac{y_i - \mu}{\sigma}\right) + \sum_{i=1}^n C_i \log \left[1 - \Phi\left( \frac{U - \mu}{\sigma}\right)\right].
+$$
+Defining $N_\text{cens} = \sum_{i=1}^n C_i$, we can write this more simply as
+$$
+\ell(\mu, \sigma|\mathbf{y}, U) = \sum_{i=1}^n (1 - C_i) \log \varphi\left( \frac{y_i - \mu}{\sigma}\right) + N_\text{cens} \times \log\left[1 - \Phi\left( \frac{U - \mu}{\sigma}\right)\right]
+$$
+since the second sum only depends on the data through the number of censored observations.
+
+At this point it is straightforward to implement the model in STAN by making a small change to the code from above. We handle the uncensored observations exactly as before. They key difference is that `y_cens` no longer appears in the `parameters { ... }` block, or indeed anywhere else in the code. Instead we use the `target +=` syntax, explained in the zero-inflated Poisson example from `poisson-regression-STAN.qmd`. To make a long story short, `target +=` effectively adds whatever is on the RHS of the `+=` to the overall log-likelihood of the model. Here we use this syntax to account for the likelihood contribution of the censored observations:
+```{r}
+censored_normal_integrate <- cmdstan_model('censored-normal-integrate.stan')
+censored_normal_integrate$print()
+```
+The function [`normal_lccdf()`](https://mc-stan.org/docs/functions-reference/normal-distribution.html#stan-functions-22) is a numerically stable implementation of 
+$$
+f(x|\mu, \sigma) = \log \left[1 - \Phi\left( \frac{x - \mu}{\sigma}\right) \right]
+$$
+so `target += N_cens * normal_lccdf(u | mu, sigma);`  adds the second term from above to the log likelihood, namely 
+$$
+N_\text{cens} \times \log\left[ 1 - \Phi\left( \frac{u - \mu}{\sigma}\right)\right].
+$$
+
+Now we can fit and summarize the model. This time around the only two parameters are $\mu$ and $\sigma$, so there's no need to set `variables = c('mu', 'sigma')` to suppress the parameters we're not interested in. 
+```{r}
+mu_lower <- mean(y_obs, na.rm = TRUE)
+sigma_lower <- sd(y_obs, na.rm = TRUE)
+
+fit2 <- censored_normal_integrate$sample(
+  data = dat,
+  seed = 123,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500,
+  init = \() list(mu = runif(1, mu_lower, 2 * mu_lower),
+                  sigma = runif(1, sigma_lower, 2 * sigma_lower))
+) 
+fit2$summary() |> 
+  knitr::kable(digits = 2)
+```
+There's just one wrinkle in the above code: I needed to define a custom initialization function for `sample()` to avoid the following error message:
+```
+Chain 1   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 1   Stan can't start sampling from this initial value.
+.
+.
+.
+Chain 1 Initialization between (-2, 2) failed after 100 attempts.
+```
+If I understand correctly, the problem here comes from normal_lccdf() being evaluated at values of mu and sigma that result in a tail probability that equals zero to numerical precision. STAN's default is to initialize in a range where these probabilities are vanishingly small for my simulation example. I posted about this on the [STAN message board](https://discourse.mc-stan.org/t/stan-users-guide-4-3-censored-data/32523) to ask for alternative solutions that might be a little less kludgy / more broadly applicable. I don't think this is a big impediment, but I also don't want to reinvent the wheel if other people have some good ideas! 
+
+## Censored Poisson Example
+
+**I'm going to add this next: estimating a Poisson rate with cell suppression.** 
 
 
 ## Further Reading / References

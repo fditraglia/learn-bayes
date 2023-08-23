@@ -5,11 +5,10 @@ data {
   real<lower=max(y_obs)> U;
 }
 parameters {
-  array[N_cens] real<lower=U> y_cens;
   real mu;
   real<lower=0> sigma;
 }
 model {
   y_obs ~ normal(mu, sigma);
-  y_cens ~ normal(mu, sigma);
+  target += N_cens * normal_lccdf(U | mu, sigma);
 }

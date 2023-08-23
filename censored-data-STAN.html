@@ -3150,9 +3150,9 @@ return!"\t\n\x0B\f\r                　\u2028\u2029
 </section>
 <section id="bathroom-scale-example" class="level2">
 <h2 class="anchored" data-anchor-id="bathroom-scale-example">Bathroom Scale Example</h2>
-<p>This example comes from the <a href="https://mc-stan.org/docs/stan-users-guide/censored-data.html">STAN users guide</a>. Consider a bathroom scale with a maximum capacity of <span class="math inline">\(U\)</span> kilograms. If we weigh an object that is less than <span class="math inline">\(U\)</span> kg, the scale gives an accurate reading. Suppose there’s no measurement error. If we weigh an object that is greater than or equal to the weight limit, the scale is greater than or equal to <span class="math inline">\(U\)</span> kg, the scale reads <span class="math inline">\(\geq U\)</span>. Again assume there’s no measurement error. In some datasets we might now know the censoring threshold, in which case we can treat it as a parameter to be estimated. But to keep things simple, suppose for the moment that <span class="math inline">\(U\)</span> is a known value.</p>
+<p>This example comes from the <a href="https://mc-stan.org/docs/stan-users-guide/censored-data.html">STAN users guide</a>. Consider a bathroom scale with a maximum capacity of <span class="math inline">\(U\)</span> kilograms. If we weigh an object that is less than <span class="math inline">\(U\)</span> kg, the scale gives an accurate reading. Suppose there’s no measurement error. If we weigh an object that is greater than or equal to the weight limit, the scale reads <span class="math inline">\(\geq U\)</span>. Again assume there’s no measurement error. In some datasets we might not know the censoring threshold, in which case we can treat it as a parameter to be estimated. But to keep things simple, suppose for the moment that <span class="math inline">\(U\)</span> is a known value.</p>
 <p>Now suppose that we use the bathroom scale to weigh an iid sample of <span class="math inline">\(n\)</span> people drawn from a <span class="math inline">\(\text{Normal}(\mu, \sigma^2)\)</span> population. Our goal is to infer the parameters <span class="math inline">\(\mu\)</span> and <span class="math inline">\(\sigma\)</span>. The full model is as follows: <span class="math display">\[
-Y_i \sim\text{iid Normal}(\mu, \sigma^2), \quad C_i = \mathbb{1}(Y_i \geq U), \quad C_i \text{ observed}, \quad \text{observe } Y_i \text{ iff } C_i \neq 0.
+Y_i \sim\text{iid Normal}(\mu, \sigma^2), \quad C_i = \mathbb{1}(Y_i \geq U), \quad C_i \text{ observed}, \quad \text{observe } Y_i \text{ iff } C_i = 0.
 \]</span> There are two different ways to approach this model:</p>
 <ol type="1">
 <li>Treat the <span class="math inline">\(Y_i\)</span> for which <span class="math inline">\(C_i = 1\)</span> as <em>parameters to be estimated</em>.<br>
@@ -3164,12 +3164,12 @@ Y_i \sim\text{iid Normal}(\mu, \sigma^2), \quad C_i = \mathbb{1}(Y_i \geq U), \q
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(broom)</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1983</span>)</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>u <span class="ot">&lt;-</span> <span class="dv">150</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>U <span class="ot">&lt;-</span> <span class="dv">150</span></span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>N_total <span class="ot">&lt;-</span> <span class="dv">500</span></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>mu_true <span class="ot">&lt;-</span> <span class="dv">130</span></span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>sigma_true <span class="ot">&lt;-</span> <span class="dv">25</span></span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>y_true <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(N_total, mu_true, sigma_true)</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>y_obs <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(y_true <span class="sc">&lt;</span> u, y_true, <span class="cn">NA</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>y_obs <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(y_true <span class="sc">&lt;</span> U, y_true, <span class="cn">NA</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Completely ignoring the censoring gives very misleading results in this example:</p>
 <div class="cell">
@@ -3219,7 +3219,7 @@ Y_i \sim\text{iid Normal}(\mu, \sigma^2), \quad C_i = \mathbb{1}(Y_i \geq U), \q
 <p>Filling in the value of <span class="math inline">\(U\)</span> for the censored observations works better, but given the true parameter values and the value of <span class="math inline">\(U\)</span> in this example, the results are still misleading:</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>y_obs <span class="sc">|&gt;</span> </span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">replace_na</span>(u) <span class="sc">|&gt;</span> </span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">replace_na</span>(U) <span class="sc">|&gt;</span> </span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">t.test</span>(<span class="at">mu =</span> mu_true) <span class="sc">|&gt;</span> </span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tidy</span>() <span class="sc">|&gt;</span> </span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -3267,23 +3267,45 @@ Y_i \sim\text{iid Normal}(\mu, \sigma^2), \quad C_i = \mathbb{1}(Y_i \geq U), \q
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">y_obs =</span> y_obs[<span class="sc">!</span><span class="fu">is.na</span>(y_obs)], </span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>            <span class="at">N_obs =</span> <span class="fu">sum</span>(<span class="sc">!</span><span class="fu">is.na</span>(y_obs)), </span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>            <span class="at">N_cens =</span> <span class="fu">sum</span>(<span class="fu">is.na</span>(y_obs)), </span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">u =</span> u)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">U =</span> U)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <section id="first-approach-censored-data-as-parameters" class="level3">
 <h3 class="anchored" data-anchor-id="first-approach-censored-data-as-parameters">First Approach: Censored Data as Parameters</h3>
-<p>We’ll use <code>cmdstanr</code> to access STAN throughout this document. See <code>CmdStanR-getting-started.qmd</code> for more details. In the summary table, I’ll only display inferences for <code>mu</code> and <code>sigma</code>, although inferences for each of the censored observations are also available. Here I use flat priors for <code>mu</code> and <code>sigma</code>, the default if you don’t specify otherwise. This isn’t a great choice in more complicated models, but it should work fine here. All of the diagnostics look good, the posterior inferences are accurate for both of our parameters of interest:</p>
+<p>We’ll use <code>cmdstanr</code> to access STAN throughout this document. See <code>CmdStanR-getting-started.qmd</code> for more details. In the summary table, I’ll only display inferences for <code>mu</code> and <code>sigma</code>, although inferences for each of the censored observations are also available. Here I use flat priors for <code>mu</code> and <code>sigma</code>, the default if you don’t specify otherwise. This isn’t a great choice in more complicated models, but it should work fine here. The STAN code for this model is as follows:</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(cmdstanr)</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>censored_normal_impute <span class="ot">&lt;-</span> <span class="fu">cmdstan_model</span>(<span class="st">&#39;censored-normal-impute.stan&#39;</span>)</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>fit1 <span class="ot">&lt;-</span> censored_normal_impute<span class="sc">$</span><span class="fu">sample</span>(</span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">parallel_chains =</span> <span class="dv">4</span>,</span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">500</span></span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>censored_normal_impute<span class="sc">$</span><span class="fu">print</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>data {
+  int&lt;lower=0&gt; N_obs;
+  int&lt;lower=0&gt; N_cens;
+  array[N_obs] real y_obs;
+  real&lt;lower=max(y_obs)&gt; U;
+}
+parameters {
+  array[N_cens] real&lt;lower=U&gt; y_cens;
+  real mu;
+  real&lt;lower=0&gt; sigma;
+}
+model {
+  y_obs ~ normal(mu, sigma);
+  y_cens ~ normal(mu, sigma);
+}</code></pre>
+</div>
+</div>
+<p>The syntax here is relatively straightforward. Two things are worth commenting on. First, the <code>&lt;lower=max(y_obs)&gt;</code> in the <code>data { ... }</code> block isn’t strictly necessary. This just provides a bit of sanity checking for the data: there should be no observed value of <span class="math inline">\(Y\)</span> that is above the censoring threshold. By adding this to the model we ensure that STAN will throw an error if we pass it data that violate the constraints of the model.</p>
+<p>Second, this is essentially a random effects model: <code>y_cens</code> is the vector of unobserved random effects, all of which are drawn from a common normal distribution with mean <code>mu</code> and standard deviation <code>sigma</code>. This normal distribution serves as the likelihood for the uncensored observations and the “prior” for the censored observations, which are treated as parameters. But these parameters are essentially being “shrunk towards each other” because they come from a common distribution.</p>
+<p>We can fit and summarize the model as follows. I’ll only display the inferences for <span class="math inline">\(\mu\)</span> and <span class="math inline">\(\sigma\)</span>, since these are the parameters of interest. All of the diagnostics look good, the posterior inferences are accurate for both of parameters of interest:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>fit1 <span class="ot">&lt;-</span> censored_normal_impute<span class="sc">$</span><span class="fu">sample</span>(</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">parallel_chains =</span> <span class="dv">4</span>,</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">500</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Running MCMC with 4 parallel chains...
 
@@ -3320,8 +3342,8 @@ All 4 chains finished successfully.
 Mean chain execution time: 0.3 seconds.
 Total execution time: 0.5 seconds.</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>fit1<span class="sc">$</span><span class="fu">summary</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;mu&#39;</span>, <span class="st">&#39;sigma&#39;</span>)) <span class="sc">|&gt;</span> </span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>fit1<span class="sc">$</span><span class="fu">summary</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;mu&#39;</span>, <span class="st">&#39;sigma&#39;</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <table class="table table-sm table-striped small">
 <colgroup>
@@ -3382,7 +3404,178 @@ Total execution time: 0.5 seconds.</code></pre>
 </section>
 <section id="second-approach-integrate-out-censored-data" class="level3">
 <h3 class="anchored" data-anchor-id="second-approach-integrate-out-censored-data">Second Approach: Integrate Out Censored Data</h3>
+<p>In this approach, rather than treating them as parameters to estimate, we add terms to the likelihood function that directly account for the contribution made by the censored observations. This approach is a bit more general since it can be used for models with discrete outcome variables. My understanding is that it is also a bit more computationally efficient.</p>
+<p>A censored observation corresponds to the event <span class="math inline">\(\{Y_i &gt; U\}\)</span>. Under the model normal model from above, and conditional on the model parameters, this censoring event has the following probability: <span class="math display">\[
+\mathbb{P}(Y_i &gt; U|\mu, \sigma) = 1 - \mathbb{P}(Y_i \leq U|\mu, \sigma) = 1 - \Phi\left( \frac{U - \mu}{\sigma}\right)
+\]</span> where <span class="math inline">\(\Phi(\cdot)\)</span> denotes the standard normal CDF. This gives the likelihood contribution from an observation with <span class="math inline">\(C_i = 1\)</span>. In contrast, the likelihood of an observation that is <em>not</em> censored, <span class="math inline">\(C_i = 0\)</span>, is given by <span class="math display">\[
+f(Y_i|\mu, \sigma) = \varphi\left( \frac{Y_i - \mu}{\sigma}\right)
+\]</span> where <span class="math inline">\(\varphi(\cdot)\)</span> denotes the standard normal pdf. Using these expressions, we can write the overall likelihood of <em>all the data</em>, both censored and uncensored, as follows: <span class="math display">\[
+L(\mu, \sigma|\mathbf{y}, U) = \prod_{i=1}^n \varphi\left( \frac{y_i - \mu}{\sigma}\right)^{1 - C_i} \left[1 - \Phi\left( \frac{U - \mu}{\sigma}\right)\right]^{C_i}.
+\]</span> Hence, the log-likelihood is given by <span class="math display">\[
+\ell(\mu, \sigma|\mathbf{y}, U) = \sum_{i=1}^n (1 - C_i) \log \varphi\left( \frac{y_i - \mu}{\sigma}\right) + \sum_{i=1}^n C_i \log \left[1 - \Phi\left( \frac{U - \mu}{\sigma}\right)\right].
+\]</span> Defining <span class="math inline">\(N_\text{cens} = \sum_{i=1}^n C_i\)</span>, we can write this more simply as <span class="math display">\[
+\ell(\mu, \sigma|\mathbf{y}, U) = \sum_{i=1}^n (1 - C_i) \log \varphi\left( \frac{y_i - \mu}{\sigma}\right) + N_\text{cens} \times \log\left[1 - \Phi\left( \frac{U - \mu}{\sigma}\right)\right]
+\]</span> since the second sum only depends on the data through the number of censored observations.</p>
+<p>At this point it is straightforward to implement the model in STAN by making a small change to the code from above. We handle the uncensored observations exactly as before. They key difference is that <code>y_cens</code> no longer appears in the <code>parameters { ... }</code> block, or indeed anywhere else in the code. Instead we use the <code>target +=</code> syntax, explained in the zero-inflated Poisson example from <code>poisson-regression-STAN.qmd</code>. To make a long story short, <code>target +=</code> effectively adds whatever is on the RHS of the <code>+=</code> to the overall log-likelihood of the model. Here we use this syntax to account for the likelihood contribution of the censored observations:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>censored_normal_integrate <span class="ot">&lt;-</span> <span class="fu">cmdstan_model</span>(<span class="st">&#39;censored-normal-integrate.stan&#39;</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>censored_normal_integrate<span class="sc">$</span><span class="fu">print</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>data {
+  int&lt;lower=0&gt; N_obs;
+  int&lt;lower=0&gt; N_cens;
+  array[N_obs] real y_obs;
+  real&lt;lower=max(y_obs)&gt; U;
+}
+parameters {
+  real mu;
+  real&lt;lower=0&gt; sigma;
+}
+model {
+  y_obs ~ normal(mu, sigma);
+  target += N_cens * normal_lccdf(U | mu, sigma);
+}</code></pre>
+</div>
+</div>
+<p>The function <a href="https://mc-stan.org/docs/functions-reference/normal-distribution.html#stan-functions-22"><code>normal_lccdf()</code></a> is a numerically stable implementation of <span class="math display">\[
+f(x|\mu, \sigma) = \log \left[1 - \Phi\left( \frac{x - \mu}{\sigma}\right) \right]
+\]</span> so <code>target += N_cens * normal_lccdf(u | mu, sigma);</code> adds the second term from above to the log likelihood, namely <span class="math display">\[
+N_\text{cens} \times \log\left[ 1 - \Phi\left( \frac{u - \mu}{\sigma}\right)\right].
+\]</span></p>
+<p>Now we can fit and summarize the model. This time around the only two parameters are <span class="math inline">\(\mu\)</span> and <span class="math inline">\(\sigma\)</span>, so there’s no need to set <code>variables = c(&#39;mu&#39;, &#39;sigma&#39;)</code> to suppress the parameters we’re not interested in.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>mu_lower <span class="ot">&lt;-</span> <span class="fu">mean</span>(y_obs, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>sigma_lower <span class="ot">&lt;-</span> <span class="fu">sd</span>(y_obs, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>fit2 <span class="ot">&lt;-</span> censored_normal_integrate<span class="sc">$</span><span class="fu">sample</span>(</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">parallel_chains =</span> <span class="dv">4</span>,</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">500</span>,</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">init =</span> \() <span class="fu">list</span>(<span class="at">mu =</span> <span class="fu">runif</span>(<span class="dv">1</span>, mu_lower, <span class="dv">2</span> <span class="sc">*</span> mu_lower),</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>                  <span class="at">sigma =</span> <span class="fu">runif</span>(<span class="dv">1</span>, sigma_lower, <span class="dv">2</span> <span class="sc">*</span> sigma_lower))</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Running MCMC with 4 parallel chains...
+
+Chain 1 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 1 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 1 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 2 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 2 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 3 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 4 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 1 finished in 0.0 seconds.
+Chain 2 finished in 0.0 seconds.
+Chain 3 finished in 0.0 seconds.
+Chain 4 finished in 0.0 seconds.
+
+All 4 chains finished successfully.
+Mean chain execution time: 0.0 seconds.
+Total execution time: 0.1 seconds.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>fit2<span class="sc">$</span><span class="fu">summary</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 6%">
+<col style="width: 6%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 6%">
+<col style="width: 11%">
+<col style="width: 11%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">variable</th>
+<th style="text-align: right;">mean</th>
+<th style="text-align: right;">median</th>
+<th style="text-align: right;">sd</th>
+<th style="text-align: right;">mad</th>
+<th style="text-align: right;">q5</th>
+<th style="text-align: right;">q95</th>
+<th style="text-align: right;">rhat</th>
+<th style="text-align: right;">ess_bulk</th>
+<th style="text-align: right;">ess_tail</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">lp__</td>
+<td style="text-align: right;">-1538.81</td>
+<td style="text-align: right;">-1538.50</td>
+<td style="text-align: right;">1.01</td>
+<td style="text-align: right;">0.73</td>
+<td style="text-align: right;">-1540.86</td>
+<td style="text-align: right;">-1537.85</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1939.42</td>
+<td style="text-align: right;">2650.73</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">mu</td>
+<td style="text-align: right;">131.21</td>
+<td style="text-align: right;">131.19</td>
+<td style="text-align: right;">1.14</td>
+<td style="text-align: right;">1.14</td>
+<td style="text-align: right;">129.33</td>
+<td style="text-align: right;">133.09</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">3052.08</td>
+<td style="text-align: right;">2894.65</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">sigma</td>
+<td style="text-align: right;">24.45</td>
+<td style="text-align: right;">24.42</td>
+<td style="text-align: right;">0.94</td>
+<td style="text-align: right;">0.92</td>
+<td style="text-align: right;">22.92</td>
+<td style="text-align: right;">26.02</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2834.40</td>
+<td style="text-align: right;">2605.64</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>There’s just one wrinkle in the above code: I needed to define a custom initialization function for <code>sample()</code> to avoid the following error message:</p>
+<pre><code>Chain 1   Log probability evaluates to log(0), i.e. negative infinity.
+Chain 1   Stan can&#39;t start sampling from this initial value.
+.
+.
+.
+Chain 1 Initialization between (-2, 2) failed after 100 attempts.</code></pre>
+<p>If I understand correctly, the problem here comes from normal_lccdf() being evaluated at values of mu and sigma that result in a tail probability that equals zero to numerical precision. STAN’s default is to initialize in a range where these probabilities are vanishingly small for my simulation example. I posted about this on the <a href="https://discourse.mc-stan.org/t/stan-users-guide-4-3-censored-data/32523">STAN message board</a> to ask for alternative solutions that might be a little less kludgy / more broadly applicable. I don’t think this is a big impediment, but I also don’t want to reinvent the wheel if other people have some good ideas!</p>
 </section>
+</section>
+<section id="censored-poisson-example" class="level2">
+<h2 class="anchored" data-anchor-id="censored-poisson-example">Censored Poisson Example</h2>
+<p><strong>I’m going to add this next: estimating a Poisson rate with cell suppression.</strong></p>
 </section>
 <section id="further-reading-references" class="level2">
 <h2 class="anchored" data-anchor-id="further-reading-references">Further Reading / References</h2>
