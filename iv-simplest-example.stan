@@ -32,7 +32,7 @@ model {
   
   //slopes
   beta ~ normal(0, 0.5);
-  delta ~ normal(0, 0.5)
+  delta ~ normal(0, 0.5);
   
   // Errors std devs and correlations 
   Sigma ~ exponential(1);
@@ -40,7 +40,7 @@ model {
   
   array[N] row_vector[2] mu_yx;
   for(i in 1:N) {
-    mu_yx[i] = [alpha + beta * x[i], gamma + delta * z[i]]
+    mu_yx[i] = [alpha + beta * x[i], gamma + delta * z[i]];
   }
-  yx ~ multi_normal(mu_yx, V)
+  yx ~ multi_normal(mu_yx, V);
 }

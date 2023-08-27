@@ -135,10 +135,26 @@ To make this a bit easier for me to remember, I'll now switch back to the more f
 ```{r}
 iv_dat <- list(
   N = N,
-  y = scale(W_sim),
-  x = scale(E_sim),
-  z = scale(Q_sim)
+  y = as.vector(scale(W_sim)), # prevent from returning a matrix!
+  x = as.vector(scale(E_sim)),
+  z = as.vector(scale(Q_sim))
 )
+```
+
+
+```{r}
+library(cmdstanr)
+model1 <- cmdstan_model('iv-simplest-example.stan')
+model1$print()
+fit1 <- model1$sample(
+  data = iv_dat,
+  seed = 123,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500
+)
+fit1$summary() |> 
+  knitr::kable(digits = 2)
 ```
 
 
