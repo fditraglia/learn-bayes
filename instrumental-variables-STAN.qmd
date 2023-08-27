@@ -6,7 +6,85 @@ format:
 ---
 
 ## The Simplest Possible Example
-I'll start with the example from `instrumental-variables.qmd` that is based on *Statistical Rethinking* 14-6. For the moment I'll use the same notation as the book to avoid confusion. Then I'll switch over to more "familiar" IV notation. In the example, $W$ is wage, $E$ is years of education and $Q$ is quarter of birth:
+
+Consider the simplest possible instrumental variables model:
+$$
+\begin{align*}
+Y_i &= \alpha + \beta X_i + U_i \\
+X_i &= \gamma + \delta Z_i + V_i\\
+\begin{pmatrix}
+U_i \\ V_i
+\end{pmatrix} &\sim\text{Normal}(\mathbf{0}, \boldsymbol{\Sigma})\\
+\boldsymbol{\Sigma} &\equiv 
+\begin{bmatrix}
+\sigma_U^2 & \sigma_U \sigma_V \rho \\
+\rho \sigma_U \sigma_V & \sigma_V^2
+\end{bmatrix}
+\end{align*}
+$$
+This is the **structural form** of the model, in that it shows us how to actually *generate* the observed data. Another way of expressing this model is in terms of the **reduced form**, which takes the form of a [multivariate regression](https://mc-stan.org/docs/stan-users-guide/multivariate-outcomes.html), in that there is no variable that appears on both the LHS and the RHS. 
+
+<!--To obtain it, we substitute the expression for $X_i$ into the equation for $Y_i$ as follows:
+$$
+\begin{align*}
+Y_i &= \alpha + \beta (\gamma + \delta Z_i + V_i) + U_i \\
+&= (\alpha + \beta\gamma) + \beta \delta Z_i + (\beta V_i + U_i).
+\end{align*}
+$$
+Defining $W_i \equiv \beta V_i + U_i$, we have the following pair of equations:
+$$
+\begin{align*}
+Y_i &= (\alpha + \beta\gamma) + \beta \delta Z_i + W_i\\
+X_i &= \gamma + \delta Z_i + V_i
+\end{align*}
+$$
+Now, since,
+$$
+\begin{bmatrix}
+W_i \\ V_i
+\end{bmatrix} =
+\begin{bmatrix}
+1 & \beta \\
+0 & 1
+\end{bmatrix} 
+\begin{bmatrix}
+U_i \\ V_i
+\end{bmatrix} = \mathbf{M} \begin{bmatrix} U_i \\ V_i \end{bmatrix}
+$$
+it follows that $(W_i, V_i)$ are also jointly normal with
+$$
+\begin{bmatrix}
+W_i \\ V_i 
+\end{bmatrix} \sim \text{Normal}(\mathbf{0}, \boldsymbol{\Xi}), \quad
+\boldsymbol{\Xi} \equiv \mathbf{M} \boldsymbol{\Sigma} \mathbf{M}'.
+$$
+-->
+
+Textbook treatments of Bayesian IV typically express the likelihood using the reduced form model, presumably because this allows the application of various computational tricks from linear regression models. They disagree about whether we should place priors on the parameters of the reduced form (Lancaster, 2004 *Introduction to Modern Bayesian Econometrics*) or those of the structural form (Allenby, Rossi & McCullough, 2005 *Bayesian Statistics and Marketing*). But it is **perfectly fine** to express the likelihood in terms of the structural form instead. Indeed this is precisely what the earlier literature on maximum likelihood estimation of simultaneous equation models does by writing
+$$
+\begin{align*}
+U_i &= Y_i - \alpha - \beta X_i\\
+V_i &= X_i - \gamma - \delta Z_i 
+\end{align*}
+$$
+and substituting these into the bivariate normal distribution that we have assumed for $(U_i, V_i)$. 
+
+The question remains: **how to do this in STAN**? One option would be to explicitly construct $(U_i, V_i)$ in the model block and then give these a bivariate normal distribution. But there's a simpler approach, used both in *Statistical Rethinking* and [this more elaborate example](https://khakieconomics.github.io/2017/11/26/Bayesian_iv.html) that is **completely equivalent** although it looks a bit different. We can simply write
+$$
+\begin{bmatrix}
+Y_i \\ X_i
+\end{bmatrix} \sim \text{Normal}\left( \begin{bmatrix} \mu_i^Y \\ \mu_i^X\end{bmatrix}, \boldsymbol{\Sigma}\right)
+$$
+where we define
+$$
+\begin{align*}
+\mu_i^Y &= \alpha + \beta X_i\\
+\mu_i^X &= \gamma + \delta Z_i.
+\end{align*}
+$$
+I initially thought this looked suspicious. Notice how the mean for $Y_i$ depends on the value of $X_i$ but we still put a distribution on $X_i$. I was initially worried that this meant we were conditioning on $X_i$ in in one place and not in another. But this is irrelevant: all we need to do is *implement the likelihood function*. At given values of data and parameters, these two ways of thinking of it will give exactly the same values, since the transformation that maps between them is linear. (Hence the Jacobian determinant is a constant.)
+
+With that out of the way, here's a review of example 14-6 from *Statistical Rethinking* 14-6. I'll start by using the the same notation as the book to avoid confusion. Then I'll switch over to the more "familiar" IV notation from above. In the example, $W$ is wage, $E$ is years of education and $Q$ is quarter of birth:
 $$
 \begin{align*}
 \begin{bmatrix}
@@ -28,26 +106,6 @@ Q_sim <- sample(1:4, size = N, replace = TRUE) # quarter of birth
 E_sim <- rnorm(N, U_sim + Q_sim) # education
 W_sim <- rnorm(N, U_sim + 0 * E_sim) # wage
 ```
-No now let's look at how this relates to the more "standard" way of writing an IV model, namely:
-$$
-\begin{align*}
-Y_i &= \beta_0 + \beta_1 X_i + U_i \\
-X_i &= \pi_0 + \pi_1 Z_i + V_i\\
-\begin{pmatrix}
-U_i \\ V_i
-\end{pmatrix} &\sim\text{Normal}\left( \begin{bmatrix} 0 \\ 0\end{bmatrix}, 
-\begin{bmatrix}
-\sigma_U^2 & \sigma_U \sigma_V \rho \\
-\rho \sigma_U \sigma_V & \sigma_V^2
-\end{bmatrix}
-\right).
-\end{align*}
-$$
-Besides the choice of variable and parameter names, the main difference between these two is that *Statistical Rethinking* states the distribution for the observed variables $(W, E)$ *directly* whereas the more "econometrics" way of writing things states the distribution for the *unobserved* variables. 
-
-
-**Ok so basically the point is that in the rethinking version $U$ is the unobserved confounder, and the structural errors are only implied. I need to think about how this relates to the right way of specifying the model.**
-
 
 *Statistical Rethinking* estimates most models with centered and standardized variables, to make it easier to think of reasonable priors. This one is no exception. But since the true effect of education is zero on the "raw" scale, so is the effect on the standardized scale. 
 ```{r}
@@ -73,6 +131,80 @@ m14_6 <- ulam(
 stancode(m14_6)
 ```
 
+To make this a bit easier for me to remember, I'll now switch back to the more familiar notation, while keeping the standardized variables:
+```{r}
+iv_dat <- list(
+  N = N,
+  y = scale(W_sim),
+  x = scale(E_sim),
+  z = scale(Q_sim)
+)
+```
+
+
+---
+
+So how does this relate to the more "standard" way of writing an IV model? There are actually *two* alternatives: the **structural** form and the **reduced form**. The structural form is *causal* in that it shows how the variables are actually *generated*. It is a model that shows how to generate $X$ given $Z$ and then how to generate $Y$ given $X$, namely:
+$$
+\begin{align*}
+Y_i &= \alpha + \beta X_i + U_i \\
+X_i &= \gamma + \delta Z_i + V_i\\
+\begin{pmatrix}
+U_i \\ V_i
+\end{pmatrix} &\sim\text{Normal}(\mathbf{0}, \boldsymbol{\Sigma})\\
+\boldsymbol{\Sigma} &\equiv 
+\begin{bmatrix}
+\sigma_U^2 & \sigma_U \sigma_V \rho \\
+\rho \sigma_U \sigma_V & \sigma_V^2
+\end{bmatrix}
+\end{align*}
+$$
+The reduced form, on the other hand, is not causal but takes the form of a standard multivariate regression, in that there is no variable that appears on both the LHS and the RHS. To obtain it, we substitute the expression for $X_i$ into the equation for $Y_i$ as follows:
+$$
+\begin{align*}
+Y_i &= \alpha + \beta (\gamma + \delta Z_i + V_i) + U_i \\
+&= (\alpha + \beta\gamma) + \beta \delta Z_i + (\beta V_i + U_i).
+\end{align*}
+$$
+Defining $W_i \equiv \beta V_i + U_i$, we have the following pair of equations:
+$$
+\begin{align*}
+Y_i &= (\alpha + \beta\gamma) + \beta \delta Z_i + W_i\\
+X_i &= \gamma + \delta Z_i + V_i
+\end{align*}
+$$
+Now, since,
+$$
+\begin{bmatrix}
+W_i \\ V_i
+\end{bmatrix} =
+\begin{bmatrix}
+1 & \beta \\
+0 & 1
+\end{bmatrix} 
+\begin{bmatrix}
+U_i \\ V_i
+\end{bmatrix} = \mathbf{M} \begin{bmatrix} U_i \\ V_i \end{bmatrix}
+$$
+it follows that $(W_i, V_i)$ are also jointly normal with
+$$
+\begin{bmatrix}
+W_i \\ V_i 
+\end{bmatrix} \sim \text{Normal}(\mathbf{0}, \boldsymbol{\Xi}), \quad
+\boldsymbol{\Xi} \equiv \mathbf{M} \boldsymbol{\Sigma} \mathbf{M}'.
+$$
+
+The reduced form is a linear regression model for the joint distribution of $(Y_i, X_i)$ given $Z_i$. 
+
+---
+
+Besides the choice of variable and parameter names, the main difference between these two is that *Statistical Rethinking* states the distribution for the observed variables $(W, E)$ *directly* whereas the more "econometrics" way of writing things states the distribution for the *unobserved* variables. 
+
+
+**Ok so basically the point is that in the rethinking version $U$ is the unobserved confounder, and the structural errors are only implied. I need to think about how this relates to the right way of specifying the model.**
+
+
+
 ## How does this related 
 
 ## Different Approaches 
@@ -93,6 +225,9 @@ U_i \\ V_i
 \right)
 \end{align*}
 $$
+
+## Relation to SUR 
+<https://mc-stan.org/docs/stan-users-guide/multivariate-outcomes.html>
 
 ## To Add Next
 Here's a [more complicated](https://khakieconomics.github.io/2017/11/26/Bayesian_iv.html) model with a hierarchical prior. This seems very closely related to a little-known but very interesting paper of [Chamberlain & Imbens](https://www.nber.org/papers/t0204) that (as far as I can tell) was later re-packaged without a self-citation to the earlier version into a [random coefficients paper](https://doi.org/10.1111/j.1468-0262.2004.00485.x) that seems to do almost exactly the same thing without mentioning the word "Bayesian" anywhere. Next I'd like to implement the earlier Chamberlain & Imbens paper *exactly* using STAN and then consider a more reasonable choice of priors for the covariance matrices, e.g. LKJ.

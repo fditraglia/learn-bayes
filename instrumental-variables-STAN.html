@@ -3132,7 +3132,72 @@ return!"\t\n\x0B\f\r                　\u2028\u2029
 
 <section id="the-simplest-possible-example" class="level2">
 <h2 class="anchored" data-anchor-id="the-simplest-possible-example">The Simplest Possible Example</h2>
-<p>I’ll start with the example from <code>instrumental-variables.qmd</code> that is based on <em>Statistical Rethinking</em> 14-6. For the moment I’ll use the same notation as the book to avoid confusion. Then I’ll switch over to more “familiar” IV notation. In the example, <span class="math inline">\(W\)</span> is wage, <span class="math inline">\(E\)</span> is years of education and <span class="math inline">\(Q\)</span> is quarter of birth: <span class="math display">\[
+<p>Consider the simplest possible instrumental variables model: <span class="math display">\[
+\begin{align*}
+Y_i &amp;= \alpha + \beta X_i + U_i \\
+X_i &amp;= \gamma + \delta Z_i + V_i\\
+\begin{pmatrix}
+U_i \\ V_i
+\end{pmatrix} &amp;\sim\text{Normal}(\mathbf{0}, \boldsymbol{\Sigma})\\
+\boldsymbol{\Sigma} &amp;\equiv
+\begin{bmatrix}
+\sigma_U^2 &amp; \sigma_U \sigma_V \rho \\
+\rho \sigma_U \sigma_V &amp; \sigma_V^2
+\end{bmatrix}
+\end{align*}
+\]</span> This is the <strong>structural form</strong> of the model, in that it shows us how to actually <em>generate</em> the observed data. Another way of expressing this model is in terms of the <strong>reduced form</strong>, which takes the form of a <a href="https://mc-stan.org/docs/stan-users-guide/multivariate-outcomes.html">multivariate regression</a>, in that there is no variable that appears on both the LHS and the RHS.</p>
+<!--To obtain it, we substitute the expression for $X_i$ into the equation for $Y_i$ as follows:
+$$
+\begin{align*}
+Y_i &= \alpha + \beta (\gamma + \delta Z_i + V_i) + U_i \\
+&= (\alpha + \beta\gamma) + \beta \delta Z_i + (\beta V_i + U_i).
+\end{align*}
+$$
+Defining $W_i \equiv \beta V_i + U_i$, we have the following pair of equations:
+$$
+\begin{align*}
+Y_i &= (\alpha + \beta\gamma) + \beta \delta Z_i + W_i\\
+X_i &= \gamma + \delta Z_i + V_i
+\end{align*}
+$$
+Now, since,
+$$
+\begin{bmatrix}
+W_i \\ V_i
+\end{bmatrix} =
+\begin{bmatrix}
+1 & \beta \\
+0 & 1
+\end{bmatrix} 
+\begin{bmatrix}
+U_i \\ V_i
+\end{bmatrix} = \mathbf{M} \begin{bmatrix} U_i \\ V_i \end{bmatrix}
+$$
+it follows that $(W_i, V_i)$ are also jointly normal with
+$$
+\begin{bmatrix}
+W_i \\ V_i 
+\end{bmatrix} \sim \text{Normal}(\mathbf{0}, \boldsymbol{\Xi}), \quad
+\boldsymbol{\Xi} \equiv \mathbf{M} \boldsymbol{\Sigma} \mathbf{M}'.
+$$
+-->
+<p>Textbook treatments of Bayesian IV typically express the likelihood using the reduced form model, presumably because this allows the application of various computational tricks from linear regression models. They disagree about whether we should place priors on the parameters of the reduced form (Lancaster, 2004 <em>Introduction to Modern Bayesian Econometrics</em>) or those of the structural form (Allenby, Rossi &amp; McCullough, 2005 <em>Bayesian Statistics and Marketing</em>). But it is <strong>perfectly fine</strong> to express the likelihood in terms of the structural form instead. Indeed this is precisely what the earlier literature on maximum likelihood estimation of simultaneous equation models does by writing <span class="math display">\[
+\begin{align*}
+U_i &amp;= Y_i - \alpha - \beta X_i\\
+V_i &amp;= X_i - \gamma - \delta Z_i
+\end{align*}
+\]</span> and substituting these into the bivariate normal distribution that we have assumed for <span class="math inline">\((U_i, V_i)\)</span>.</p>
+<p>The question remains: <strong>how to do this in STAN</strong>? One option would be to explicitly construct <span class="math inline">\((U_i, V_i)\)</span> in the model block and then give these a bivariate normal distribution. But there’s a simpler approach, used both in <em>Statistical Rethinking</em> and <a href="https://khakieconomics.github.io/2017/11/26/Bayesian_iv.html">this more elaborate example</a> that is <strong>completely equivalent</strong> although it looks a bit different. We can simply write <span class="math display">\[
+\begin{bmatrix}
+Y_i \\ X_i
+\end{bmatrix} \sim \text{Normal}\left( \begin{bmatrix} \mu_i^Y \\ \mu_i^X\end{bmatrix}, \boldsymbol{\Sigma}\right)
+\]</span> where we define <span class="math display">\[
+\begin{align*}
+\mu_i^Y &amp;= \alpha + \beta X_i\\
+\mu_i^X &amp;= \gamma + \delta Z_i.
+\end{align*}
+\]</span> I initially thought this looked suspicious. Notice how the mean for <span class="math inline">\(Y_i\)</span> depends on the value of <span class="math inline">\(X_i\)</span> but we still put a distribution on <span class="math inline">\(X_i\)</span>. I was initially worried that this meant we were conditioning on <span class="math inline">\(X_i\)</span> in in one place and not in another. But this is irrelevant: all we need to do is <em>implement the likelihood function</em>. At given values of data and parameters, these two ways of thinking of it will give exactly the same values, since the transformation that maps between them is linear. (Hence the Jacobian determinant is a constant.)</p>
+<p>With that out of the way, here’s a review of example 14-6 from <em>Statistical Rethinking</em> 14-6. I’ll start by using the the same notation as the book to avoid confusion. Then I’ll switch over to the more “familiar” IV notation from above. In the example, <span class="math inline">\(W\)</span> is wage, <span class="math inline">\(E\)</span> is years of education and <span class="math inline">\(Q\)</span> is quarter of birth: <span class="math display">\[
 \begin{align*}
 \begin{bmatrix}
 W \\ E
@@ -3211,6 +3276,54 @@ model{
 }</code></pre>
 </div>
 </div>
+<hr>
+<p>So how does this relate to the more “standard” way of writing an IV model? There are actually <em>two</em> alternatives: the <strong>structural</strong> form and the <strong>reduced form</strong>. The structural form is <em>causal</em> in that it shows how the variables are actually <em>generated</em>. It is a model that shows how to generate <span class="math inline">\(X\)</span> given <span class="math inline">\(Z\)</span> and then how to generate <span class="math inline">\(Y\)</span> given <span class="math inline">\(X\)</span>, namely: <span class="math display">\[
+\begin{align*}
+Y_i &amp;= \alpha + \beta X_i + U_i \\
+X_i &amp;= \gamma + \delta Z_i + V_i\\
+\begin{pmatrix}
+U_i \\ V_i
+\end{pmatrix} &amp;\sim\text{Normal}(\mathbf{0}, \boldsymbol{\Sigma})\\
+\boldsymbol{\Sigma} &amp;\equiv
+\begin{bmatrix}
+\sigma_U^2 &amp; \sigma_U \sigma_V \rho \\
+\rho \sigma_U \sigma_V &amp; \sigma_V^2
+\end{bmatrix}
+\end{align*}
+\]</span> The reduced form, on the other hand, is not causal but takes the form of a standard multivariate regression, in that there is no variable that appears on both the LHS and the RHS. To obtain it, we substitute the expression for <span class="math inline">\(X_i\)</span> into the equation for <span class="math inline">\(Y_i\)</span> as follows: <span class="math display">\[
+\begin{align*}
+Y_i &amp;= \alpha + \beta (\gamma + \delta Z_i + V_i) + U_i \\
+&amp;= (\alpha + \beta\gamma) + \beta \delta Z_i + (\beta V_i + U_i).
+\end{align*}
+\]</span> Defining <span class="math inline">\(W_i \equiv \beta V_i + U_i\)</span>, we have the following pair of equations: <span class="math display">\[
+\begin{align*}
+Y_i &amp;= (\alpha + \beta\gamma) + \beta \delta Z_i + W_i\\
+X_i &amp;= \gamma + \delta Z_i + V_i
+\end{align*}
+\]</span> Now, since, <span class="math display">\[
+\begin{bmatrix}
+W_i \\ V_i
+\end{bmatrix} =
+\begin{bmatrix}
+1 &amp; \beta \\
+0 &amp; 1
+\end{bmatrix}
+\begin{bmatrix}
+U_i \\ V_i
+\end{bmatrix} = \mathbf{M} \begin{bmatrix} U_i \\ V_i \end{bmatrix}
+\]</span> it follows that <span class="math inline">\((W_i, V_i)\)</span> are also jointly normal with <span class="math display">\[
+\begin{bmatrix}
+W_i \\ V_i
+\end{bmatrix} \sim \text{Normal}(\mathbf{0}, \boldsymbol{\Xi}), \quad
+\boldsymbol{\Xi} \equiv \mathbf{M} \boldsymbol{\Sigma} \mathbf{M}&#39;.
+\]</span></p>
+<p>The reduced form is a linear regression model for the joint distribution of <span class="math inline">\((Y_i, X_i)\)</span> given <span class="math inline">\(Z_i\)</span>.</p>
+<hr>
+<p>Besides the choice of variable and parameter names, the main difference between these two is that <em>Statistical Rethinking</em> states the distribution for the observed variables <span class="math inline">\((W, E)\)</span> <em>directly</em> whereas the more “econometrics” way of writing things states the distribution for the <em>unobserved</em> variables.</p>
+<p><strong>Ok so basically the point is that in the rethinking version <span class="math inline">\(U\)</span> is the unobserved confounder, and the structural errors are only implied. I need to think about how this relates to the right way of specifying the model.</strong></p>
+</section>
+<section id="how-does-this-related" class="level2">
+<h2 class="anchored" data-anchor-id="how-does-this-related">How does this related</h2>
 </section>
 <section id="different-approaches" class="level2">
 <h2 class="anchored" data-anchor-id="different-approaches">Different Approaches</h2>
@@ -3232,6 +3345,10 @@ U_i \\ V_i
 \right)
 \end{align*}
 \]</span></p>
+</section>
+<section id="relation-to-sur" class="level2">
+<h2 class="anchored" data-anchor-id="relation-to-sur">Relation to SUR</h2>
+<p><a href="https://mc-stan.org/docs/stan-users-guide/multivariate-outcomes.html" class="uri">https://mc-stan.org/docs/stan-users-guide/multivariate-outcomes.html</a></p>
 </section>
 <section id="to-add-next" class="level2">
 <h2 class="anchored" data-anchor-id="to-add-next">To Add Next</h2>
