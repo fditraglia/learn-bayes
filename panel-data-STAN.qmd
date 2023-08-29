@@ -11,8 +11,12 @@ This example is based on [Lecture 12](https://youtu.be/iwVqiiXYeC4?feature=share
 
 ### The Model
 
-This is a logit regression with correlated individual effects. Let $g = 1, ..., G$ index groups and $i = 1, ... N_g$ index individuals within groups. There are $N \equiv \sum_{g=1}^G N_g$ individuals divided across $G = 30$ groups of different sizes $N_g$. There is a group-level observable $Z_g$ and a group-level unobservable $U_g$. The individual-level observables are $X_{ig}$ and $Y_{ig}$.
-
+This is a logit regression with correlated individual effects. Let $g = 1, ..., G$ index groups and $i = 1, ... N_g$ index individuals within groups. There are $N \equiv \sum_{g=1}^G N_g$ individuals divided across $G = 30$ groups of different sizes $N_g$. There is a group-level observable $Z_g$ and a group-level unobservable $U_g$. The individual-level observables are $X_{ig}$ and $Y_{ig}$. The models is as follows:
+$$
+\mathbb{P}(Y_ig = 1|X_{ig}, Z_g, U_g) = \texttt{plogis}(\alpha + \beta X_{ig} + \gamma 
+Z_g + U_g).
+$$
+First we'll simulate some data from the model as follows:
 ```{r}
 N_groups <- 30
 N_id <- 200
