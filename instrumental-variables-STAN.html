@@ -3811,12 +3811,12 @@ Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling)
 Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
-Chain 1 finished in 1.5 seconds.
 Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 1 finished in 1.5 seconds.
 Chain 2 finished in 1.5 seconds.
-Chain 3 finished in 1.6 seconds.
+Chain 3 finished in 1.5 seconds.
 Chain 4 finished in 1.5 seconds.
 
 All 4 chains finished successfully.
@@ -4038,75 +4038,6 @@ Total execution time: 1.7 seconds.</code></pre>
 </table>
 </div>
 </div>
-<hr>
-<p>So how does this relate to the more “standard” way of writing an IV model? There are actually <em>two</em> alternatives: the <strong>structural</strong> form and the <strong>reduced form</strong>. The structural form is <em>causal</em> in that it shows how the variables are actually <em>generated</em>. It is a model that shows how to generate <span class="math inline">\(X\)</span> given <span class="math inline">\(Z\)</span> and then how to generate <span class="math inline">\(Y\)</span> given <span class="math inline">\(X\)</span>, namely: <span class="math display">\[
-\begin{align*}
-Y_i &amp;= \alpha + \beta X_i + U_i \\
-X_i &amp;= \gamma + \delta Z_i + V_i\\
-\begin{pmatrix}
-U_i \\ V_i
-\end{pmatrix} &amp;\sim\text{Normal}(\mathbf{0}, \boldsymbol{\Sigma})\\
-\boldsymbol{\Sigma} &amp;\equiv
-\begin{bmatrix}
-\sigma_U^2 &amp; \sigma_U \sigma_V \rho \\
-\rho \sigma_U \sigma_V &amp; \sigma_V^2
-\end{bmatrix}
-\end{align*}
-\]</span> The reduced form, on the other hand, is not causal but takes the form of a standard multivariate regression, in that there is no variable that appears on both the LHS and the RHS. To obtain it, we substitute the expression for <span class="math inline">\(X_i\)</span> into the equation for <span class="math inline">\(Y_i\)</span> as follows: <span class="math display">\[
-\begin{align*}
-Y_i &amp;= \alpha + \beta (\gamma + \delta Z_i + V_i) + U_i \\
-&amp;= (\alpha + \beta\gamma) + \beta \delta Z_i + (\beta V_i + U_i).
-\end{align*}
-\]</span> Defining <span class="math inline">\(W_i \equiv \beta V_i + U_i\)</span>, we have the following pair of equations: <span class="math display">\[
-\begin{align*}
-Y_i &amp;= (\alpha + \beta\gamma) + \beta \delta Z_i + W_i\\
-X_i &amp;= \gamma + \delta Z_i + V_i
-\end{align*}
-\]</span> Now, since, <span class="math display">\[
-\begin{bmatrix}
-W_i \\ V_i
-\end{bmatrix} =
-\begin{bmatrix}
-1 &amp; \beta \\
-0 &amp; 1
-\end{bmatrix}
-\begin{bmatrix}
-U_i \\ V_i
-\end{bmatrix} = \mathbf{M} \begin{bmatrix} U_i \\ V_i \end{bmatrix}
-\]</span> it follows that <span class="math inline">\((W_i, V_i)\)</span> are also jointly normal with <span class="math display">\[
-\begin{bmatrix}
-W_i \\ V_i
-\end{bmatrix} \sim \text{Normal}(\mathbf{0}, \boldsymbol{\Xi}), \quad
-\boldsymbol{\Xi} \equiv \mathbf{M} \boldsymbol{\Sigma} \mathbf{M}&#39;.
-\]</span></p>
-<p>The reduced form is a linear regression model for the joint distribution of <span class="math inline">\((Y_i, X_i)\)</span> given <span class="math inline">\(Z_i\)</span>.</p>
-<hr>
-<p>Besides the choice of variable and parameter names, the main difference between these two is that <em>Statistical Rethinking</em> states the distribution for the observed variables <span class="math inline">\((W, E)\)</span> <em>directly</em> whereas the more “econometrics” way of writing things states the distribution for the <em>unobserved</em> variables.</p>
-<p><strong>Ok so basically the point is that in the rethinking version <span class="math inline">\(U\)</span> is the unobserved confounder, and the structural errors are only implied. I need to think about how this relates to the right way of specifying the model.</strong></p>
-</section>
-<section id="how-does-this-related" class="level2">
-<h2 class="anchored" data-anchor-id="how-does-this-related">How does this related</h2>
-</section>
-<section id="different-approaches" class="level2">
-<h2 class="anchored" data-anchor-id="different-approaches">Different Approaches</h2>
-<p>I seem to recall that there are two different thoughts on how to set up priors for this kind of models. (Chamberlain &amp; Imbens talk about this and I think the Bayesian Statistics in Marketing book does as well.) One approach puts priors on the <em>structural</em> parameters, while the other puts priors on the <em>reduced form</em> parameters. <strong>I need to come back and add some discussion of this</strong>.</p>
-</section>
-<section id="more-familiar-notation" class="level2">
-<h2 class="anchored" data-anchor-id="more-familiar-notation">More familiar notation</h2>
-<p><span class="math display">\[
-\begin{align*}
-Y_i &amp;= \beta_0 + \beta_1 X_i + U_i \\
-X_i &amp;= \pi_0 + \pi_1 Z_i + V_i\\
-\begin{pmatrix}
-U_i \\ V_i
-\end{pmatrix} &amp;\sim\text{Normal}\left( \begin{bmatrix} 0 \\ 0\end{bmatrix},
-\begin{bmatrix}
-\sigma_U^2 &amp; \sigma_U \sigma_V \rho \\
-\rho \sigma_U \sigma_V &amp; \sigma_V^2
-\end{bmatrix}
-\right)
-\end{align*}
-\]</span></p>
 </section>
 <section id="relation-to-sur" class="level2">
 <h2 class="anchored" data-anchor-id="relation-to-sur">Relation to SUR</h2>

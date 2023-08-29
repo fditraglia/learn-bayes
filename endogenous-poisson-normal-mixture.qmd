@@ -6,6 +6,7 @@ format:
 ---
 
 ## The Model 
+We decided to use a simpler model, in which there is a single normal error term that is shared between the models for $Y$ and $X$. Our original model was this:
 $$
 \begin{align}
 Y_i & \sim \text{Poisson}(\lambda_i)\\
@@ -20,35 +21,47 @@ U_i \\ V_i
 \sigma_U \sigma_V \rho & \sigma_V^2\end{bmatrix}
 \end{align}
 $$
+There were two things we didn't like about this model. First, it allowed two sources of over-dispersion in each outcome equation: a common and idiosyncratic component. We thought it might be hard to distinguish these in the data and we also weren't really sure that these were both necessary or gave any interesting dynamics. We decided to set the correlation between $U_i$ and $V_i$ to one, which is equivalent to removing the idiosyntratic component of the overdispersion. We also decided that having $X_i$ enter on the raw scale in the equation for $\log(\lambda_i)$ was pretty crazy, since it means the effect of $Z_i$ is like $e^{e^z}$. So we decided to replace $X_i$ with $\log(1 + X_i)$. 
+
+**Potentially undesireable feature: this seems to create a link between the strength of the first stage and the extent of endogeneity. This may be too restrictive, so we might want to add an additional error term in the $X$ equation.**
+
+
+With these two changes, the model becomes:
+$$
+\begin{align}
+Y_i & \sim \text{Poisson}(\lambda_i)\\
+X_i & \sim \text{Poisson}(\mu_i) \\
+\log(\lambda_i) &= \alpha + \beta \log(1 + X_i) + \sigma U_i \\
+\log(\mu_i) &= \gamma + \delta Z_i + \eta U_i \\
+U_i &\sim \text{Normal}(0, 1)
+\end{align}
+$$
+Now we'll simulate from the model:
 ```{r}
 #| warning: false
 #| message: false
-library(rethinking)
 library(tidyverse)
 library(patchwork)
 library(mvtnorm)
 
 set.seed(2817)
 n <- 2500
-rho <- -0.8
-sV <- 1
-sU <- 1 
-S <- matrix(c(sU^2, rho * sU * sV, 
-              rho * sU * sV, sV^2), 2, 2, byrow = TRUE)
 
-errors <- rmvnorm(n, sigma = S)
+# Under our scaling, alpha controls the rate of Y when X equals zero
+alpha <- 4 # approx 50 on the log scale
+beta <-  0.5 # partial effect is beta * exp(everything)
+sigma <- 1 # calibrate based on expected variation in the rate of Y when X is zero
 
-a <- 0
-b <- 0.15
-g <- 0
-d <- 0.3
-
-
-sim_dat <- tibble(u = errors[, 1],
-                  v = errors[, 2],
+# Simpler to express the first-stage if we first center and scale z (z-score!)
+gamma <- 0.5 # rate of X on log scale at average Z
+delta <- 1
+eta <- 0.8
+  
+sim_dat <- tibble(u = rnorm(n),
                   z = runif(n, -0.3, 0.3),
-                  x = rpois(n, exp(g + d * (z - mean(z)) / sd(z) + v)),
-                  y = rpois(n, exp(a + b * (x - mean(x)) / sd(x) + u)))
+                  x = rpois(n, exp(gamma + delta * scale(z) + eta * u)),
+                  y = rpois(n, exp(alpha + beta * log(1 + x) + sigma * u)))
+
 
 
 dat <- sim_dat |> 
@@ -71,13 +84,14 @@ y_z + y_x + x_z
 ## How much endogeneity have we created?
 ```{r}
 library(broom)
-glm(y ~ x, family = poisson, data = dat) |> 
+glm(y ~ log(1 + x), family = poisson, data = dat) |> 
   tidy() |> 
   knitr::kable(digits = 2)
 ```
 
 
 ## Mullahy Approach
+**Note that $U$ and $\eta$ are defined in a different way in this section! I should come back and fix it later!**
 
 Suppose that
 $$
@@ -152,8 +166,9 @@ for any function of $Z$, in particular for $\varphi(Z) = Z$.
 
 Let's test this out on the simulation data:
 ```{r}
+#| error: true
 f <- function(b) {
-  with(dat, cov(y / exp(b * x), z))
+  with(dat, cov(y / exp(b * log(1 + x)), z))
 }
 f_vectorized <- Vectorize(f)
 b_seq <- seq(-1, 1, 0.01)
@@ -166,70 +181,70 @@ uniroot(f, c(-1, 1))
 
 <!-- Let's check the implied value of alpha
 ```{r}
-b_mullahy_1 <- uniroot(f, c(0, 1.2))$root
-with(dat, log(mean(y / exp(b_mullahy_1 * x)))) # implied alpha
-
-b_mullahy_2 <- uniroot(f, c(1.2, 2))$root
-with(dat, log(mean(y / exp(b_mullahy_2 * x)))) # implied alpha
+#b_mullahy_1 <- uniroot(f, c(0, 1.2))$root
+#with(dat, log(mean(y / exp(b_mullahy_1 * x)))) # implied alpha
+#
+#b_mullahy_2 <- uniroot(f, c(1.2, 2))$root
+#with(dat, log(mean(y / exp(b_mullahy_2 * x)))) # implied alpha
 ```
 Interesting: two roots, one of which is "correct" and another of which is wrong but not very far away! I wonder if this is one of those situations in which you can (possibly) show point identification using the full set of conditional moment restrictions but a *particular* choice of unconditional moment equations doesn't necessarily give you point identification even if the number of equations is greater than or equal to the number of unknowns.
 
 Let's check whether an additional moment restriction would rule out the extraneous root by evaluating an "overidentifying restriction" at a different function of $Z$
 ```{r}
-with(dat, cov(y / exp(b_mullahy_1 * x), z^2))
-with(dat, cov(y / exp(b_mullahy_1 * x), z^3))
-
-with(dat, cov(y / exp(b_mullahy_2 * x), z^2))
-with(dat, cov(y / exp(b_mullahy_2 * x), z^3))
+#with(dat, cov(y / exp(b_mullahy_1 * x), z^2))
+#with(dat, cov(y / exp(b_mullahy_1 * x), z^3))
+#
+#with(dat, cov(y / exp(b_mullahy_2 * x), z^2))
+#with(dat, cov(y / exp(b_mullahy_2 * x), z^3))
 ```
 -->
 
 
 ## Bayesian Estimation
 
-This doesn't work and I don't know why:
 ```{r}
-#| warning: false
-d <- dat |> 
-  rowid_to_column('id') |>  # Calling it i throws a STAN error: it uses i internally
-  select(x, y, z, id)
+library(cmdstanr)
+model1 <- cmdstan_model('mullahy-version1.stan')
+model1$print()
 
-iv_pois <- ulam(
-  alist(
-    y ~ dpois(lambda),
-    x ~ dpois(mu),
-    c(u[id], v[id]) ~ multi_normal(c(0, 0), Rho, Sigma),
-    log(lambda) <- a + b * x + u[id],
-    log(mu) <- g + d * z + v[id],
-    c(a, g) ~ normal(0, 1.5),
-    c(b, d) ~ normal(0, 0.2),
-    Rho ~ lkj_corr(2),
-    Sigma ~ exponential(1)
-  ), data = d, chains = 4, cores = 4, cmdstan = TRUE
+d <- list(x = dat$x,
+          y = dat$y,
+          z = dat$z,
+          N = nrow(dat))
+
+fit1 <- model1$sample(
+  data = d,
+  seed = 5678,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500,
+  #iter_warmup = 2000,
+  #iter_sampling = 6000
 )
 ```
 
+It looks like it ran successfully! Now let's check the posterior:
 ```{r}
-#| warning: false
-#m14.6 <- ulam(
-#  alist(
-#    c(W, E) ~ multi_normal(c(muW, muE), Rho, Sigma),
-#    muW <- aW + bEW * E,
-#    muE <- aE + bQE * Q, 
-#    c(aW, aE) ~ normal(0, 0.2), # indep priors
-#    c(bEW, bQE) ~ normal(0, 0.5), # indep priors
-#    Rho ~ lkj_corr(2), 
-#    Sigma ~ exponential(1)),
-#  data = dat_sim, chains = 4, cores = 4)
-#precis(m14.6, depth = 3)
+fit1$summary(variables = c('alpha', 'beta', 'gamma', 'delta', 'sigma_x', 'sigma_y')) |> knitr::kable(digits = 2)
 ```
 
+For purposes of comparison, let's try a version with a non-centered parameterization. Notice that the interpretation of the parameters in the "first stage" changes here, but these aren't the parameters of interest in any case
+```{r}
+model2 <- cmdstan_model('mullahy-version2.stan')
+model2$print()
+```
 
-
-
-
-
-
+As one might expect, the centered parameterization performs very poorly:
+```{r}
+fit2 <- model2$sample(
+  data = d,
+  seed = 5678,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500,
+)
+fit2$summary(variables = c('alpha', 'beta', 'rho', 'delta', 'sigma_u', 'eta')) |> knitr::kable(digits = 2)
+```
 
 
 
