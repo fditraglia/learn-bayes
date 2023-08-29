@@ -1,0 +1,173 @@
+---
+title: "Panel Data with STAN"
+format: 
+  html:
+    embed-resources: true
+---
+
+## Example from *Statistical Rethinking 2023*
+
+This example is based on [Lecture 12](https://youtu.be/iwVqiiXYeC4?feature=shared&t=3291) of the 2023 video lecture series to accompany the book *Statistical Rethinking*. The example itself is not in the most recent version of the book, although I believe it is slated to appear in the next version.
+
+### The Model
+
+This is a logit regression with correlated individual effects. Let $g = 1, ..., G$ index groups and $i = 1, ... N_g$ index individuals within groups. There are $N \equiv \sum_{g=1}^G N_g$ individuals divided across $G = 30$ groups of different sizes $N_g$. There is a group-level observable $Z_g$ and a group-level unobservable $U_g$. The individual-level observables are $X_{ig}$ and $Y_{ig}$.
+
+```{r}
+N_groups <- 30
+N_id <- 200
+alpha <- (-2)
+beta <- 1
+gamma <- (-0.5)
+
+set.seed(1693)
+
+# Vector of group indicators for each individual
+group_id <- sample(1:N_groups, size = N_id, replace = TRUE)
+
+# Group-level variables
+U <- rnorm(N_groups) # unobserved
+Z <- rnorm(N_groups) # observed
+
+# Individual-level variables
+X <- rnorm(N_id, mean = U[group_id])
+P <- plogis(alpha + beta * X + gamma * Z[group_id] + U[group_id])
+Y <- rbinom(N_id, size = 1, prob = P)
+```
+
+### "Fixed Effects" Model
+This is a tiny bit different from a standard fixed effects model, in that there's a weakly informative prior on each of the fixed effects instead of a completely flat one. But there's no *hierarchy* so information isn't shared across groups to estimate the respective fixed effects. Here the effect of the group-level observable cannot be identified, so the prior and posterior should coincide.
+$$
+\begin{align*}
+Y_{ig} & \sim \text{Bernoulli}(p_{ig})\\
+\text{logit}(p_i) &= \alpha_g + \beta X_{ig} + \gamma Z_g\\
+\alpha_g &\sim \text{Normal}(0, 10)\\
+\beta, \gamma &\sim \text{Normal}(0, 1) \\
+\end{align*}
+$$
+
+```{r}
+#| message: FALSE
+#| warning: FALSE
+library(rethinking)
+
+dat <- list(Y = Y, X = X, Z = Z, g = group_id, Ng = N_groups)
+mf <- ulam(
+  alist(
+    Y ~ bernoulli(p),
+    logit(p) <- alpha[g] + beta * X + gamma * Z[g],
+    alpha[g] ~ dnorm(0, 10),
+    beta ~ dnorm(0, 1),
+    gamma ~ dnorm(0, 1)
+  ), data = dat, sample = FALSE
+)
+stancode(mf)
+```
+
+### "Random Effects" Model
+This is really a multilevel model, in that we treat the varying intercepts as arising from a common distribution.
+$$
+\begin{align*}
+Y_{ig} & \sim \text{Bernoulli}(p_{ig})\\
+\text{logit}(p_i) &= \alpha_g + \beta X_{ig} + \gamma Z_g\\
+\alpha_g &\sim \text{Normal}(\bar{\alpha}, \tau)\\
+\bar{\alpha} &\sim \text{Normal}(0, 1)\\
+\tau &\sim \text{Exponential}(1)\\
+\beta, \gamma &\sim \text{Normal}(0, 1) \\
+\end{align*}
+$$
+
+```{r}
+mr <- ulam(
+  alist(
+    Y ~ bernoulli(p),
+    logit(p) <- alpha[g] + beta * X + gamma * Z[g],
+    transpars> vector[Ng]:a <<- abar + tau * epsilon,
+    epsilon[g] ~ dnorm(0, 1),
+    c(beta, gamma) ~ dnorm(0, 1),
+    tau ~ dexp(1)
+  ), data = dat, sample = FALSE
+)
+stancode(mr)
+```
+
+### "Fast and Dirty" Mundlak
+Let $\bar{X}_g \equiv \frac{1}{N_g} \sum_{i=1}^{N_g} X_{ig}$ be the within-group mean of $X_{ig}$. The "fast and dirty" Mundlak approach, simply adds this as an additional predictor in the multilevel ("random effects") model from above.
+
+$$
+\begin{align*}
+Y_{ig} & \sim \text{Bernoulli}(p_{ig})\\
+\text{logit}(p_i) &= \alpha_g + \beta X_{ig} + \gamma Z_g + \delta \bar{X}_g\\
+\alpha_g &\sim \text{Normal}(\bar{\alpha}, \tau)\\
+\bar{\alpha} &\sim \text{Normal}(0, 1)\\
+\tau &\sim \text{Exponential}(1)\\
+\beta, \gamma, \delta &\sim \text{Normal}(0, 1) \\
+\end{align*}
+$$
+
+```{r}
+#| warning: FALSE
+library(tidyverse)
+
+dat$Xbar <- tibble(X = X, g = group_id) |> 
+  group_by(g) |> 
+  summarize(Xbar = mean(X)) |> 
+  pull(Xbar)
+
+mrx <- ulam(
+  alist(
+    Y ~ bernoulli(p),
+    logit(p) <- alpha[g] + beta * X + gamma * Z[g] + delta * Xbar[g],
+    transpars> vector[Ng]:a <<- abar + tau * epsilon,
+    epsilon[g] ~ dnorm(0, 1),
+    c(beta, gamma, delta) ~ dnorm(0, 1),
+    tau ~ dexp(1)
+  ), data = dat, sample = FALSE
+)
+stancode(mrx)
+```
+
+
+### "Full Luxury" Mundlak
+
+This model accounts for the fact that $\bar{X}_g$ is not in fact known but must be estimated from data. To do this, it introduces a model for $X_{ig}$ in terms of an unobserved latent group-level variable $U_g$. This is modeled as standard normal.  
+$$
+\begin{align*}
+Y_{ig} & \sim \text{Bernoulli}(p_{ig})\\
+\text{logit}(p_i) &= \alpha_g + \beta X_{ig} + \gamma Z_g + \delta U_g\\
+\alpha_g &\sim \text{Normal}(\bar{\alpha}, \tau)\\
+\bar{\alpha} &\sim \text{Normal}(0, 1)\\
+\tau &\sim \text{Exponential}(1)\\
+\beta, \gamma, \delta &\sim \text{Normal}(0, 1) \\ \\
+X_{ig} &\sim \text{Normal}(\mu_g, \sigma)\\
+\mu_g &= \lambda + \kappa U_g\\
+\lambda &\sim \text{Normal}(0, 1)\\
+\kappa & \sim \text{Exponential}(1)\\
+U_g &\sim \text{Normal}(0,1)
+\end{align*}
+$$
+
+```{r}
+mru <- ulam(
+  alist(
+    # Y model 
+    Y ~ bernoulli(p),
+    logit(p) <- alpha[g] + beta * X + gamma * Z[g] + delta * U[g],
+    transpars> vector[Ng]:a <<- abar + tau * epsilon,
+    
+    # X model
+    X ~ normal(mu, sigma),
+    mu <- lambda + kappa * u[g],
+    vector[Ng]:u ~ normal(0, 1),
+      
+    # Priors
+    epsilon[g] ~ dnorm(0, 1),
+    c(lambda, beta, gamma, delta) ~ dnorm(0, 1),
+    tau ~ dexp(1),
+    sigma ~ dexp(1),
+    kappa ~ dexp(1)
+  ), data = dat, sample = FALSE
+)
+stancode(mru)
+```
+
