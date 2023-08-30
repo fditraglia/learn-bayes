@@ -5,6 +5,95 @@ format:
     embed-resources: true
 ---
 
+## Linear Panel Example
+
+Below is a more complicated example from *Statistical Rethinking* 2023, in which the outcome of interest is binary. When estimating those models, we encountered some slightly strange results, in that the FE and RE specifications give very similar estimates, so we decided to test out linear panel models with the same structure to make sure our intuition is reliable. The model is 
+$$
+Y_{it} = \alpha + \beta X_{it} + \gamma Z_i + U_i + \epsilon_{it}
+$$
+where $U_i$ is an individual effect that is correlated with $X_{it}$ and $\epsilon_{it}$ is an idiosyncratic effect that is independent of $X_{it}$ and $Z_i$:
+```{r}
+Nt <- 3
+Ni <- 250
+N <- Nt * Ni
+alpha <- (-2)
+beta <- 1
+gamma <- (-0.5)
+sigma <- 1
+
+set.seed(1693)
+
+# Vector of individual ids in the full panel 
+id <- rep(1:Ni, each = Nt)
+
+# Variables that are fixed over time 
+U <- rnorm(Ni, 1.5) # unobserved
+Z <- rnorm(Ni) # observed
+
+# Variables that vary across i and t
+X <- rnorm(N, mean = U[id])
+epsilon <- rnorm(N, sd = sigma)
+Y <- alpha + beta * X + gamma * Z[id] + U[id] + epsilon 
+```
+
+Now let's start by running the *usual* frequentist fixed effects and random effects estimators:
+```{r}
+library(tidyverse)
+library(plm)
+library(fixest)
+library(modelsummary)
+mypanel <- tibble(y = Y, x = X, z = Z[id], id = factor(id))
+random_effects <- plm(y ~ x + z, data = mypanel, model = 'random', index = 'id')
+modelsummary(list(OLS = lm(y ~ x, mypanel),
+                  RE = random_effects, 
+                  FE = feols(y ~ x | id, mypanel)),
+             gof_omit = 'AIC|BIC|F|RMSE|R2|Log.Lik.')
+```
+
+So in this example, the fixed effects estimator does a good job estimating the effect of $X_{it}$ where the random effects estimator is severly biased, almost a much as OLS. Now we'll try the Bayesian versions of the same to see how they compare.
+```{r}
+library(cmdstanr)
+
+linear_FE_model <- cmdstan_model('panel-simple-linear-FE.stan')
+linear_FE_model$print()
+
+linear_RE_model <- cmdstan_model('panel-simple-linear-RE.stan')
+linear_RE_model$print()
+```
+
+And now we can fit these models:
+```{r}
+dat <- list(N = N, Ni = Ni, Y = Y, Z = Z, X = X, id = id)
+
+linear_FE_fit <- linear_FE_model$sample(
+  data = dat,
+  seed = 123,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500
+)
+
+linear_RE_fit <- linear_RE_model$sample(
+  data = dat,
+  seed = 123,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500
+)
+```
+
+And summarize them:
+```{r}
+linear_FE_fit$summary(variables = c('beta', 'gamma', 'sigma')) |> 
+  knitr::kable(digits = 2)
+
+linear_RE_fit$summary(variables = c('beta', 'gamma', 'tau', 'sigma', 'abar')) |> 
+  knitr::kable(digits = 2)
+```
+
+
+
+
 ## Example from *Statistical Rethinking 2023*
 
 This example is based on [Lecture 12](https://youtu.be/iwVqiiXYeC4?feature=shared&t=3291) of the 2023 video lecture series to accompany the book *Statistical Rethinking*. The example itself is not in the most recent version of the book, although I believe it is slated to appear in the next version.
@@ -13,7 +102,7 @@ This example is based on [Lecture 12](https://youtu.be/iwVqiiXYeC4?feature=share
 
 This is a logit regression with correlated individual effects. Let $g = 1, ..., G$ index groups and $i = 1, ... N_g$ index individuals within groups. There are $N \equiv \sum_{g=1}^G N_g$ individuals divided across $G = 30$ groups of different sizes $N_g$. There is a group-level observable $Z_g$ and a group-level unobservable $U_g$. The individual-level observables are $X_{ig}$ and $Y_{ig}$. The models is as follows:
 $$
-\mathbb{P}(Y_ig = 1|X_{ig}, Z_g, U_g) = \texttt{plogis}(\alpha + \beta X_{ig} + \gamma 
+\mathbb{P}(Y_{ig} = 1|X_{ig}, Z_g, U_g) = \texttt{plogis}(\alpha + \beta X_{ig} + \gamma 
 Z_g + U_g).
 $$
 First we'll simulate some data from the model as follows:
@@ -30,7 +119,7 @@ set.seed(1693)
 group_id <- sample(1:N_groups, size = N_id, replace = TRUE)
 
 # Group-level variables
-U <- rnorm(N_groups) # unobserved
+U <- rnorm(N_groups, 1.5) # unobserved
 Z <- rnorm(N_groups) # observed
 
 # Individual-level variables
@@ -68,6 +157,30 @@ mf <- ulam(
 stancode(mf)
 ```
 
+
+Here's our slightly simplified and improved STAN implementation:
+```{r}
+#| warning: false
+#| message: false
+library(cmdstanr)
+fe_model <- cmdstan_model('rethinking-panel-FE.stan')
+fe_model$print()
+```
+Now we'll try it out on the simulation data:
+```{r}
+dat$Ni <- N_id
+fe_fit <- fe_model$sample(
+  data = dat,
+  seed = 123,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500
+)
+fe_fit$summary(variables = c('beta', 'gamma')) |> 
+  knitr::kable(digits = 2)
+```
+
+
 ### "Random Effects" Model
 This is really a multilevel model, in that we treat the varying intercepts as arising from a common distribution.
 $$
@@ -94,6 +207,26 @@ mr <- ulam(
 )
 stancode(mr)
 ```
+
+Here's our slightly improved version:
+```{r}
+re_model <- cmdstan_model('rethinking-panel-RE.stan')
+re_model$print()
+```
+
+And now let's test it out:
+```{r}
+re_fit <- re_model$sample(
+  data = dat,
+  seed = 123,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500
+)
+re_fit$summary(variables = c('beta', 'gamma')) |> 
+  knitr::kable(digits = 2)
+```
+
 
 ### "Fast and Dirty" Mundlak
 Let $\bar{X}_g \equiv \frac{1}{N_g} \sum_{i=1}^{N_g} X_{ig}$ be the within-group mean of $X_{ig}$. The "fast and dirty" Mundlak approach, simply adds this as an additional predictor in the multilevel ("random effects") model from above.
@@ -146,7 +279,7 @@ Y_{ig} & \sim \text{Bernoulli}(p_{ig})\\
 X_{ig} &\sim \text{Normal}(\mu_g, \sigma)\\
 \mu_g &= \lambda + \kappa U_g\\
 \lambda &\sim \text{Normal}(0, 1)\\
-\kappa & \sim \text{Exponential}(1)\\
+\kappa, \sigma & \sim \text{Exponential}(1)\\
 U_g &\sim \text{Normal}(0,1)
 \end{align*}
 $$
