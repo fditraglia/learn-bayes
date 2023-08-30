@@ -125,11 +125,11 @@ L(\mu, \sigma|\mathbf{y}, U) = \prod_{i=1}^n \varphi\left( \frac{y_i - \mu}{\sig
 $$
 Hence, the log-likelihood is given by
 $$
-\ell(\mu, \sigma|\mathbf{y}, U) = \sum_{i=1}^n (1 - C_i) \log \varphi\left( \frac{y_i - \mu}{\sigma}\right) + \sum_{i=1}^n C_i \log \left[1 - \Phi\left( \frac{U - \mu}{\sigma}\right)\right].
+\log L(\mu, \sigma|\mathbf{y}, U) = \sum_{i=1}^n (1 - C_i) \log \varphi\left( \frac{y_i - \mu}{\sigma}\right) + \sum_{i=1}^n C_i \log \left[1 - \Phi\left( \frac{U - \mu}{\sigma}\right)\right].
 $$
 Defining $N_\text{cens} = \sum_{i=1}^n C_i$, we can write this more simply as
 $$
-\ell(\mu, \sigma|\mathbf{y}, U) = \sum_{i=1}^n (1 - C_i) \log \varphi\left( \frac{y_i - \mu}{\sigma}\right) + N_\text{cens} \times \log\left[1 - \Phi\left( \frac{U - \mu}{\sigma}\right)\right]
+\log L(\mu, \sigma|\mathbf{y}, U) = \sum_{i=1}^n (1 - C_i) \log \varphi\left( \frac{y_i - \mu}{\sigma}\right) + N_\text{cens} \times \log\left[1 - \Phi\left( \frac{U - \mu}{\sigma}\right)\right]
 $$
 since the second sum only depends on the data through the number of censored observations.
 
@@ -177,7 +177,70 @@ If I understand correctly, the problem here comes from normal_lccdf() being eval
 
 ## Censored Poisson Example
 
-**I'm going to add this next: estimating a Poisson rate with cell suppression.** 
+We should triple-check this, but I believe the cell-suppression issue only concerns small but *non-zero* counts. In other words, my understanding is that we know for sure whether we have observed a zero. I've written this example accordingly.
+
+Suppose that we have an iid collection of Poisson distributed counts. Any count above $\ell$ is observed and any count of zero is observed, but any count between $1$ and $\ell$ inclusive is unobserved:
+$$
+Y_i \sim \text{iid Poisson}(\mu), \quad C_i = \mathbb{1}(1 \leq Y_i \leq \ell), \quad C_i \text{ observed}, \quad \text{observe } Y_i \text{ iff } C_i = 0.
+$$
+Since the censored observations are discrete, we can't treat them as unknown parameters in STAN: for the time being the software can only sample continuous parameters. But we can integrate them out. Let $\texttt{dpois}(y|\mu)$ denote the Poisson pmf with mean $\mu$ evaluated at $y$ and $\texttt{ppois}(y|\mu)$ denote the corresponding CDF. Then the likelihood contribution of an uncensored observation is simply $\texttt{dpois}(Y_i|\mu)$, while that of a censored observation is given by
+$$
+\mathbb{P}(1 \leq Y_i \leq \ell) = \texttt{ppois}(\ell|\mu) - \texttt{dpois}(0|\mu).
+$$
+Thus, the likelihood of the complete data, both censored and uncensored, is given by
+$$
+L(\mu|\mathbf{y}, \ell) = \prod_{i=1}^n \texttt{dpois}(y_i|\mu)^{1 - C_i} \left[\texttt{ppois}(\ell|\mu) - \texttt{dpois}(0|\mu) \right]^{C_i}.
+$$
+Hence, the log-likelihood is given by
+$$
+\log L(\mu|\mathbf{y}, \ell) = \sum_{i=1}^n (1 - C_i) \log \left[ \texttt{dpois}(y_i|\mu)\right] + N_\text{cens} \log \left[\texttt{ppois}(\ell|\mu) - \texttt{dpois}(0|\mu)\right]
+$$
+defining $N_\text{cens} = \sum_{i=1}^n C_i$ as above. We can implement this in STAN as follows:
+```{r}
+censored_poisson <- cmdstan_model('censored-poisson.stan')
+censored_poisson$print()
+```
+The code here is similar to that from the from the censored normal example. The functions `poisson_lcdf()` and `poisson_lpmf()` are the log of the Poisson CDF and pmf. The function [`log_diff_exp(real x, real y)`](https://mc-stan.org/docs/functions-reference/composed-functions.html#composed-functions), on the other hand, is an efficient and numerically stable implementation of $\log(e^x - e^y)$.
+
+Now we can simulate some data and test it out. If we ignore the cell suppression, we obtain an overestimate of $\mu$:
+```{r}
+ell <- 5
+N_total <- 500
+mu_true <- 8
+y_true <- rpois(N_total, mu_true)
+y_obs <- ifelse((y_true == 0) | (y_true > ell), y_true, NA) 
+
+y_obs |> 
+  t.test(mu = mu_true) |> 
+  tidy() |> 
+  knitr::kable(digits = 2)
+```
+Now let's try using STAN. As above, I'll use an initialization function to address the starting value problem:
+```{r}
+dat <- list(y_obs = y_obs[!is.na(y_obs)],
+            N_obs = sum(!is.na(y_obs)),
+            N_cens = sum(is.na(y_obs)),
+            ell = ell)
+
+
+mu_upper <- mean(!is.na(y_obs))
+
+fit3 <- censored_poisson$sample(
+  data = dat,
+  seed = 123,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500,
+  init = \() list(mu = runif(1, 0, mu_upper))
+)
+
+fit3$summary() |> knitr::kable(digits = 2)
+```
+Here the posterior 90% credible interval covers the true parameter value, because we have correctly accounted for the cell suppression problem.
+
+
+## Poisson Regression Example
+This example is identical to the preceding one, except that we introduce a covariate $X_i$ that allows the Poisson rate to vary across observations.
 
 
 ## Further Reading / References

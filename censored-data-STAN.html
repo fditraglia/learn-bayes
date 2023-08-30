@@ -3332,9 +3332,9 @@ Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling)
 Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
-Chain 1 finished in 0.2 seconds.
+Chain 1 finished in 0.3 seconds.
 Chain 2 finished in 0.3 seconds.
-Chain 4 finished in 0.2 seconds.
+Chain 4 finished in 0.3 seconds.
 Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 3 finished in 0.3 seconds.
 
@@ -3412,9 +3412,9 @@ f(Y_i|\mu, \sigma) = \varphi\left( \frac{Y_i - \mu}{\sigma}\right)
 \]</span> where <span class="math inline">\(\varphi(\cdot)\)</span> denotes the standard normal pdf. Using these expressions, we can write the overall likelihood of <em>all the data</em>, both censored and uncensored, as follows: <span class="math display">\[
 L(\mu, \sigma|\mathbf{y}, U) = \prod_{i=1}^n \varphi\left( \frac{y_i - \mu}{\sigma}\right)^{1 - C_i} \left[1 - \Phi\left( \frac{U - \mu}{\sigma}\right)\right]^{C_i}.
 \]</span> Hence, the log-likelihood is given by <span class="math display">\[
-\ell(\mu, \sigma|\mathbf{y}, U) = \sum_{i=1}^n (1 - C_i) \log \varphi\left( \frac{y_i - \mu}{\sigma}\right) + \sum_{i=1}^n C_i \log \left[1 - \Phi\left( \frac{U - \mu}{\sigma}\right)\right].
+\log L(\mu, \sigma|\mathbf{y}, U) = \sum_{i=1}^n (1 - C_i) \log \varphi\left( \frac{y_i - \mu}{\sigma}\right) + \sum_{i=1}^n C_i \log \left[1 - \Phi\left( \frac{U - \mu}{\sigma}\right)\right].
 \]</span> Defining <span class="math inline">\(N_\text{cens} = \sum_{i=1}^n C_i\)</span>, we can write this more simply as <span class="math display">\[
-\ell(\mu, \sigma|\mathbf{y}, U) = \sum_{i=1}^n (1 - C_i) \log \varphi\left( \frac{y_i - \mu}{\sigma}\right) + N_\text{cens} \times \log\left[1 - \Phi\left( \frac{U - \mu}{\sigma}\right)\right]
+\log L(\mu, \sigma|\mathbf{y}, U) = \sum_{i=1}^n (1 - C_i) \log \varphi\left( \frac{y_i - \mu}{\sigma}\right) + N_\text{cens} \times \log\left[1 - \Phi\left( \frac{U - \mu}{\sigma}\right)\right]
 \]</span> since the second sum only depends on the data through the number of censored observations.</p>
 <p>At this point it is straightforward to implement the model in STAN by making a small change to the code from above. We handle the uncensored observations exactly as before. They key difference is that <code>y_cens</code> no longer appears in the <code>parameters { ... }</code> block, or indeed anywhere else in the code. Instead we use the <code>target +=</code> syntax, explained in the zero-inflated Poisson example from <code>poisson-regression-STAN.qmd</code>. To make a long story short, <code>target +=</code> effectively adds whatever is on the RHS of the <code>+=</code> to the overall log-likelihood of the model. Here we use this syntax to account for the likelihood contribution of the censored observations:</p>
 <div class="cell">
@@ -3490,7 +3490,7 @@ Chain 4 finished in 0.0 seconds.
 
 All 4 chains finished successfully.
 Mean chain execution time: 0.0 seconds.
-Total execution time: 0.1 seconds.</code></pre>
+Total execution time: 0.2 seconds.</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>fit2<span class="sc">$</span><span class="fu">summary</span>() <span class="sc">|&gt;</span> </span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -3575,7 +3575,204 @@ Chain 1 Initialization between (-2, 2) failed after 100 attempts.</code></pre>
 </section>
 <section id="censored-poisson-example" class="level2">
 <h2 class="anchored" data-anchor-id="censored-poisson-example">Censored Poisson Example</h2>
-<p><strong>I’m going to add this next: estimating a Poisson rate with cell suppression.</strong></p>
+<p>We should triple-check this, but I believe the cell-suppression issue only concerns small but <em>non-zero</em> counts. In other words, my understanding is that we know for sure whether we have observed a zero. I’ve written this example accordingly.</p>
+<p>Suppose that we have an iid collection of Poisson distributed counts. Any count above <span class="math inline">\(\ell\)</span> is observed and any count of zero is observed, but any count between <span class="math inline">\(1\)</span> and <span class="math inline">\(\ell\)</span> inclusive is unobserved: <span class="math display">\[
+Y_i \sim \text{iid Poisson}(\mu), \quad C_i = \mathbb{1}(1 \leq Y_i \leq \ell), \quad C_i \text{ observed}, \quad \text{observe } Y_i \text{ iff } C_i = 0.
+\]</span> Since the censored observations are discrete, we can’t treat them as unknown parameters in STAN: for the time being the software can only sample continuous parameters. But we can integrate them out. Let <span class="math inline">\(\texttt{dpois}(y|\mu)\)</span> denote the Poisson pmf with mean <span class="math inline">\(\mu\)</span> evaluated at <span class="math inline">\(y\)</span> and <span class="math inline">\(\texttt{ppois}(y|\mu)\)</span> denote the corresponding CDF. Then the likelihood contribution of an uncensored observation is simply <span class="math inline">\(\texttt{dpois}(Y_i|\mu)\)</span>, while that of a censored observation is given by <span class="math display">\[
+\mathbb{P}(1 \leq Y_i \leq \ell) = \texttt{ppois}(\ell|\mu) - \texttt{dpois}(0|\mu).
+\]</span> Thus, the likelihood of the complete data, both censored and uncensored, is given by <span class="math display">\[
+L(\mu|\mathbf{y}, \ell) = \prod_{i=1}^n \texttt{dpois}(y_i|\mu)^{1 - C_i} \left[\texttt{ppois}(\ell|\mu) - \texttt{dpois}(0|\mu) \right]^{C_i}.
+\]</span> Hence, the log-likelihood is given by <span class="math display">\[
+\log L(\mu|\mathbf{y}, \ell) = \sum_{i=1}^n (1 - C_i) \log \left[ \texttt{dpois}(y_i|\mu)\right] + N_\text{cens} \log \left[\texttt{ppois}(\ell|\mu) - \texttt{dpois}(0|\mu)\right]
+\]</span> defining <span class="math inline">\(N_\text{cens} = \sum_{i=1}^n C_i\)</span> as above. We can implement this in STAN as follows:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>censored_poisson <span class="ot">&lt;-</span> <span class="fu">cmdstan_model</span>(<span class="st">&#39;censored-poisson.stan&#39;</span>)</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>censored_poisson<span class="sc">$</span><span class="fu">print</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>data {
+  int&lt;lower=0&gt; N_obs;
+  int&lt;lower=0&gt; N_cens;
+  int&lt;lower=0&gt; ell;
+  array[N_obs] int&lt;lower=0&gt; y_obs;
+}
+parameters {
+  real&lt;lower=0&gt; mu;
+}
+model {
+  y_obs ~ poisson(mu);
+  target += N_cens * (log_diff_exp(poisson_lcdf(ell | mu), poisson_lpmf(0 | mu)));
+}</code></pre>
+</div>
+</div>
+<p>The code here is similar to that from the from the censored normal example. The functions <code>poisson_lcdf()</code> and <code>poisson_lpmf()</code> are the log of the Poisson CDF and pmf. The function <a href="https://mc-stan.org/docs/functions-reference/composed-functions.html#composed-functions"><code>log_diff_exp(real x, real y)</code></a>, on the other hand, is an efficient and numerically stable implementation of <span class="math inline">\(\log(e^x - e^y)\)</span>.</p>
+<p>Now we can simulate some data and test it out. If we ignore the cell suppression, we obtain an overestimate of <span class="math inline">\(\mu\)</span>:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>ell <span class="ot">&lt;-</span> <span class="dv">5</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>N_total <span class="ot">&lt;-</span> <span class="dv">500</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>mu_true <span class="ot">&lt;-</span> <span class="dv">8</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>y_true <span class="ot">&lt;-</span> <span class="fu">rpois</span>(N_total, mu_true)</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>y_obs <span class="ot">&lt;-</span> <span class="fu">ifelse</span>((y_true <span class="sc">==</span> <span class="dv">0</span>) <span class="sc">|</span> (y_true <span class="sc">&gt;</span> ell), y_true, <span class="cn">NA</span>) </span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>y_obs <span class="sc">|&gt;</span> </span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">t.test</span>(<span class="at">mu =</span> mu_true) <span class="sc">|&gt;</span> </span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tidy</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 11%">
+<col style="width: 9%">
+<col style="width: 11%">
+<col style="width: 10%">
+<col style="width: 11%">
+<col style="width: 20%">
+<col style="width: 13%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: right;">estimate</th>
+<th style="text-align: right;">statistic</th>
+<th style="text-align: right;">p.value</th>
+<th style="text-align: right;">parameter</th>
+<th style="text-align: right;">conf.low</th>
+<th style="text-align: right;">conf.high</th>
+<th style="text-align: left;">method</th>
+<th style="text-align: left;">alternative</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">9.04</td>
+<td style="text-align: right;">8.63</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">409</td>
+<td style="text-align: right;">8.81</td>
+<td style="text-align: right;">9.28</td>
+<td style="text-align: left;">One Sample t-test</td>
+<td style="text-align: left;">two.sided</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Now let’s try using STAN. As above, I’ll use an initialization function to address the starting value problem:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">y_obs =</span> y_obs[<span class="sc">!</span><span class="fu">is.na</span>(y_obs)],</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>            <span class="at">N_obs =</span> <span class="fu">sum</span>(<span class="sc">!</span><span class="fu">is.na</span>(y_obs)),</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>            <span class="at">N_cens =</span> <span class="fu">sum</span>(<span class="fu">is.na</span>(y_obs)),</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">ell =</span> ell)</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>mu_upper <span class="ot">&lt;-</span> <span class="fu">mean</span>(<span class="sc">!</span><span class="fu">is.na</span>(y_obs))</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>fit3 <span class="ot">&lt;-</span> censored_poisson<span class="sc">$</span><span class="fu">sample</span>(</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">parallel_chains =</span> <span class="dv">4</span>,</span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">500</span>,</span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">init =</span> \() <span class="fu">list</span>(<span class="at">mu =</span> <span class="fu">runif</span>(<span class="dv">1</span>, <span class="dv">0</span>, mu_upper))</span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Running MCMC with 4 parallel chains...
+
+Chain 1 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 1 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 1 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 2 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 2 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 3 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 4 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 1 finished in 0.0 seconds.
+Chain 2 finished in 0.0 seconds.
+Chain 3 finished in 0.0 seconds.
+Chain 4 finished in 0.0 seconds.
+
+All 4 chains finished successfully.
+Mean chain execution time: 0.0 seconds.
+Total execution time: 0.1 seconds.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>fit3<span class="sc">$</span><span class="fu">summary</span>() <span class="sc">|&gt;</span> knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<colgroup>
+<col style="width: 12%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 6%">
+<col style="width: 6%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 6%">
+<col style="width: 12%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">variable</th>
+<th style="text-align: right;">mean</th>
+<th style="text-align: right;">median</th>
+<th style="text-align: right;">sd</th>
+<th style="text-align: right;">mad</th>
+<th style="text-align: right;">q5</th>
+<th style="text-align: right;">q95</th>
+<th style="text-align: right;">rhat</th>
+<th style="text-align: right;">ess_bulk</th>
+<th style="text-align: right;">ess_tail</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">lp__</td>
+<td style="text-align: right;">4284.00</td>
+<td style="text-align: right;">4284.29</td>
+<td style="text-align: right;">0.70</td>
+<td style="text-align: right;">0.31</td>
+<td style="text-align: right;">4282.55</td>
+<td style="text-align: right;">4284.52</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1980.86</td>
+<td style="text-align: right;">NA</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">mu</td>
+<td style="text-align: right;">8.17</td>
+<td style="text-align: right;">8.17</td>
+<td style="text-align: right;">0.13</td>
+<td style="text-align: right;">0.13</td>
+<td style="text-align: right;">7.95</td>
+<td style="text-align: right;">8.38</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1625.42</td>
+<td style="text-align: right;">2075.26</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Here the posterior 90% credible interval covers the true parameter value, because we have correctly accounted for the cell suppression problem.</p>
+</section>
+<section id="poisson-regression-example" class="level2">
+<h2 class="anchored" data-anchor-id="poisson-regression-example">Poisson Regression Example</h2>
+<p>This example is identical to the preceding one, except that we introduce a covariate <span class="math inline">\(X_i\)</span> that allows the Poisson rate to vary across observations.</p>
 </section>
 <section id="further-reading-references" class="level2">
 <h2 class="anchored" data-anchor-id="further-reading-references">Further Reading / References</h2>
