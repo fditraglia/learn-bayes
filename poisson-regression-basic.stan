@@ -12,7 +12,7 @@ transformed data {
 
 parameters {
   real alpha;
-  real<lower=0> beta;
+  real beta;
 }
 
 model {
