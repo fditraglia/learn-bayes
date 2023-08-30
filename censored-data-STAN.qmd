@@ -204,9 +204,9 @@ The code here is similar to that from the from the censored normal example. The 
 
 Now we can simulate some data and test it out. If we ignore the cell suppression, we obtain an overestimate of $\mu$:
 ```{r}
-ell <- 5
+ell <- 3
 N_total <- 500
-mu_true <- 8
+mu_true <- 5
 y_true <- rpois(N_total, mu_true)
 y_obs <- ifelse((y_true == 0) | (y_true > ell), y_true, NA) 
 
