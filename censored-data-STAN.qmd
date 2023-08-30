@@ -240,7 +240,55 @@ Here the posterior 90% credible interval covers the true parameter value, becaus
 
 
 ## Poisson Regression Example
-This example is identical to the preceding one, except that we introduce a covariate $X_i$ that allows the Poisson rate to vary across observations.
+This example is identical to the preceding one, except that we introduce a covariate $X_i$ that allows the Poisson rate to vary across observations. First I'll simulate some data from a Poisson regression model, and then I'll censor any values of `y` between `1` and `3`:
+
+```{r}
+set.seed(1848)
+n <- 250
+x <- runif(n, -1, 2)
+ell <- 3
+y_true <- rpois(n, exp(0.8 + 0.5 * scale(x)))
+y_obs <- ifelse((y_true == 0) | (y_true > ell), y_true, NA)
+```
+
+The new ingredient in this model is an equation that relates the Poisson rate to $X_i$, namely
+$$
+\log(\mu_i) = \alpha + \beta (X_i - \bar{X})/S_X
+$$
+where I center and scale $X_i$ to make it easier to think about the meaning of the coefficients. The log-likelihood is almost identical to the one from above. The only change is that $\mu_i$ replaces $\mu$ throughout:
+$$
+\log L(\mu|\mathbf{y}, \ell) = \sum_{i=1}^n (1 - C_i) \log \left[ \texttt{dpois}(y_i|\mu_i)\right] + \sum_{i=1}^n C_i \log \left[\texttt{ppois}(\ell|\mu_i) - \texttt{dpois}(0|\mu_i)\right].
+$$
+The simplest way to implement these two sums in the present example is to store the $X_i$ observations for the censored observations separately: notice that $X_i$ is always observed even when $Y_i$ is not!
+
+```{r}
+dat <- list(y_obs = y_obs[!is.na(y_obs)],
+            x_obs = x[!is.na(y_obs)], 
+            x_cens = x[is.na(y_obs)],
+            N_obs = sum(!is.na(y_obs)),
+            N_cens = sum(is.na(y_obs)),
+            ell = ell)
+
+censored_poisson_regression_model <- cmdstan_model('censored-poisson-regression-basic.stan')
+
+censored_poisson_regression_fit <- censored_poisson_regression_model$sample(
+  data = dat, 
+  seed = 1234, # random seed for MCMC
+  chains = 4, 
+  parallel_chains = 4, 
+  refresh = 500 # print status update after every 500 iterations
+)
+
+censored_poisson_regression_fit$summary() |> 
+  knitr::kable(digits = 2)
+```
+It works quite well! In contrast, here are the results of a Poisson regression that ignores the censoring:
+```{r}
+dat_ignore <- data.frame(y = dat$y_obs, x = dat$x_obs)
+glm(y ~ x, dat_ignore, family = poisson()) |> 
+  tidy() |> 
+  knitr::kable(digits = 2)
+```
 
 
 ## Further Reading / References

@@ -17,7 +17,8 @@ parameters {
 
 model {
   y ~ poisson_log(alpha + beta * z); 
-  alpha ~ normal(3, 0.5);  // mean and sd
-  beta ~ normal(0, 0.2); // mean and sd
+  // See if we can get away with flat priors
+  //alpha ~ normal(3, 0.5);  // mean and sd
+  //beta ~ normal(0, 0.2); // mean and sd
 }
 
