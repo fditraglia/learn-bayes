@@ -1,3 +1,17 @@
+# The following is a way of ignoring compiled STAN binaries, which lack a file extension. It's a bit kludgey but it works!
+
+
+# Ignore all
+*
+
+# Unignore all with extensions
+!*.*
+
+# Unignore all dirs
+!*/
+
+# The rest of the .gitignore follows below!
+
 # History files
 .Rhistory
 .Rapp.history
