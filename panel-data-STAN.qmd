@@ -91,7 +91,73 @@ linear_RE_fit$summary(variables = c('beta', 'gamma', 'tau', 'sigma', 'abar')) |>
   knitr::kable(digits = 2)
 ```
 
+Looks good! Now let's try the "Mundlak approach." The "fast-and-dirty" version is as follows:
+$$
+\begin{align*}
+Y_{it} & \sim \text{Normal}(\mu_{it})\\
+\mu_{ig} &= \alpha_i + \beta X_{it} + \gamma Z_i + \delta \bar{X}_i\\
+\alpha_i &\sim \text{Normal}(\bar{\alpha}, \tau)\\
+\bar{\alpha} &\sim \text{Normal}(0, 1)\\
+\tau &\sim \text{Exponential}(1)\\
+\beta, \gamma, \delta &\sim \text{Normal}(0, 1) \\
+\end{align*}
+$$
+To fit this model, we'll need to calculate the individual-level time averages of $X_{it}$ as follows
+```{r}
+dat$Xbar <- tibble(X = X, g = id) |> 
+  group_by(g) |> 
+  summarize(Xbar = mean(X)) |> 
+  pull(Xbar)
 
+mundlak1_model <- cmdstan_model('panel-simple-linear-Mundlak1.stan')
+mundlak1_model$print()
+
+mundlak1_fit <- mundlak1_model$sample(
+  data = dat,
+  seed = 123,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500
+)
+mundlak1_fit$summary(variables = c('abar', 'tau', 'beta', 
+                                   'gamma', 'delta', 'sigma')) |> 
+  knitr::kable(digits = 2)
+```
+
+
+In contrast, the "full luxury" version of the Mundlak model is given by
+$$
+\begin{align*}
+Y_{ig} & \sim \text{Normal}(\mu_{it}, \sigma)\\
+\mu_{it} &= \alpha_i + \beta X_{it} + \gamma Z_i + \delta U_i\\
+\alpha_i &\sim \text{Normal}(\bar{\alpha}, \tau)\\
+\bar{\alpha} &\sim \text{Normal}(0, 1)\\
+\tau &\sim \text{Exponential}(1)\\
+\beta, \gamma, \delta &\sim \text{Normal}(0, 1) \\ \\
+X_{it} &\sim \text{Normal}(\eta_i, \nu)\\
+\eta_i &= \lambda + \kappa U_g\\
+\lambda &\sim \text{Normal}(0, 1)\\
+\kappa, \nu & \sim \text{Exponential}(1)\\
+U_i &\sim \text{Normal}(0,1)
+\end{align*}
+$$
+The diagnostics don't look as good here, potentially because there are so many more parameters? Maybe there's a better way to implement it or maybe I need to think more carefulyl about priors?  I'm not sure. The results don't change much though:
+```{r}
+mundlak2_model <- cmdstan_model('panel-simple-linear-Mundlak2.stan')
+mundlak2_model$print()
+
+mundlak2_fit <- mundlak2_model$sample(
+  data = dat,
+  seed = 123,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500
+)
+mundlak2_fit$summary(variables = c('abar', 'tau', 'beta', 
+                                   'gamma', 'delta', 'sigma', 
+                                   'kappa', 'lambda')) |>  
+  knitr::kable(digits = 2)
+```
 
 
 ## Example from *Statistical Rethinking 2023*
