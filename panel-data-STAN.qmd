@@ -38,6 +38,8 @@ Y <- alpha + beta * X + gamma * Z[id] + U[id] + epsilon
 
 Now let's start by running the *usual* frequentist fixed effects and random effects estimators:
 ```{r}
+#| warning: false
+#| message: false
 library(tidyverse)
 library(plm)
 library(fixest)
@@ -52,6 +54,8 @@ modelsummary(list(OLS = lm(y ~ x, mypanel),
 
 So in this example, the fixed effects estimator does a good job estimating the effect of $X_{it}$ where the random effects estimator is severly biased, almost a much as OLS. Now we'll try the Bayesian versions of the same to see how they compare.
 ```{r}
+#| warning: false
+#| message: false
 library(cmdstanr)
 
 linear_FE_model <- cmdstan_model('panel-simple-linear-FE.stan')
@@ -84,7 +88,7 @@ linear_RE_fit <- linear_RE_model$sample(
 
 And summarize them:
 ```{r}
-linear_FE_fit$summary(variables = c('beta', 'gamma', 'sigma')) |> 
+linear_FE_fit$summary(variables = c('beta', 'sigma')) |> 
   knitr::kable(digits = 2)
 
 linear_RE_fit$summary(variables = c('beta', 'gamma', 'tau', 'sigma', 'abar')) |> 
@@ -129,16 +133,16 @@ In contrast, the "full luxury" version of the Mundlak model is given by
 $$
 \begin{align*}
 Y_{ig} & \sim \text{Normal}(\mu_{it}, \sigma)\\
-\mu_{it} &= \alpha_i + \beta X_{it} + \gamma Z_i + \delta U_i\\
-\alpha_i &\sim \text{Normal}(\bar{\alpha}, \tau)\\
+\mu_{it} &= \alpha_i + \beta X_{it} + \gamma Z_i \\
+\alpha_i &= \bar{\alpha} + \tau U_i\\
+U_i &\sim \text{Normal}(0, 1)\\
 \bar{\alpha} &\sim \text{Normal}(0, 1)\\
 \tau &\sim \text{Exponential}(1)\\
-\beta, \gamma, \delta &\sim \text{Normal}(0, 1) \\ \\
+\beta, \gamma &\sim \text{Normal}(0, 1) \\ \\
 X_{it} &\sim \text{Normal}(\eta_i, \nu)\\
 \eta_i &= \lambda + \kappa U_g\\
 \lambda &\sim \text{Normal}(0, 1)\\
-\kappa, \nu & \sim \text{Exponential}(1)\\
-U_i &\sim \text{Normal}(0,1)
+\kappa, \nu & \sim \text{Exponential}(1)
 \end{align*}
 $$
 The diagnostics don't look as good here, potentially because there are so many more parameters? Maybe there's a better way to implement it or maybe I need to think more carefulyl about priors?  I'm not sure. The results don't change much though:
@@ -153,8 +157,7 @@ mundlak2_fit <- mundlak2_model$sample(
   parallel_chains = 4,
   refresh = 500
 )
-mundlak2_fit$summary(variables = c('abar', 'tau', 'beta', 
-                                   'gamma', 'delta', 'sigma', 
+mundlak2_fit$summary(variables = c('abar', 'tau', 'beta', 'gamma', 'sigma', 
                                    'kappa', 'lambda')) |>  
   knitr::kable(digits = 2)
 ```

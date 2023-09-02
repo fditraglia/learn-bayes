@@ -8,11 +8,9 @@ data {
 }
 
 parameters {
-     vector[Ni] epsilon; 
      vector[Ni] U;
      real beta; 
      real gamma;
-     real delta;
      real abar;
      real lambda;
      real<lower=0> kappa;
@@ -22,7 +20,7 @@ parameters {
 }
 
 transformed parameters {
-  vector[Ni] alpha = abar + tau * epsilon;
+  vector[Ni] alpha = abar + tau * U;
 }
 
 model {
@@ -42,13 +40,11 @@ model {
     // Y model
     gamma ~ normal(0, 1); 
     beta ~ normal(0, 1);
-    delta ~ normal(0, 1);
     abar ~ normal(0, 1);
-    epsilon ~ normal(0, 1);
     tau ~ exponential(1);
     sigma ~ exponential(1);
     for (j in 1:N) {
-        mu[j] = alpha[id[j]] + beta * X[j] + gamma * Z[id[j]] + delta * U[id[j]];
+        mu[j] = alpha[id[j]] + beta * X[j] + gamma * Z[id[j]];
     }
     Y ~ normal(mu, sigma);
 }
