@@ -1,0 +1,91 @@
+---
+title: "Poisson Panel Data Model with STAN"
+format: 
+  html:
+    embed-resources: true
+---
+
+Suppose that $Y_{it} \sim \text{Poisson}(\mu_{it})$ where 
+$$
+\begin{align*}
+\log(\mu_{it}) &= \alpha_i + \beta X_{it} + \gamma Z_i \\
+\alpha_i &= \bar{\alpha} + \tau U_i \\
+U_i &\sim \text{Normal}(0, 1)
+\end{align*}
+$$
+and $X_{it}$ is potentially correlated with $U_i$. First we'll simulate some data:
+```{r}
+Nt <- 3
+Ni <- 250
+N <- Nt * Ni
+alpha <- (-2)
+beta <- 1
+gamma <- (-0.5)
+
+set.seed(1693)
+
+# Vector of individual ids in the full panel 
+id <- rep(1:Ni, each = Nt)
+
+# Variables that are fixed over time 
+U <- rnorm(Ni, 1.5) # unobserved
+Z <- rnorm(Ni) # observed
+
+# Variables that vary across i and t
+X <- rnorm(N, mean = U[id])
+mu <- exp(alpha + beta * X + gamma * Z[id] + U[id])
+Y <- rpois(N, mu)
+```
+
+Next we'll compile a STAN program that uses the "fast-and-dirty" Mundlak approach:
+$$
+\begin{align*}
+Y_{it} &\sim \text{Poisson}(\mu_{it})\\
+\log(\mu_{it}) &= \alpha_i + \beta X_{it} + \gamma Z_i + \delta \bar{X}_i\\
+\alpha_i &= \bar{\alpha} + \tau U_i\\
+U_i &\sim \text{Normal}(0, 1)\\
+\bar{\alpha}, \beta, \gamma, \delta &\sim \text{Normal}(0, 1)\\
+\tau &\sim \text{Exponential}(1)
+\end{align*}
+$$
+Notice that we **require a sign normalization** for $\tau$ since $U_i$ is a latent variable.
+Next we'll compile the STAN program:
+```{r}
+#| warning: false
+#| message: false
+library(cmdstanr)
+poisson_panel_model  <- cmdstan_model('poisson-panel-simple.stan')
+```
+And then we'll run it on the simulation data:
+```{r}
+#| warning: false
+#| message: false
+library(tidyverse)
+dat <- list(X = X, Y = Y, Z = Z, id = id, N = N, Ni = Ni)
+
+dat$Xbar <- tibble(X = X, g = id) |> 
+  group_by(g) |> 
+  summarize(Xbar = mean(X)) |> 
+  pull(Xbar)
+
+poisson_panel_fit <- poisson_panel_model$sample(
+  data = dat,
+  seed = 123,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500
+)
+
+poisson_panel_fit$summary(variables = c('abar', 'beta', 'gamma', 'delta', 'tau')) |>
+                            knitr::kable(digits = 2)
+```
+The results look good! Now let's try the "full luxury Mundlak" approach.
+
+
+
+
+We will model this as follows:
+$$
+X_{it} \sim N(\eta_i, \nu), \quad \eta_i \equiv \lambda + \kappa U_i
+$$
+We either need to normalize $\kappa$ to be positive or normalize $\tau$ to be positive. Our previous experiments with a linear panel model suggested that it was a better choice to normalize $\kappa$: this resulted in a much more efficient sampler. We're not sure why, but we'll use the same approach here. It's presumably something to do with the geometry of the problem. 

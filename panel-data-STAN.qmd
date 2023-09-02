@@ -31,7 +31,7 @@ U <- rnorm(Ni, 1.5) # unobserved
 Z <- rnorm(Ni) # observed
 
 # Variables that vary across i and t
-X <- rnorm(N, mean = U[id])
+X <- rnorm(N, mean = -1 * U[id])
 epsilon <- rnorm(N, sd = sigma)
 Y <- alpha + beta * X + gamma * Z[id] + U[id] + epsilon 
 ```
@@ -123,8 +123,7 @@ mundlak1_fit <- mundlak1_model$sample(
   parallel_chains = 4,
   refresh = 500
 )
-mundlak1_fit$summary(variables = c('abar', 'tau', 'beta', 
-                                   'gamma', 'delta', 'sigma')) |> 
+mundlak1_fit$summary(variables = c('abar', 'beta', 'gamma', 'delta', 'tau')) |>
   knitr::kable(digits = 2)
 ```
 
@@ -137,7 +136,7 @@ Y_{ig} & \sim \text{Normal}(\mu_{it}, \sigma)\\
 \alpha_i &= \bar{\alpha} + \tau U_i\\
 U_i &\sim \text{Normal}(0, 1)\\
 \bar{\alpha} &\sim \text{Normal}(0, 1)\\
-\tau &\sim \text{Exponential}(1)\\
+\tau &\sim \text{Normal}(0, 1)\\
 \beta, \gamma &\sim \text{Normal}(0, 1) \\ \\
 X_{it} &\sim \text{Normal}(\eta_i, \nu)\\
 \eta_i &= \lambda + \kappa U_g\\
@@ -145,7 +144,7 @@ X_{it} &\sim \text{Normal}(\eta_i, \nu)\\
 \kappa, \nu & \sim \text{Exponential}(1)
 \end{align*}
 $$
-The diagnostics don't look as good here, potentially because there are so many more parameters? Maybe there's a better way to implement it or maybe I need to think more carefulyl about priors?  I'm not sure. The results don't change much though:
+**Important note!** We have allowed $\tau$ to be positive *or* negative here, whereas above we restricted it to be positive. Since $U_i$ is unobserved, we need to normalize *either* the sign of $\kappa$ or the sign of $\tau$. But we need to allow for the possibility that the signs of these two parameters *differ* in order to allow the fixed effect to be either positively or negatively correlated with $X_{it}$. We tried two possibilities: normalizing $\kappa$ to be positive and normalizing $\tau$ to be positive. It turned out that normalizing $\tau$ gave a much more efficient sampler. We're not sure why: presumably something complicated regarding the geometry of the problem?
 ```{r}
 mundlak2_model <- cmdstan_model('panel-simple-linear-Mundlak2.stan')
 mundlak2_model$print()

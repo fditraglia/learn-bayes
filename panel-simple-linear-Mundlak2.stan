@@ -15,7 +15,7 @@ parameters {
      real lambda;
      real<lower=0> kappa;
      real<lower=0> nu;
-     real<lower=0> tau;
+     real tau;
      real<lower=0> sigma;
 }
 
@@ -41,7 +41,7 @@ model {
     gamma ~ normal(0, 1); 
     beta ~ normal(0, 1);
     abar ~ normal(0, 1);
-    tau ~ exponential(1);
+    tau ~ normal(0, 1);
     sigma ~ exponential(1);
     for (j in 1:N) {
         mu[j] = alpha[id[j]] + beta * X[j] + gamma * Z[id[j]];
