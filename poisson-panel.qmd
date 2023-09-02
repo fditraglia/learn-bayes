@@ -54,7 +54,7 @@ Next we'll compile the STAN program:
 #| warning: false
 #| message: false
 library(cmdstanr)
-poisson_panel_model  <- cmdstan_model('poisson-panel-simple.stan')
+poisson_panel_model1  <- cmdstan_model('poisson-panel-mundlak1.stan')
 ```
 And then we'll run it on the simulation data:
 ```{r}
@@ -68,7 +68,7 @@ dat$Xbar <- tibble(X = X, g = id) |>
   summarize(Xbar = mean(X)) |> 
   pull(Xbar)
 
-poisson_panel_fit <- poisson_panel_model$sample(
+poisson_panel_fit1 <- poisson_panel_model1$sample(
   data = dat,
   seed = 123,
   chains = 4,
@@ -76,16 +76,45 @@ poisson_panel_fit <- poisson_panel_model$sample(
   refresh = 500
 )
 
-poisson_panel_fit$summary(variables = c('abar', 'beta', 'gamma', 'delta', 'tau')) |>
+poisson_panel_fit1$summary(variables = c('abar', 'beta', 'gamma', 
+                                         'delta', 'tau')) |>
                             knitr::kable(digits = 2)
 ```
-The results look good! Now let's try the "full luxury Mundlak" approach.
-
-
-
-
-We will model this as follows:
+The results look good! Now let's try the "full luxury Mundlak" approach:
 $$
-X_{it} \sim N(\eta_i, \nu), \quad \eta_i \equiv \lambda + \kappa U_i
+\begin{align*}
+X_{it} &\sim \text{Normal}(\eta_i, \nu)\\
+\eta_i &= \lambda + \kappa U_i\\
+\lambda &\sim \text{Normal}(0, 1)\\
+\kappa, \nu &\sim \text{Exponential}(1)\\ 
+U_i &\sim \text{Normal}(0, 1)\\ \\
+Y_{it} &\sim \text{Poisson}(\mu_{it})\\
+\log(\mu_{it}) &= \alpha_i + \beta X_{it} + \gamma Z_i \\
+\alpha_i &= \bar{\alpha} + \tau U_i\\
+\bar{\alpha}, \beta, \gamma, \tau &\sim \text{Normal}(0, 1)\\
+\end{align*}
 $$
-We either need to normalize $\kappa$ to be positive or normalize $\tau$ to be positive. Our previous experiments with a linear panel model suggested that it was a better choice to normalize $\kappa$: this resulted in a much more efficient sampler. We're not sure why, but we'll use the same approach here. It's presumably something to do with the geometry of the problem. 
+Here we have to either normalize $\kappa$ to be positive or normalize $\tau$ to be positive. Based on our experience with the linear panel data example, we've chosen to normalize $\kappa$. This didn't work so we tried the reverse. This didn't work either. When we normalized *both* that worked, but in practice you won't know the correct normalization to use. Perhaps the "fast and dirty" is just a better option in practice?
+```{r}
+#| warning: false
+#| message: false
+library(cmdstanr)
+poisson_panel_model2  <- cmdstan_model('poisson-panel-mundlak2.stan')
+```
+And then we'll run it on the simulation data:
+```{r}
+poisson_panel_fit2 <- poisson_panel_model2$sample(
+  data = dat,
+  seed = 123,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500
+)
+
+poisson_panel_fit2$summary(variables = c('abar', 'beta', 'gamma', 
+                                         'tau', 'lambda', 
+                                         'kappa', 'nu')) |>
+                            knitr::kable(digits = 2)
+```
+
+

@@ -3171,7 +3171,7 @@ U_i &amp;\sim \text{Normal}(0, 1)\\
 \]</span> Notice that we <strong>require a sign normalization</strong> for <span class="math inline">\(\tau\)</span> since <span class="math inline">\(U_i\)</span> is a latent variable. Next we’ll compile the STAN program:</p>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(cmdstanr)</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>poisson_panel_model  <span class="ot">&lt;-</span> <span class="fu">cmdstan_model</span>(<span class="st">&#39;poisson-panel-simple.stan&#39;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>poisson_panel_model1  <span class="ot">&lt;-</span> <span class="fu">cmdstan_model</span>(<span class="st">&#39;poisson-panel-mundlak1.stan&#39;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>And then we’ll run it on the simulation data:</p>
 <div class="cell">
@@ -3183,7 +3183,7 @@ U_i &amp;\sim \text{Normal}(0, 1)\\
 <span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">Xbar =</span> <span class="fu">mean</span>(X)) <span class="sc">|&gt;</span> </span>
 <span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pull</span>(Xbar)</span>
 <span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>poisson_panel_fit <span class="ot">&lt;-</span> poisson_panel_model<span class="sc">$</span><span class="fu">sample</span>(</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>poisson_panel_fit1 <span class="ot">&lt;-</span> poisson_panel_model1<span class="sc">$</span><span class="fu">sample</span>(</span>
 <span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
 <span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
 <span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
@@ -3197,37 +3197,38 @@ Chain 1 Iteration:    1 / 2000 [  0%]  (Warmup)
 Chain 2 Iteration:    1 / 2000 [  0%]  (Warmup) 
 Chain 3 Iteration:    1 / 2000 [  0%]  (Warmup) 
 Chain 4 Iteration:    1 / 2000 [  0%]  (Warmup) 
-Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 Chain 1 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 Chain 2 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 Chain 1 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
-Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
-Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
-Chain 1 finished in 9.8 seconds.
+Chain 1 finished in 9.6 seconds.
 Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 4 finished in 10.9 seconds.
 Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 2 finished in 12.5 seconds.
 Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
-Chain 2 finished in 12.4 seconds.
-Chain 3 finished in 12.3 seconds.
+Chain 3 finished in 12.6 seconds.
 
 All 4 chains finished successfully.
-Mean chain execution time: 11.3 seconds.
-Total execution time: 12.5 seconds.</code></pre>
+Mean chain execution time: 11.4 seconds.
+Total execution time: 12.7 seconds.</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>poisson_panel_fit<span class="sc">$</span><span class="fu">summary</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;abar&#39;</span>, <span class="st">&#39;beta&#39;</span>, <span class="st">&#39;gamma&#39;</span>, <span class="st">&#39;delta&#39;</span>, <span class="st">&#39;tau&#39;</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>                            knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>poisson_panel_fit1<span class="sc">$</span><span class="fu">summary</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;abar&#39;</span>, <span class="st">&#39;beta&#39;</span>, <span class="st">&#39;gamma&#39;</span>, </span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>                                         <span class="st">&#39;delta&#39;</span>, <span class="st">&#39;tau&#39;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>                            knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <table class="table table-sm table-striped small">
 <colgroup>
@@ -3321,10 +3322,223 @@ Total execution time: 12.5 seconds.</code></pre>
 </table>
 </div>
 </div>
-<p>The results look good! Now let’s try the “full luxury Mundlak” approach.</p>
-<p>We will model this as follows: <span class="math display">\[
-X_{it} \sim N(\eta_i, \nu), \quad \eta_i \equiv \lambda + \kappa U_i
-\]</span> We either need to normalize <span class="math inline">\(\kappa\)</span> to be positive or normalize <span class="math inline">\(\tau\)</span> to be positive. Our previous experiments with a linear panel model suggested that it was a better choice to normalize <span class="math inline">\(\kappa\)</span>: this resulted in a much more efficient sampler. We’re not sure why, but we’ll use the same approach here. It’s presumably something to do with the geometry of the problem.</p>
+<p>The results look good! Now let’s try the “full luxury Mundlak” approach: <span class="math display">\[
+\begin{align*}
+X_{it} &amp;\sim \text{Normal}(\eta_i, \nu)\\
+\eta_i &amp;= \lambda + \kappa U_i\\
+\lambda &amp;\sim \text{Normal}(0, 1)\\
+\kappa, \nu &amp;\sim \text{Exponential}(1)\\
+U_i &amp;\sim \text{Normal}(0, 1)\\ \\
+Y_{it} &amp;\sim \text{Poisson}(\mu_{it})\\
+\log(\mu_{it}) &amp;= \alpha_i + \beta X_{it} + \gamma Z_i \\
+\alpha_i &amp;= \bar{\alpha} + \tau U_i\\
+\bar{\alpha}, \beta, \gamma, \tau &amp;\sim \text{Normal}(0, 1)\\
+\end{align*}
+\]</span> Here we have to either normalize <span class="math inline">\(\kappa\)</span> to be positive or normalize <span class="math inline">\(\tau\)</span> to be positive. Based on our experience with the linear panel data example, we’ve chosen to normalize <span class="math inline">\(\kappa\)</span>. This didn’t work so we tried the reverse. This didn’t work either. When we normalized <em>both</em> that worked, but in practice you won’t know the correct normalization to use. Perhaps the “fast and dirty” is just a better option in practice?</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(cmdstanr)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>poisson_panel_model2  <span class="ot">&lt;-</span> <span class="fu">cmdstan_model</span>(<span class="st">&#39;poisson-panel-mundlak2.stan&#39;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>And then we’ll run it on the simulation data:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>poisson_panel_fit2 <span class="ot">&lt;-</span> poisson_panel_model2<span class="sc">$</span><span class="fu">sample</span>(</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">parallel_chains =</span> <span class="dv">4</span>,</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">500</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Running MCMC with 4 parallel chains...
+
+Chain 1 Iteration:    1 / 2000 [  0%]  (Warmup) </code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 1 Informational Message: The current Metropolis proposal is about to be rejected because of the following issue:</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 1 Exception: normal_lpdf: Scale parameter is 0, but must be positive! (in &#39;/tmp/RtmpOIYEgp/model-176f55c656742.stan&#39;, line 37, column 4 to column 24)</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 1 If this warning occurs sporadically, such as for highly constrained variable types like covariance matrices, then the sampler is fine,</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 1 but if this warning occurs often then your model may be either severely ill-conditioned or misspecified.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 1 </code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Chain 2 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 3 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 4 Iteration:    1 / 2000 [  0%]  (Warmup) </code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 4 Informational Message: The current Metropolis proposal is about to be rejected because of the following issue:</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 4 Exception: normal_lpdf: Scale parameter is 0, but must be positive! (in &#39;/tmp/RtmpOIYEgp/model-176f55c656742.stan&#39;, line 37, column 4 to column 24)</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 4 If this warning occurs sporadically, such as for highly constrained variable types like covariance matrices, then the sampler is fine,</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 4 but if this warning occurs often then your model may be either severely ill-conditioned or misspecified.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 4 </code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 1 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 2 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 1 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 3 finished in 9.3 seconds.
+Chain 4 finished in 9.3 seconds.
+Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 1 finished in 9.4 seconds.
+Chain 2 finished in 9.4 seconds.
+
+All 4 chains finished successfully.
+Mean chain execution time: 9.3 seconds.
+Total execution time: 9.5 seconds.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>poisson_panel_fit2<span class="sc">$</span><span class="fu">summary</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;abar&#39;</span>, <span class="st">&#39;beta&#39;</span>, <span class="st">&#39;gamma&#39;</span>, </span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>                                         <span class="st">&#39;tau&#39;</span>, <span class="st">&#39;lambda&#39;</span>, </span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>                                         <span class="st">&#39;kappa&#39;</span>, <span class="st">&#39;nu&#39;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>                            knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<colgroup>
+<col style="width: 13%">
+<col style="width: 8%">
+<col style="width: 10%">
+<col style="width: 7%">
+<col style="width: 7%">
+<col style="width: 8%">
+<col style="width: 8%">
+<col style="width: 7%">
+<col style="width: 13%">
+<col style="width: 13%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">variable</th>
+<th style="text-align: right;">mean</th>
+<th style="text-align: right;">median</th>
+<th style="text-align: right;">sd</th>
+<th style="text-align: right;">mad</th>
+<th style="text-align: right;">q5</th>
+<th style="text-align: right;">q95</th>
+<th style="text-align: right;">rhat</th>
+<th style="text-align: right;">ess_bulk</th>
+<th style="text-align: right;">ess_tail</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">abar</td>
+<td style="text-align: right;">-0.49</td>
+<td style="text-align: right;">-0.49</td>
+<td style="text-align: right;">0.08</td>
+<td style="text-align: right;">0.08</td>
+<td style="text-align: right;">-0.61</td>
+<td style="text-align: right;">-0.36</td>
+<td style="text-align: right;">1.01</td>
+<td style="text-align: right;">203.10</td>
+<td style="text-align: right;">507.67</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">beta</td>
+<td style="text-align: right;">1.01</td>
+<td style="text-align: right;">1.01</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.99</td>
+<td style="text-align: right;">1.03</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">3290.97</td>
+<td style="text-align: right;">3121.09</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">gamma</td>
+<td style="text-align: right;">-0.54</td>
+<td style="text-align: right;">-0.54</td>
+<td style="text-align: right;">0.04</td>
+<td style="text-align: right;">0.04</td>
+<td style="text-align: right;">-0.61</td>
+<td style="text-align: right;">-0.48</td>
+<td style="text-align: right;">1.01</td>
+<td style="text-align: right;">444.44</td>
+<td style="text-align: right;">639.98</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">tau</td>
+<td style="text-align: right;">1.02</td>
+<td style="text-align: right;">1.02</td>
+<td style="text-align: right;">0.06</td>
+<td style="text-align: right;">0.06</td>
+<td style="text-align: right;">0.93</td>
+<td style="text-align: right;">1.12</td>
+<td style="text-align: right;">1.01</td>
+<td style="text-align: right;">208.70</td>
+<td style="text-align: right;">416.20</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">lambda</td>
+<td style="text-align: right;">1.53</td>
+<td style="text-align: right;">1.52</td>
+<td style="text-align: right;">0.07</td>
+<td style="text-align: right;">0.08</td>
+<td style="text-align: right;">1.41</td>
+<td style="text-align: right;">1.65</td>
+<td style="text-align: right;">1.01</td>
+<td style="text-align: right;">194.33</td>
+<td style="text-align: right;">442.94</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">kappa</td>
+<td style="text-align: right;">0.98</td>
+<td style="text-align: right;">0.98</td>
+<td style="text-align: right;">0.06</td>
+<td style="text-align: right;">0.06</td>
+<td style="text-align: right;">0.89</td>
+<td style="text-align: right;">1.08</td>
+<td style="text-align: right;">1.01</td>
+<td style="text-align: right;">328.04</td>
+<td style="text-align: right;">994.26</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">nu</td>
+<td style="text-align: right;">0.98</td>
+<td style="text-align: right;">0.98</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">0.93</td>
+<td style="text-align: right;">1.02</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">4098.45</td>
+<td style="text-align: right;">3287.57</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
 
 </main>
 <!-- /main column -->
