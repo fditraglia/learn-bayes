@@ -79,5 +79,28 @@ hist(Y, breaks = 100)
 library(cmdstanr)
 
 model1 <- cmdstan_model('panel-poisson-endogenous.stan')
+model1$print()
+
+Xtilde <- tibble(X, id) |> 
+  group_by(id) |> 
+  summarize(Xtilde = mean(log(X + 1))) |> 
+  pull(Xtilde)
+
+dat <- list(Ni = Ni, N = N, id = id, X = X, Y = Y, Z = Z,
+            Xtilde = Xtilde, logXplus1 = log(X + 1))
+
+fit1 <- model1$sample(
+  data = dat,
+  seed = 5678,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500
+  #iter_warmup = 2000,
+  #iter_sampling = 6000
+)
+
+fit1$summary(variables = c('beta', 'phi', 'tau', 'xi', 'abar', 'kappa', 
+                           'pi', 'sigma_theta', 'theta_bar')) |> 
+  knitr::kable(digits = 2)
 ```
 

@@ -1,25 +1,12 @@
 data {
   int<lower=0> Ni;
-  int<lower=0> Nt;
-  array[Ni * Nt] int<lower=1> id;
-  array[Ni * Nt] int<lower=0> X;
-  array[Ni * Nt] int<lower=0> Y;
-  vector[Ni * Nt] Z;
-}
-
-transformed data {
-  int<lower=Ni> N = Ni * Nt;
+  int<lower=Ni> N;
+  array[N] int<lower=1> id;
+  array[N] int<lower=0> X;
   vector[N] logXplus1;
   vector[Ni] Xtilde;
-  
-  for(j in 1:Ni) {
-    logXplus1[j] = log(1.0 + X[j]);
-  }
-  
-  for(j in 1:Ni) {
-    Xtilde[j] = mean(logXplus1[((j - 1) * Nt + 1):(j * Nt)]);
-  }
-  //print("logXplus1: ", logXplus1);
+  array[N] int<lower=0> Y;
+  vector[N] Z;
 }
 
 parameters {
@@ -41,8 +28,8 @@ parameters {
 }
 
 transformed parameters {
-  vector[N] alpha = abar + tau * eta; 
-  vector[N] theta = theta_bar + sigma_theta * v;
+  vector[Ni] alpha = abar + tau * eta; 
+  vector[Ni] theta = theta_bar + sigma_theta * v;
 }
 
 model {
