@@ -13,7 +13,7 @@ parameters {
 
 model {
   vector[N] log_lambda;
-  alpha ~ normal(0, 10);
+  alpha ~ normal(0, 2);
   beta ~ normal(0, 1);
   for(j in 1:N) {
     log_lambda[j] = alpha[id[j]] + beta * logXplus1[j];

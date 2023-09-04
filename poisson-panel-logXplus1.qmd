@@ -24,7 +24,7 @@ We'll generate $X_{it} \sim \text{Poisson}(\mu_i)$ where $\log(\mu_i) = \theta +
 #| warning: false
 library(tidyverse)
 Nt <- 3
-Ni <- 500
+Ni <- 250
 N <- Nt * Ni
 abar <- (-2)
 beta <- 1
