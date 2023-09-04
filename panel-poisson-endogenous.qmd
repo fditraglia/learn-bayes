@@ -102,5 +102,7 @@ fit1 <- model1$sample(
 fit1$summary(variables = c('beta', 'phi', 'tau', 'xi', 'abar', 'kappa', 
                            'pi', 'sigma_theta', 'theta_bar')) |> 
   knitr::kable(digits = 2)
+
+true_params
 ```
 
