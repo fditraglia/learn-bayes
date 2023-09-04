@@ -118,3 +118,4 @@ poisson_panel_fit2$summary(variables = c('abar', 'beta', 'gamma',
 ```
 
 
+

@@ -1,0 +1,90 @@
+---
+title: "Poisson Panel Data Model with Log Scale Regressor in STAN"
+format: 
+  html:
+    embed-resources: true
+---
+
+The "Chamberlain-Mundlak" type correlated random effects assumption is
+$$
+\alpha_i = \bar{\alpha} + \xi \bar{X}_i + \tau \eta_i, \quad \eta_i \sim \text{Normal}(0, 1)
+$$
+where $\eta_i$ is exogenous. (See Wooldridge, 2010 pg 615) But we want to consider a model in which
+$$
+Y_{it} \sim \text{Poisson}(\lambda_{it}), \quad
+\log(\lambda_{it}) = \alpha_i + \beta \log(1 + X_{it})
+$$
+so we need need to simulate data such that 
+$$
+\alpha_i = \bar{\alpha} + \xi \overline{\log(1 + X_{it})} + \tau \eta_i.
+$$
+We'll generate $X_{it} \sim \text{Poisson}(\mu_i)$ where $\log(\mu_i) = \theta + \epsilon_i$ and $\epsilon_i \sim \text{Normal}(0,1)$.  We'll also use the shorthand $\widetilde{X}_i \equiv \overline{\log(1 + X_{it})}$.
+```{r}
+#| message: false
+#| warning: false
+library(tidyverse)
+Nt <- 3
+Ni <- 500
+N <- Nt * Ni
+abar <- (-2)
+beta <- 1
+xi <- 1
+tau <- 0.3
+
+id <- rep(1:Ni, each = Nt)
+set.seed(1693)
+
+eta <- rnorm(Ni)
+mu <- log(4) + rnorm(Ni) # Rate of 4 at the average
+X <- rpois(N, exp(mu[id])) 
+
+Xtilde <- tibble(X, id) |> 
+  group_by(id) |> 
+  summarize(Xtilde = mean(log(1 + X))) |> 
+  pull(Xtilde)
+
+alpha <- abar + xi * Xtilde + tau * eta
+lambda <- exp(alpha[id] + beta * log(X + 1)) # This was wrong! I had written alpha not alpha[id] and R's recycling rules kicked in :(
+Y <- rpois(N, lambda)
+```
+Here's the STAN program:
+```{r}
+#| warning: false
+#| message: false
+library(cmdstanr)
+log_model <- cmdstan_model('poisson-panel-logXplus1.stan')
+log_model$print()
+
+dat <- list(logXplus1 = log(X + 1), Y = Y, Xtilde = Xtilde, id = id, Ni = Ni, N = N)
+
+log_fit <- log_model$sample(
+  data = dat,
+  seed = 123,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500
+)
+
+log_fit$summary(variables = c('abar', 'tau', 'beta', 'gamma')) |> 
+  knitr::kable(digits = 2)
+```
+
+Now let's try the FE version: 
+```{r}
+log_model_FE <- cmdstan_model('poisson-panel-logXplus1-FE.stan')
+log_model_FE$print()
+
+dat <- list(logXplus1 = log(X + 1), Y = Y, id = id, Ni = Ni, N = N)
+
+log_fit_FE <- log_model_FE$sample(
+  data = dat,
+  seed = 123,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500
+)
+
+log_fit_FE$summary(variables = c('beta')) |> 
+  knitr::kable(digits = 2)
+```
+

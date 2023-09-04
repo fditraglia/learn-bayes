@@ -219,7 +219,7 @@ fit1 <- model1$sample(
   parallel_chains = 4,
   refresh = 500,
   #iter_warmup = 2000,
-  #iter_sampling = 6000
+  iter_sampling = 6000
 )
 ```
 
@@ -228,7 +228,7 @@ It looks like it ran successfully! Now let's check the posterior:
 fit1$summary(variables = c('alpha', 'beta', 'gamma', 'delta', 'sigma_x', 'sigma_y')) |> knitr::kable(digits = 2)
 ```
 
-For purposes of comparison, let's try a version with a non-centered parameterization. Notice that the interpretation of the parameters in the "first stage" changes here, but these aren't the parameters of interest in any case
+For purposes of comparison, let's try a version with a centered parameterization. Notice that the interpretation of the parameters in the "first stage" changes here, but these aren't the parameters of interest in any case
 ```{r}
 model2 <- cmdstan_model('mullahy-version2.stan')
 model2$print()
@@ -246,10 +246,60 @@ fit2 <- model2$sample(
 fit2$summary(variables = c('alpha', 'beta', 'rho', 'delta', 'sigma_u', 'eta')) |> knitr::kable(digits = 2)
 ```
 
+## Extending the Model
+Now let's try adding an additional error term in the $\log(\mu_i)$ equation, one that is independent of $U_i$. Effectively it's a Cholesky decomposition "by hand." We need to add one more coefficient: the scale parameter for this new error term. We also need to simulate new data! 
 
 
+$$
+\begin{align}
+Y_i & \sim \text{Poisson}(\lambda_i)\\
+X_i & \sim \text{Poisson}(\mu_i) \\
+\log(\lambda_i) &= \alpha + \beta \log(1 + X_i) + \sigma_Y U_i \\
+\log(\mu_i) &= \gamma + \delta Z_i + \sigma_X U_i + \kappa V_i \\
+U_i &\sim \text{Normal}(0, 1)\\
+V_i & \sim \text{Normal}(0, 1)
+\end{align}
+$$
 
 
+```{r}
+set.seed(2817)
+n <- 2500
 
+# Under our scaling, alpha controls the rate of Y when X equals zero
+alpha <- 4 # approx 50 on the log scale
+beta <-  0.5 # partial effect is beta * exp(everything)
+sigma <- 1 # calibrate based on expected variation in the rate of Y when X is zero
 
+# Simpler to express the first-stage if we first center and scale z (z-score!)
+gamma <- 0.5 # rate of X on log scale at average Z
+delta <- 1
+eta <- 0.8
+  
+sim_dat <- tibble(u = rnorm(n),
+                  v = 0.5 * rnorm(n),
+                  z = runif(n, -0.3, 0.3),
+                  x = rpois(n, exp(gamma + delta * scale(z) + eta * u + v)),
+                  y = rpois(n, exp(alpha + beta * log(1 + x) + sigma * u)))
 
+model3 <- cmdstan_model('mullahy-version3.stan')
+model3$print()
+
+d <- list(x = sim_dat$x,
+          y = sim_dat$y,
+          z = sim_dat$z,
+          N = nrow(sim_dat))
+
+fit3 <- model3$sample(
+  data = d,
+  seed = 5678,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500,
+  #iter_warmup = 2000,
+  iter_sampling = 6000
+)
+
+fit3$summary(variables = c('alpha', 'beta', 'gamma', 'delta', 'kappa',
+                           'sigma_x', 'sigma_y')) |> knitr::kable(digits = 2)
+```
