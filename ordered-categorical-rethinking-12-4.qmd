@@ -1,0 +1,39 @@
+---
+title: "Ordered Categorical Predictors - Statistical Rethinking 12.4"
+format: 
+  html:
+    embed-resources: true
+---
+
+
+```{r}
+#| warning: false
+#| message: false
+library(rethinking)
+
+data(Trolley)
+d <- Trolley
+dat <- list(R = d$response, 
+            A = d$action, 
+            I = d$intention, 
+            C = d$contact)
+
+dat$G <- ifelse(d$male ==1 , 2, 1)
+
+edu_levels <- c(6, 1, 8, 4, 7, 2, 5, 3)
+edu_new <- edu_levels[d$edu]
+dat$E <- edu_new
+dat$a <- rep(2, 7) # dirichlet prior
+
+mRXE <- ulam(
+  alist(R ~ ordered_logistic( phi , alpha ), 
+        phi <- bE*sum( delta_j[1:E] ) + bA*A + bI*I + bC*C, 
+        alpha ~ normal( 0 , 1 ), 
+        c(bA,bI,bC,bE) ~ normal( 0 , 0.5 ), 
+        vector[8]: delta_j <<- append_row( 0 , delta ), 
+        simplex[7]: delta ~ dirichlet( a )
+), data=dat , sample = FALSE) 
+
+stancode(mRXE)
+```
+
