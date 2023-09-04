@@ -1,0 +1,83 @@
+---
+title: "Panel Poisson with Endogeneity with log Regressor"
+format: 
+  html:
+    embed-resources: true
+---
+
+Let $\tilde{X}_i$ denote the time average of $\log(1 + X_{it})$ for fixed $i$. Our model is as follows:
+$$
+\begin{align*}
+Y_{it} &\sim \text{Poisson}(\lambda_{it})\\
+X_{it} &\sim \text{Poisson}(\mu_{it})\\
+\log(\lambda_{it}) &= \alpha_i + \beta \log(1 + X_{it}) + \varphi\epsilon_{it}\\
+\log(\mu_{it}) &= \theta_i + \pi Z_{it} + \kappa \epsilon_{it}\\
+\alpha_i &= \bar{\alpha} + \xi \tilde{X}_i + \tau \eta_i\\
+\theta_i &= \bar{\theta} + \sigma_\theta V_i\\
+\eta_i, V_i, \epsilon_{it} &\sim \text{Normal}(0, 1)
+\end{align*}
+$$
+and we observe $(Y_{it}, X_{it}, Z_{it})$ for $i = 1, 2, ..., N_i$ and $t = 1, 2, ..., N_t$. First we'll simulate from the DGP:
+```{r}
+#| warning: false
+#| message: false
+library(tidyverse)
+set.seed(1848)
+
+Ni <- 400
+Nt <- 10
+N <- Ni * Nt
+id <- rep(1:Ni, each = Nt)
+
+eta <- rnorm(Ni)
+v <- rnorm(Ni)
+epsilon <- rnorm(N)
+Z <- rnorm(N)
+
+theta_bar <- 0
+sigma_theta <- 0.2
+theta <- theta_bar + sigma_theta * v
+pi <- 0.5
+kappa <- 0.6 
+X <- rpois(N, exp(theta[id] + pi * Z + kappa * epsilon))
+
+Xtilde <- tibble(X, id) |> 
+  group_by(id) |> 
+  summarize(Xtilde = mean(log(1 + X))) |> 
+  pull(Xtilde)
+
+abar <- 3
+xi <- 1
+tau <- 0.5
+alpha <- abar + xi * Xtilde + tau * eta
+
+beta <- 0.6
+phi <- 0.5
+Y <- rpois(N, exp(alpha[id] + beta * log(1 + X) + phi * epsilon))
+
+true_params <- c(beta = beta, 
+                 phi = phi, 
+                 tau = tau, 
+                 xi = xi, 
+                 abar = abar, 
+                 kappa = kappa,  
+                 pi = pi, 
+                 sigma_theta = sigma_theta, 
+                 theta_bar = theta_bar)
+```
+
+```{r}
+plot(Xtilde, alpha)
+plot(Z, X)
+plot(X, Y)
+hist(Y, breaks = 100)
+```
+
+```{r}
+#| warning: false
+#| message: false
+library(cmdstanr)
+
+model1 <- cmdstan_model('panel-poisson-endogenous.stan')
+```
+
