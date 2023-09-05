@@ -6,6 +6,13 @@ data {
   vector[N] Y;
 }
 
+transformed data {
+  vector[J] ones_J;
+  for(j in 1:J) {
+    ones_J[j] = 1.0;
+  }
+}
+
 parameters {
   real alpha;
   real beta;
@@ -19,13 +26,10 @@ model {
   
   vector[J + 1] delta_j;
   delta_j = append_row(0.0, delta); // simplifies book-keeping below
-  
+ 
   // Construct vector of parameters for Dirichlet prior
-  vector[J] a;
-  for(j in 1:J) {
-    a[j] = 2.0; // change as desired: (exchangeable Dirichlet distribution)
-  }
-  delta ~ dirichlet(a);
+  real a = 2.0; // change as desired: exchangeable Dirichlet distribution
+  delta ~ dirichlet(a * ones_J);
   
   sigma ~ exponential(1);
   beta ~ normal(0, 2);
