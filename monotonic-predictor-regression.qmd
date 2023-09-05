@@ -143,5 +143,23 @@ true_params <- c('alpha' = alpha,
                  'beta' = beta,
                  'delta' = delta[-1],
                  'sigma' = sigma)
+
+dat <- list(J = J, N = N, S = S, X = X, Y = Y)
+
+model2 <- cmdstan_model('ordered-categorical-predictor-land-distribution.stan')
+model2$print()
+
+fit2 <- model2$sample(
+  data = dat,
+  seed = 5678,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500,
+)
+
+fit2$summary(variables = c('alpha', 'beta', 'delta', 'sigma')) |> 
+  knitr::kable(digits = 2)
+
+true_params
 ```
 
