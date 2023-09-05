@@ -86,23 +86,62 @@ true_params
 
 ## Example with Land Distribution Data
 
-
+Now we'll try a more complicated example that will play a role in our structural model. Imagine that we *aggregated* the model from the previous section within geographical units. In each city we observe the share of people with each value of $H$. We also observe the average $X$ and the average $Y$. Then the city-specific slope coefficient will be the *average* of the $\beta_j$ weighted by the share of people with $H = j$ in that city. If $\omega_h$ is the share of people with $H = h$ then the overall effect in a city city equals
+$$
+\begin{align*}
+\beta_{\text{overall}} &= \sum_{h=1}^J \omega_h \beta_h =   \left[\sum_{h=1}^J \omega_h\beta \left(1 - \sum_{j=0}^{h-1} \delta_j  \right) \right]\\
+&= \beta \left[ \sum_{h=1}^J \left(\omega_h - \omega_h\sum_{j=0}^{h-1}  \delta_j \right)\right]\\
+&= \beta \left[ \left(\sum_{h=1}^J \omega_h \right) - \sum_{h=1}^J \omega_h\sum_{j=0}^{h-1}  \delta_j\right]\\
+&= \beta \left(1 -  \sum_{j=0}^{J-1} \delta_j \sum_{h=j+1}^J \omega_h\right)\\
+&= \beta \left(1 -  \sum_{j=0}^{J-1} \delta_j S_{j+1}\right)\\
+&= \beta \left(1 -  \sum_{j=1}^{J} \delta_{j-1} S_{j}\right)\\
+\end{align*}
+$$
+where we define $S_j \equiv \sum_{k=j}^J \omega_k = 1 - \sum_{k=1}^{j-1} \omega_k$.
 ```{r}
 #| warning: false
 #| message: false
-library(tidyverse)
 library(forcedMigration)
+library(tidyverse)
 
-get_survival_function <- function(land_dist) {
-  nbins <- nrow(land_dist)
-  c(1, (1 - cumsum(land_dist$frac_families))[-nbins])
+has_land <- land_distributions |> 
+  map_lgl(\(x) any(!is.na(x$frac_families)))
+
+get_S <- function(land_dist) {
+  omega <- land_dist$frac_families
+  J <- length(omega)
+  c(1, (1 - cumsum(omega))[-J])
 }
 
-land_distributions |> 
-  compact(\(x) any(!is.na(x$frac_families)))
+S <- land_distributions[has_land] |> 
+  map(get_S) |> 
+  do.call(rbind, args = _)
 
-survival_functions <- land_distributions |>  
-  map(get_survival_function) 
+colnames(S) <- rownames(land_distributions[[1]])
 
+J <- ncol(S)
+decrements <- diff(1 / (1:J)) * -1
+delta <- c(0, decrements, 1 - sum(decrements))
+plot(0:J, 1 - cumsum(delta))
+delta_lag <- matrix(delta[-(J + 1)], J, 1)
+
+
+set.seed(1234)
+N <- nrow(S)
+X <- rnorm(N, 10) 
+sigma <- 1
+epsilon <- rnorm(N, sd = sigma)
+alpha <- (-2)
+beta <- 2
+
+beta_heterog <- beta * (1 - drop(S %*% delta_lag))
+Y <- alpha + beta_heterog * X + epsilon
+
+plot(X, Y)
+
+true_params <- c('alpha' = alpha,
+                 'beta' = beta,
+                 'delta' = delta[-1],
+                 'sigma' = sigma)
 ```
 
