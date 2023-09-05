@@ -1,0 +1,108 @@
+---
+title: "Untitled"
+format: 
+  html:
+    embed-resources: true
+---
+
+
+## What is this?
+This is a simple example of working with ordered categorical predictors in a linear regression. The idea is to impose monotonicity in the relationship between an ordered discrete predictor and an outcome of interest without specifying a particular functional form for the relationship. We start with a very simple example and then augment it to resemble the structural model from our paper, by incorporating data on the distribution of land ownership in Colombian municipalities. In each case we'll use a cross-section dataset, although in the real example from the paper it's a panel. It should still be possible to identify the effects.
+
+
+## Simple Regression Example
+In this model, the effect of $X$ is mediated by a discrete, ordered predictor $H_i \in \{1, 1, ..., J\}. Later on, these will correspond to "land bins" so the zero means landless. But for now they're just ordered predictors, e.g. levels of education. The unrestricted model is  
+$$
+Y_i = \alpha + \beta_{j[H_i]}X_i + \epsilon_i
+$$
+This notation allows a different slope for every possible value of $H$. This is equivalent to interacting $X_i$ with a full set of dummy variables for the levels of $H_i$. Now suppose that we wanted to *restrict* the way that $H_i$ mediates the relationship between $X_i$ and $Y_i$ to ensure that higher levels of $H_i$ correspond to *lower* values of $\beta_{j[H_i]}$. A simple way to achieve this is as follows:
+$$
+Y_i = \alpha + \beta \left(1 - \sum_{j=0}^{H_i-1} \delta_j \right) X_i + \epsilon_i
+$$
+where $0 \leq \delta_j \leq 1$, $\delta_0 = 0$ and $\sum_{j=1}^{J} \delta_j = 1$. Writing this out in full:
+$$
+\begin{align}
+H_i = 1 &\implies \beta_j = \beta \\
+H_i = 2 &\implies \beta_j = \beta_0(1 - \delta_1)\\ 
+H_i = 3 &\implies \beta_j = \beta_0(1 - \delta_1 - \delta_2)\\
+H_i = h &\implies \beta_j = \beta_0(1 - \delta_1 - \delta_2 - ... - \delta_{h-1})\\
+\end{align}
+$$
+Here's how to think about this model: $\delta_1$ is the first *decrement*: the amount that the slope coefficient *falls* when moving from $H_i = 1$ to $H_i = 2$. More generally, $\delta_j$ is the $j$th increment: the amount that the slope coefficient falls when moving from $H_i = j$ to $H_i = (j + 1)$. The *final decrement* $\delta_J$ is never actually used to compute a coefficient. Its role is merely to ensure that the full set of $\delta_j$ adds up to one. Notice that this model ensures the coefficients $\beta_{j[H_i]}$ are *monotonically non-increasing*. To obtain a model where they are non-decreasing, simply replace $(1 - \sum)$ with $\sum$. Notice further that in this model $\beta$ is the effect of $X_i$ when $H_i = 1$. 
+
+Now we'll simulate some data from this model. To obtain the $\delta_j$ coefficients, we'll discretize a continuous function: 
+```{r}
+J <- 10
+decrements <- diff(1 / (1:J)) * -1
+delta <- c(0, decrements, 1 - sum(decrements)) 
+plot(0:J, 1 - cumsum(delta))
+```
+Note that $\delta_J$ isn't actually used to define any effects, although it will be estimated by the model. Its only role is to satisfy the adding up constraint. Similarly $\delta_0$ is neither used nor estimated: it's just a book-keeping device that ensures $\beta$ equals the marginal effect for people with $H_i = 1$.
+```{r}
+set.seed(1234)
+N <- 500
+X <- rnorm(N, 10) 
+sigma <- 1
+epsilon <- rnorm(N, sd = sigma)
+alpha <- (-2)
+beta <- 2
+beta_j <- beta * (1 - cumsum(delta)[-(J + 1)])
+H <- sample(1:J, N, replace = TRUE)
+Y <- alpha + beta_j[H] * X + epsilon
+
+plot(X, Y)
+
+true_params <- c('alpha' = alpha,
+                 'beta' = beta,
+                 'delta' = delta[-1],
+                 'sigma' = sigma)
+```
+
+```{r}
+#| message: false
+#| warning: false
+library(cmdstanr)
+
+model1 <- cmdstan_model('ordered-categorical-predictor-regression.stan')
+model1$print()
+
+dat <- list(J = J, N = N, H = H, X = X, Y = Y)
+
+fit1 <- model1$sample(
+  data = dat,
+  seed = 5678,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500,
+)
+
+fit1$summary(variables = c('alpha', 'beta', 'delta', 'sigma')) |> 
+  knitr::kable(digits = 2)
+
+true_params
+```
+
+
+
+## Example with Land Distribution Data
+
+
+```{r}
+#| warning: false
+#| message: false
+library(tidyverse)
+library(forcedMigration)
+
+get_survival_function <- function(land_dist) {
+  nbins <- nrow(land_dist)
+  c(1, (1 - cumsum(land_dist$frac_families))[-nbins])
+}
+
+land_distributions |> 
+  compact(\(x) any(!is.na(x$frac_families)))
+
+survival_functions <- land_distributions |>  
+  map(get_survival_function) 
+
+```
+
