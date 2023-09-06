@@ -3200,18 +3200,359 @@ model {
   Y ~ poisson_log(log_lambda);
 }</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co">#fit5 &lt;- model5$sample(</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="co">#  data = dat,</span></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co">#  seed = 5678,</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co">#  chains = 4,</span></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="co">#  parallel_chains = 4,</span></span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="co">#  refresh = 500</span></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co">#)</span></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="co">#fit5$summary(variables = c(&#39;abar&#39;, &#39;tau&#39;, &#39;beta&#39;, &#39;gamma&#39;, &#39;delta&#39;)) |&gt; </span></span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="co">#  knitr::kable(digits = 2)</span></span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="co">#true_params</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> model<span class="sc">$</span><span class="fu">sample</span>(</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">5678</span>,</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">parallel_chains =</span> <span class="dv">4</span>,</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">500</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Running MCMC with 4 parallel chains...
+
+Chain 1 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 2 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 3 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 4 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 2 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 1 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 1 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 2 finished in 1433.5 seconds.
+Chain 4 finished in 1434.0 seconds.
+Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 1 finished in 1438.8 seconds.
+Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 3 finished in 1467.0 seconds.
+
+All 4 chains finished successfully.
+Mean chain execution time: 1443.3 seconds.
+Total execution time: 1467.1 seconds.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>fit<span class="sc">$</span><span class="fu">summary</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;abar&#39;</span>, <span class="st">&#39;tau&#39;</span>, <span class="st">&#39;beta&#39;</span>, <span class="st">&#39;gamma&#39;</span>, <span class="st">&#39;theta_bar&#39;</span>,</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>                           <span class="st">&#39;sigma_theta&#39;</span>, <span class="st">&#39;phi&#39;</span>, <span class="st">&#39;kappa&#39;</span>, <span class="st">&#39;delta&#39;</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<colgroup>
+<col style="width: 17%">
+<col style="width: 7%">
+<col style="width: 10%">
+<col style="width: 7%">
+<col style="width: 7%">
+<col style="width: 8%">
+<col style="width: 7%">
+<col style="width: 7%">
+<col style="width: 13%">
+<col style="width: 13%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">variable</th>
+<th style="text-align: right;">mean</th>
+<th style="text-align: right;">median</th>
+<th style="text-align: right;">sd</th>
+<th style="text-align: right;">mad</th>
+<th style="text-align: right;">q5</th>
+<th style="text-align: right;">q95</th>
+<th style="text-align: right;">rhat</th>
+<th style="text-align: right;">ess_bulk</th>
+<th style="text-align: right;">ess_tail</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">abar</td>
+<td style="text-align: right;">3.00</td>
+<td style="text-align: right;">3.00</td>
+<td style="text-align: right;">0.05</td>
+<td style="text-align: right;">0.05</td>
+<td style="text-align: right;">2.92</td>
+<td style="text-align: right;">3.07</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">3273.12</td>
+<td style="text-align: right;">2720.80</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">tau</td>
+<td style="text-align: right;">0.51</td>
+<td style="text-align: right;">0.50</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.48</td>
+<td style="text-align: right;">0.53</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">2870.03</td>
+<td style="text-align: right;">2945.63</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">beta</td>
+<td style="text-align: right;">1.97</td>
+<td style="text-align: right;">1.97</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">1.93</td>
+<td style="text-align: right;">2.02</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">4512.31</td>
+<td style="text-align: right;">3061.20</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">gamma</td>
+<td style="text-align: right;">0.99</td>
+<td style="text-align: right;">0.99</td>
+<td style="text-align: right;">0.07</td>
+<td style="text-align: right;">0.07</td>
+<td style="text-align: right;">0.88</td>
+<td style="text-align: right;">1.10</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">3359.57</td>
+<td style="text-align: right;">2915.46</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">theta_bar</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">-0.04</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">4788.57</td>
+<td style="text-align: right;">3514.40</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">sigma_theta</td>
+<td style="text-align: right;">0.21</td>
+<td style="text-align: right;">0.21</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">0.15</td>
+<td style="text-align: right;">0.26</td>
+<td style="text-align: right;">1.01</td>
+<td style="text-align: right;">718.49</td>
+<td style="text-align: right;">1371.87</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">phi</td>
+<td style="text-align: right;">0.50</td>
+<td style="text-align: right;">0.50</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.48</td>
+<td style="text-align: right;">0.51</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">1113.29</td>
+<td style="text-align: right;">2110.08</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">kappa</td>
+<td style="text-align: right;">0.58</td>
+<td style="text-align: right;">0.58</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.55</td>
+<td style="text-align: right;">0.61</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">1562.81</td>
+<td style="text-align: right;">2886.54</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">delta[1]</td>
+<td style="text-align: right;">0.49</td>
+<td style="text-align: right;">0.49</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">0.43</td>
+<td style="text-align: right;">0.53</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">10169.76</td>
+<td style="text-align: right;">2726.93</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">delta[2]</td>
+<td style="text-align: right;">0.15</td>
+<td style="text-align: right;">0.15</td>
+<td style="text-align: right;">0.06</td>
+<td style="text-align: right;">0.07</td>
+<td style="text-align: right;">0.05</td>
+<td style="text-align: right;">0.26</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">8993.03</td>
+<td style="text-align: right;">2843.39</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">delta[3]</td>
+<td style="text-align: right;">0.10</td>
+<td style="text-align: right;">0.10</td>
+<td style="text-align: right;">0.05</td>
+<td style="text-align: right;">0.06</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.20</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">5426.35</td>
+<td style="text-align: right;">2869.66</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">delta[4]</td>
+<td style="text-align: right;">0.06</td>
+<td style="text-align: right;">0.05</td>
+<td style="text-align: right;">0.04</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.13</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">4779.45</td>
+<td style="text-align: right;">2810.55</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">delta[5]</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.07</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">3929.62</td>
+<td style="text-align: right;">2923.11</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">delta[6]</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.06</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">3400.40</td>
+<td style="text-align: right;">2470.30</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">delta[7]</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.05</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">4103.27</td>
+<td style="text-align: right;">2748.75</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">delta[8]</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.04</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">3671.63</td>
+<td style="text-align: right;">2435.35</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">delta[9]</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.04</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">4064.81</td>
+<td style="text-align: right;">2228.28</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">delta[10]</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.04</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">3877.10</td>
+<td style="text-align: right;">1980.13</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">delta[11]</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.04</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">3902.01</td>
+<td style="text-align: right;">2614.45</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">delta[12]</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.04</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">3431.20</td>
+<td style="text-align: right;">1998.03</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">delta[13]</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.04</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">3443.75</td>
+<td style="text-align: right;">2300.54</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">delta[14]</td>
+<td style="text-align: right;">0.02</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.04</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">3436.12</td>
+<td style="text-align: right;">2334.00</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>true_params</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>       abar         tau        beta       gamma   theta_bar sigma_theta 
+3.000000000 0.500000000 2.000000000 1.000000000 0.000000000 0.200000000 
+        phi       kappa      delta1      delta2      delta3      delta4 
+0.500000000 0.600000000 0.500000000 0.166666667 0.083333333 0.050000000 
+     delta5      delta6      delta7      delta8      delta9     delta10 
+0.033333333 0.023809524 0.017857143 0.013888889 0.011111111 0.009090909 
+    delta11     delta12     delta13     delta14 
+0.007575758 0.006410256 0.005494505 0.071428571 </code></pre>
+</div>
 </div>
 
 </main>
