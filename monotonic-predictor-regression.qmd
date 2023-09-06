@@ -1,5 +1,5 @@
 ---
-title: "Untitled"
+title: "Heterogeneous Slopes Experiments"
 format: 
   html:
     embed-resources: true
@@ -154,7 +154,7 @@ fit2 <- model2$sample(
   seed = 5678,
   chains = 4,
   parallel_chains = 4,
-  refresh = 500,
+  refresh = 500
 )
 
 fit2$summary(variables = c('alpha', 'beta', 'delta', 'sigma')) |> 
@@ -162,4 +162,128 @@ fit2$summary(variables = c('alpha', 'beta', 'delta', 'sigma')) |>
 
 true_params
 ```
+
+## Adding Unit-specific Intercepts
+
+In the paper, we need to identify heterogeneous intercepts at the same time as heterogeneous slopes, so now we'll try a panel version of the preceding experiment.
+```{r}
+Ni <- nrow(S)
+Nt <- 3
+N <- Nt * Ni
+id <- rep(1:Ni, each = Nt)
+
+# Unit-specific intercepts
+abar <- (-2)
+tau <- 0.5
+gamma <- 1.5
+sigma <- 1
+eta <- rnorm(Ni)
+
+X <- rnorm(N)
+Xbar <- tibble(X, id) |> 
+  group_by(id) |> 
+  summarize(Xbar = mean(X)) |> 
+  pull(Xbar)
+
+alpha <- abar + gamma * Xbar + tau * eta
+
+epsilon <- rnorm(N, sd = sigma)
+Y <- alpha[id] + beta_heterog[id] * X + epsilon
+
+model3 <- cmdstan_model('ordered-categorical-predictor-panel.stan')
+model3$print()
+
+true_params <- c('abar' = abar, 
+                 'tau' = tau,
+                 'beta' = beta,
+                 'gamma' = gamma,
+                 'delta' = delta[-1],
+                 'sigma' = sigma)
+
+
+dat <- list(J = J, Ni = Ni, id = id, N = N, S = S, Xbar = Xbar, X = X, Y = Y)
+
+fit3 <- model3$sample(
+  data = dat,
+  seed = 5678,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500
+)
+
+fit3$summary(variables = c('abar', 'tau', 'beta', 'delta', 'sigma')) |> 
+  knitr::kable(digits = 2)
+
+true_params
+```
+
+Just as a sanity check, let's estimate the same model with a "fixed-effects" specification:
+```{r}
+model4 <- cmdstan_model('ordered-categorical-predictor-FE.stan')
+model4$print()
+
+fit4 <- model4$sample(
+  data = dat,
+  seed = 5678,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500
+)
+
+fit3$summary(variables = c('beta', 'delta', 'sigma')) |> 
+  knitr::kable(digits = 2)
+
+true_params
+
+```
+
+
+## Poisson Example
+
+Now let's try a model that's *even closer* to what we plan to do in the paper, this time adding heterogeneous slopes to the DGP from `poisson-panel-logXplus1.qmd`.
+```{r}
+abar <- (-2)
+gamma <- 1
+tau <- 0.3
+
+
+mu <- log(4) + rnorm(Ni) # Rate of 4 at the average
+X <- rpois(N, exp(mu[id])) 
+
+Xtilde <- tibble(X, id) |> 
+  group_by(id) |> 
+  summarize(Xtilde = mean(log(1 + X))) |> 
+  pull(Xtilde)
+
+alpha <- abar + gamma * Xtilde + tau * eta
+lambda <- exp(alpha[id] + beta_heterog[id] * log(X + 1)) 
+Y <- rpois(N, lambda)
+
+true_params <- c('abar' = abar, 
+                 'tau' = tau,
+                 'beta' = beta,
+                 'gamma' = gamma,
+                 'delta' = delta[-1])
+
+dat <- list(J = J, Ni = Ni, id = id, N = N, S = S, Xtilde = Xtilde, 
+            logXplus1 = log(X + 1), Y = Y)
+
+
+model5 <- cmdstan_model('ordered-categorical-predictor-panel-poisson.stan')
+model5$print()
+
+fit5 <- model5$sample(
+  data = dat,
+  seed = 5678,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500
+)
+
+fit5$summary(variables = c('abar', 'tau', 'beta', 'gamma', 'delta')) |> 
+  knitr::kable(digits = 2)
+
+true_params
+```
+
 

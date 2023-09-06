@@ -3570,15 +3570,15 @@ Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling)
 Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 1 finished in 0.9 seconds.
 Chain 2 finished in 0.9 seconds.
 Chain 3 finished in 0.8 seconds.
-Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 4 finished in 0.9 seconds.
 
 All 4 chains finished successfully.
 Mean chain execution time: 0.9 seconds.
-Total execution time: 1.0 seconds.</code></pre>
+Total execution time: 0.9 seconds.</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>linear_RE_fit <span class="ot">&lt;-</span> linear_RE_model<span class="sc">$</span><span class="fu">sample</span>(</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
@@ -3612,8 +3612,8 @@ Chain 2 Iteration:    1 / 2000 [  0%]  (Warmup) </code></pre>
 <pre><code>Chain 3 Iteration:    1 / 2000 [  0%]  (Warmup) 
 Chain 4 Iteration:    1 / 2000 [  0%]  (Warmup) 
 Chain 1 Iteration:  500 / 2000 [ 25%]  (Warmup) 
-Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 Chain 2 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 Chain 1 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
@@ -3628,10 +3628,10 @@ Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling)
 Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
-Chain 1 finished in 1.7 seconds.
 Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 1 finished in 1.7 seconds.
 Chain 2 finished in 1.7 seconds.
 Chain 3 finished in 1.7 seconds.
 Chain 4 finished in 1.7 seconds.
@@ -3878,10 +3878,10 @@ Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup)
 Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
-Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
-Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 1 finished in 2.6 seconds.
@@ -3893,11 +3893,10 @@ Chain 3 finished in 3.1 seconds.
 
 All 4 chains finished successfully.
 Mean chain execution time: 2.8 seconds.
-Total execution time: 3.1 seconds.</code></pre>
+Total execution time: 3.2 seconds.</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>mundlak1_fit<span class="sc">$</span><span class="fu">summary</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;abar&#39;</span>, <span class="st">&#39;tau&#39;</span>, <span class="st">&#39;beta&#39;</span>, </span>
-<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>                                   <span class="st">&#39;gamma&#39;</span>, <span class="st">&#39;delta&#39;</span>, <span class="st">&#39;sigma&#39;</span>)) <span class="sc">|&gt;</span> </span>
-<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>mundlak1_fit<span class="sc">$</span><span class="fu">summary</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;abar&#39;</span>, <span class="st">&#39;beta&#39;</span>, <span class="st">&#39;gamma&#39;</span>, <span class="st">&#39;delta&#39;</span>, <span class="st">&#39;tau&#39;</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <table data-quarto-postprocess="true" class="table table-sm table-striped small">
 <thead>
@@ -3928,18 +3927,6 @@ Total execution time: 3.1 seconds.</code></pre>
 <td style="text-align: right;">2587.92</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">tau</td>
-<td style="text-align: right;">0.53</td>
-<td style="text-align: right;">0.54</td>
-<td style="text-align: right;">0.06</td>
-<td style="text-align: right;">0.06</td>
-<td style="text-align: right;">0.43</td>
-<td style="text-align: right;">0.63</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">1188.49</td>
-<td style="text-align: right;">1737.18</td>
-</tr>
-<tr class="odd">
 <td style="text-align: left;">beta</td>
 <td style="text-align: right;">1.06</td>
 <td style="text-align: right;">1.06</td>
@@ -3951,7 +3938,7 @@ Total execution time: 3.1 seconds.</code></pre>
 <td style="text-align: right;">3300.09</td>
 <td style="text-align: right;">2737.12</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td style="text-align: left;">gamma</td>
 <td style="text-align: right;">-0.52</td>
 <td style="text-align: right;">-0.52</td>
@@ -3963,7 +3950,7 @@ Total execution time: 3.1 seconds.</code></pre>
 <td style="text-align: right;">2856.46</td>
 <td style="text-align: right;">2901.95</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td style="text-align: left;">delta</td>
 <td style="text-align: right;">-0.83</td>
 <td style="text-align: right;">-0.83</td>
@@ -3975,17 +3962,17 @@ Total execution time: 3.1 seconds.</code></pre>
 <td style="text-align: right;">2348.42</td>
 <td style="text-align: right;">2655.25</td>
 </tr>
-<tr class="even">
-<td style="text-align: left;">sigma</td>
-<td style="text-align: right;">1.04</td>
-<td style="text-align: right;">1.04</td>
-<td style="text-align: right;">0.03</td>
-<td style="text-align: right;">0.03</td>
-<td style="text-align: right;">0.99</td>
-<td style="text-align: right;">1.10</td>
+<tr class="odd">
+<td style="text-align: left;">tau</td>
+<td style="text-align: right;">0.53</td>
+<td style="text-align: right;">0.54</td>
+<td style="text-align: right;">0.06</td>
+<td style="text-align: right;">0.06</td>
+<td style="text-align: right;">0.43</td>
+<td style="text-align: right;">0.63</td>
 <td style="text-align: right;">1</td>
-<td style="text-align: right;">2381.78</td>
-<td style="text-align: right;">2949.66</td>
+<td style="text-align: right;">1188.49</td>
+<td style="text-align: right;">1737.18</td>
 </tr>
 </tbody>
 </table>
@@ -4109,33 +4096,33 @@ Chain 2 Iteration:    1 / 2000 [  0%]  (Warmup) </code></pre>
 <div class="cell-output cell-output-stdout">
 <pre><code>Chain 3 Iteration:    1 / 2000 [  0%]  (Warmup) 
 Chain 4 Iteration:    1 / 2000 [  0%]  (Warmup) 
-Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 Chain 1 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 Chain 2 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 1 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
-Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
-Chain 4 finished in 2.4 seconds.
+Chain 3 finished in 2.4 seconds.
+Chain 4 finished in 2.3 seconds.
 Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
-Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 1 finished in 2.5 seconds.
 Chain 2 finished in 2.5 seconds.
-Chain 3 finished in 2.5 seconds.
 
 All 4 chains finished successfully.
-Mean chain execution time: 2.5 seconds.
+Mean chain execution time: 2.4 seconds.
 Total execution time: 2.6 seconds.</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a>mundlak2_fit<span class="sc">$</span><span class="fu">summary</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;abar&#39;</span>, <span class="st">&#39;tau&#39;</span>, <span class="st">&#39;beta&#39;</span>, <span class="st">&#39;gamma&#39;</span>, <span class="st">&#39;sigma&#39;</span>, </span>
@@ -4391,22 +4378,22 @@ Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup)
 Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
-Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
-Chain 1 finished in 0.8 seconds.
-Chain 2 finished in 0.8 seconds.
-Chain 3 finished in 0.8 seconds.
 Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 1 finished in 0.9 seconds.
+Chain 2 finished in 0.9 seconds.
+Chain 3 finished in 0.8 seconds.
 Chain 4 finished in 0.8 seconds.
 
 All 4 chains finished successfully.
 Mean chain execution time: 0.8 seconds.
-Total execution time: 1.0 seconds.</code></pre>
+Total execution time: 0.9 seconds.</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb53"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a>fe_fit<span class="sc">$</span><span class="fu">summary</span>(<span class="at">variables =</span> <span class="fu">c</span>(<span class="st">&#39;beta&#39;</span>, <span class="st">&#39;gamma&#39;</span>)) <span class="sc">|&gt;</span> </span>
 <span id="cb53-2"><a href="#cb53-2" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>

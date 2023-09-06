@@ -1,0 +1,111 @@
+---
+title: "Heterogeneous Slopes Experiments with Endogeneity"
+format: 
+  html:
+    embed-resources: true
+---
+
+
+```{r}
+#| warning: false
+#| message: false
+library(cmdstanr)
+library(forcedMigration)
+library(tidyverse)
+
+has_land <- land_distributions |> 
+  map_lgl(\(x) any(!is.na(x$frac_families)))
+
+get_S <- function(land_dist) {
+  omega <- land_dist$frac_families
+  J <- length(omega)
+  c(1, (1 - cumsum(omega))[-J])
+}
+
+S <- land_distributions[has_land] |> 
+  map(get_S) |> 
+  do.call(rbind, args = _)
+
+colnames(S) <- rownames(land_distributions[[1]])
+
+J <- ncol(S)
+decrements <- diff(1 / (1:J)) * -1
+delta <- c(0, decrements, 1 - sum(decrements))
+plot(0:J, 1 - cumsum(delta))
+delta_lag <- matrix(delta[-(J + 1)], J, 1)
+
+
+set.seed(1234)
+
+Ni <- nrow(S)
+Nt <- 5
+N <- Nt * Ni
+id <- rep(1:Ni, each = Nt)
+
+
+theta_bar <- 0 
+sigma_theta <- 0.2
+theta <- rnorm(Ni, theta_bar, sigma_theta)
+kappa <- 0.6
+epsilon <- rnorm(N)
+Z <- rnorm(N)
+pi <- 0.5
+mu <- exp(theta[id] + pi * Z  + kappa * epsilon)
+X <- rpois(N, mu) 
+
+
+Xtilde <- tibble(X, id) |> 
+  group_by(id) |> 
+  summarize(Xtilde = mean(log(1 + X))) |> 
+  pull(Xtilde)
+
+tau <- 0.5
+abar <- 3
+gamma <- 1
+eta <- rnorm(Ni)
+alpha <- abar + gamma * Xtilde + tau * eta
+
+phi <- 0.5
+beta <- 2
+beta_heterog <- beta * (1 - drop(S %*% delta_lag))
+lambda <- exp(alpha[id] + beta_heterog[id] * log(X + 1) + phi * epsilon) 
+Y <- rpois(N, lambda)
+
+true_params <- c('abar' = abar, 
+                 'tau' = tau,
+                 'beta' = beta,
+                 'gamma' = gamma,
+                 'theta_bar' = theta_bar,
+                 'sigma_theta' = sigma_theta,
+                 'phi' = phi,
+                 'kappa' = kappa,
+                 'delta' = delta[-1])
+
+dat <- list(J = J, Ni = Ni, id = id, N = N, S = S, X = X, Xtilde = Xtilde, 
+            logXplus1 = log(X + 1), Y = Y, Z = Z)
+
+plot(Xtilde, alpha)
+plot(Z, X)
+plot(X, Y)
+hist(Y)
+
+
+model <- cmdstan_model('ordered-categorical-predictor-panel-poisson-endog.stan')
+model$print()
+
+fit <- model$sample(
+  data = dat,
+  seed = 5678,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500
+)
+
+fit$summary(variables = c('abar', 'tau', 'beta', 'gamma', 'theta_bar',
+                           'sigma_theta', 'phi', 'kappa', 'delta')) |> 
+  knitr::kable(digits = 2)
+
+true_params
+```
+
+
