@@ -48,6 +48,8 @@ mu_true <- 130
 sigma_true <- 25
 y_true <- rnorm(N_total, mu_true, sigma_true)
 y_obs <- ifelse(y_true < U, y_true, NA)
+
+true_parameters <- c(mu = mu_true, sigma = sigma_true)
 ```
 
 Completely ignoring the censoring gives very misleading results in this example:
@@ -103,6 +105,8 @@ fit1 <- censored_normal_impute$sample(
 
 fit1$summary(variables = c('mu', 'sigma')) |> 
   knitr::kable(digits = 2)
+
+true_parameters
 ```
 
 
@@ -147,7 +151,7 @@ $$
 N_\text{cens} \times \log\left[ 1 - \Phi\left( \frac{u - \mu}{\sigma}\right)\right].
 $$
 
-Now we can fit and summarize the model. This time around the only two parameters are $\mu$ and $\sigma$, so there's no need to set `variables = c('mu', 'sigma')` to suppress the parameters we're not interested in. 
+Now we can fit and summarize the model. This time around the only two parameters are $\mu$ and $\sigma$, so there's no need to set `variables = c('mu', 'sigma')` to suppress the parameters we're not interested in. Again the model works well: the inferences are reasonable and notice that the results are very similar to those from the alternative implementation given above:
 ```{r}
 mu_lower <- mean(y_obs, na.rm = TRUE)
 sigma_lower <- sd(y_obs, na.rm = TRUE)
@@ -163,6 +167,8 @@ fit2 <- censored_normal_integrate$sample(
 ) 
 fit2$summary() |> 
   knitr::kable(digits = 2)
+
+true_parameters
 ```
 There's just one wrinkle in the above code: I needed to define a custom initialization function for `sample()` to avoid the following error message:
 ```
@@ -177,7 +183,7 @@ If I understand correctly, the problem here comes from normal_lccdf() being eval
 
 ## Censored Poisson Example
 
-We should triple-check this, but I believe the cell-suppression issue only concerns small but *non-zero* counts. In other words, my understanding is that we know for sure whether we have observed a zero. I've written this example accordingly.
+We should check this, but my impression is that for most states the cell-suppression issue only concerns small *non-zero* counts. In other words, we know for sure whether we have observed a zero. I've written this example accordingly. Life would actually be somewhat *simpler* if any counts less than or equal to $\ell$ were censored, since we wouldn't need to handle the zeros separately.
 
 Suppose that we have an iid collection of Poisson distributed counts. Any count above $\ell$ is observed and any count of zero is observed, but any count between $1$ and $\ell$ inclusive is unobserved:
 $$
@@ -205,7 +211,7 @@ The code here is similar to that from the from the censored normal example. The 
 Now we can simulate some data and test it out. If we ignore the cell suppression, we obtain an overestimate of $\mu$:
 ```{r}
 ell <- 3
-N_total <- 500
+N_total <- 5000
 mu_true <- 5
 y_true <- rpois(N_total, mu_true)
 y_obs <- ifelse((y_true == 0) | (y_true > ell), y_true, NA) 
@@ -235,6 +241,8 @@ fit3 <- censored_poisson$sample(
 )
 
 fit3$summary() |> knitr::kable(digits = 2)
+
+mu_true
 ```
 Here the posterior 90% credible interval covers the true parameter value, because we have correctly accounted for the cell suppression problem.
 
@@ -244,34 +252,43 @@ This example is identical to the preceding one, except that we introduce a covar
 
 ```{r}
 set.seed(1848)
-n <- 250
+n <- 5000
 x <- runif(n, -1, 2)
 ell <- 3
-y_true <- rpois(n, exp(0.8 + 0.5 * scale(x)))
-y_obs <- ifelse((y_true == 0) | (y_true > ell), y_true, NA)
+alpha_true <- 0.8
+beta_true <- 0.5
+y_true <- rpois(n, exp(alpha_true + beta_true * x))
+y <- ifelse((y_true == 0) | (y_true > ell), y_true, NA)
+
+true_parameters <- c(alpha = alpha_true,
+                     beta = beta_true)
 ```
 
 The new ingredient in this model is an equation that relates the Poisson rate to $X_i$, namely
 $$
-\log(\mu_i) = \alpha + \beta (X_i - \bar{X})/S_X
+\log(\mu_i) = \alpha + \beta X_i 
 $$
-where I center and scale $X_i$ to make it easier to think about the meaning of the coefficients. The log-likelihood is almost identical to the one from above. The only change is that $\mu_i$ replaces $\mu$ throughout:
+The log-likelihood is almost identical to the one from above. The only change is that $\mu_i$ replaces $\mu$ throughout:
 $$
 \log L(\mu|\mathbf{y}, \ell) = \sum_{i=1}^n (1 - C_i) \log \left[ \texttt{dpois}(y_i|\mu_i)\right] + \sum_{i=1}^n C_i \log \left[\texttt{ppois}(\ell|\mu_i) - \texttt{dpois}(0|\mu_i)\right].
 $$
 The simplest way to implement these two sums in the present example is to store the $X_i$ observations for the censored observations separately: notice that $X_i$ is always observed even when $Y_i$ is not!
 
 ```{r}
-dat <- list(y_obs = y_obs[!is.na(y_obs)],
-            x_obs = x[!is.na(y_obs)], 
-            x_cens = x[is.na(y_obs)],
-            N_obs = sum(!is.na(y_obs)),
-            N_cens = sum(is.na(y_obs)),
+censored <- is.na(y)
+dat <- list(y_obs = y[!censored],
+            x_obs = x[!censored], 
+            N_obs = sum(!censored),
+            x_cens = x[censored],
+            N_cens = sum(censored),
             ell = ell)
 
 censored_poisson_regression_model <- cmdstan_model('censored-poisson-regression-basic.stan')
 
-censored_poisson_regression_fit <- censored_poisson_regression_model$sample(
+censored_poisson_regression_model$print()
+
+censored_poisson_regression_fit <- 
+  censored_poisson_regression_model$sample(
   data = dat, 
   seed = 1234, # random seed for MCMC
   chains = 4, 
@@ -281,13 +298,26 @@ censored_poisson_regression_fit <- censored_poisson_regression_model$sample(
 
 censored_poisson_regression_fit$summary() |> 
   knitr::kable(digits = 2)
+
+true_parameters
 ```
-It works quite well! In contrast, here are the results of a Poisson regression that ignores the censoring:
+It works quite well! In contrast, here are the results of a Poisson regression that ignores the censoring. Interestingly, the slope coefficient is still fine here, only the intercept is incorrect. Presumably there are other values of $\ell$, $\alpha$ and $\beta$ that would cause more problems: 
 ```{r}
-dat_ignore <- data.frame(y = dat$y_obs, x = dat$x_obs)
+dat_ignore <- data.frame(y = y, x = x)
 glm(y ~ x, dat_ignore, family = poisson()) |> 
   tidy() |> 
   knitr::kable(digits = 2)
+
+true_parameters
+```
+In contrast, the infeasible Poisson regression based on the "full" dataset (i.e. if there were no censoring) is as follows:
+```{r}
+dat_infeasible <- data.frame(y = y_true, x = x)
+glm(y ~ x, dat_infeasible, family = poisson()) |> 
+  tidy() |> 
+  knitr::kable(digits = 2)
+
+true_parameters
 ```
 
 

@@ -3169,7 +3169,9 @@ Y_i \sim\text{iid Normal}(\mu, \sigma^2), \quad C_i = \mathbb{1}(Y_i \geq U), \q
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>mu_true <span class="ot">&lt;-</span> <span class="dv">130</span></span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>sigma_true <span class="ot">&lt;-</span> <span class="dv">25</span></span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>y_true <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(N_total, mu_true, sigma_true)</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>y_obs <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(y_true <span class="sc">&lt;</span> U, y_true, <span class="cn">NA</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>y_obs <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(y_true <span class="sc">&lt;</span> U, y_true, <span class="cn">NA</span>)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>true_parameters <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="at">mu =</span> mu_true, <span class="at">sigma =</span> sigma_true)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Completely ignoring the censoring gives very misleading results in this example:</p>
 <div class="cell">
@@ -3328,11 +3330,11 @@ Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling)
 Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
-Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 1 finished in 0.2 seconds.
+Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 2 finished in 0.3 seconds.
 Chain 4 finished in 0.2 seconds.
 Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
@@ -3400,6 +3402,11 @@ Total execution time: 0.5 seconds.</code></pre>
 </tbody>
 </table>
 </div>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>true_parameters</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>   mu sigma 
+  130    25 </code></pre>
+</div>
 </div>
 </section>
 <section id="second-approach-integrate-out-censored-data" class="level3">
@@ -3418,8 +3425,8 @@ L(\mu, \sigma|\mathbf{y}, U) = \prod_{i=1}^n \varphi\left( \frac{y_i - \mu}{\sig
 \]</span> since the second sum only depends on the data through the number of censored observations.</p>
 <p>At this point it is straightforward to implement the model in STAN by making a small change to the code from above. We handle the uncensored observations exactly as before. They key difference is that <code>y_cens</code> no longer appears in the <code>parameters { ... }</code> block, or indeed anywhere else in the code. Instead we use the <code>target +=</code> syntax, explained in the zero-inflated Poisson example from <code>poisson-regression-STAN.qmd</code>. To make a long story short, <code>target +=</code> effectively adds whatever is on the RHS of the <code>+=</code> to the overall log-likelihood of the model. Here we use this syntax to account for the likelihood contribution of the censored observations:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>censored_normal_integrate <span class="ot">&lt;-</span> <span class="fu">cmdstan_model</span>(<span class="st">&#39;censored-normal-integrate.stan&#39;</span>)</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>censored_normal_integrate<span class="sc">$</span><span class="fu">print</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>censored_normal_integrate <span class="ot">&lt;-</span> <span class="fu">cmdstan_model</span>(<span class="st">&#39;censored-normal-integrate.stan&#39;</span>)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>censored_normal_integrate<span class="sc">$</span><span class="fu">print</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>data {
   int&lt;lower=0&gt; N_obs;
@@ -3442,20 +3449,20 @@ f(x|\mu, \sigma) = \log \left[1 - \Phi\left( \frac{x - \mu}{\sigma}\right) \righ
 \]</span> so <code>target += N_cens * normal_lccdf(u | mu, sigma);</code> adds the second term from above to the log likelihood, namely <span class="math display">\[
 N_\text{cens} \times \log\left[ 1 - \Phi\left( \frac{u - \mu}{\sigma}\right)\right].
 \]</span></p>
-<p>Now we can fit and summarize the model. This time around the only two parameters are <span class="math inline">\(\mu\)</span> and <span class="math inline">\(\sigma\)</span>, so there’s no need to set <code>variables = c(&#39;mu&#39;, &#39;sigma&#39;)</code> to suppress the parameters we’re not interested in.</p>
+<p>Now we can fit and summarize the model. This time around the only two parameters are <span class="math inline">\(\mu\)</span> and <span class="math inline">\(\sigma\)</span>, so there’s no need to set <code>variables = c(&#39;mu&#39;, &#39;sigma&#39;)</code> to suppress the parameters we’re not interested in. Again the model works well: the inferences are reasonable and notice that the results are very similar to those from the alternative implementation given above:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>mu_lower <span class="ot">&lt;-</span> <span class="fu">mean</span>(y_obs, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>sigma_lower <span class="ot">&lt;-</span> <span class="fu">sd</span>(y_obs, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>fit2 <span class="ot">&lt;-</span> censored_normal_integrate<span class="sc">$</span><span class="fu">sample</span>(</span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
-<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
-<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">parallel_chains =</span> <span class="dv">4</span>,</span>
-<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">500</span>,</span>
-<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">init =</span> \() <span class="fu">list</span>(<span class="at">mu =</span> <span class="fu">runif</span>(<span class="dv">1</span>, mu_lower, <span class="dv">2</span> <span class="sc">*</span> mu_lower),</span>
-<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>                  <span class="at">sigma =</span> <span class="fu">runif</span>(<span class="dv">1</span>, sigma_lower, <span class="dv">2</span> <span class="sc">*</span> sigma_lower))</span>
-<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>mu_lower <span class="ot">&lt;-</span> <span class="fu">mean</span>(y_obs, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>sigma_lower <span class="ot">&lt;-</span> <span class="fu">sd</span>(y_obs, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>fit2 <span class="ot">&lt;-</span> censored_normal_integrate<span class="sc">$</span><span class="fu">sample</span>(</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">parallel_chains =</span> <span class="dv">4</span>,</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">500</span>,</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">init =</span> \() <span class="fu">list</span>(<span class="at">mu =</span> <span class="fu">runif</span>(<span class="dv">1</span>, mu_lower, <span class="dv">2</span> <span class="sc">*</span> mu_lower),</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>                  <span class="at">sigma =</span> <span class="fu">runif</span>(<span class="dv">1</span>, sigma_lower, <span class="dv">2</span> <span class="sc">*</span> sigma_lower))</span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Running MCMC with 4 parallel chains...
 
@@ -3492,8 +3499,8 @@ All 4 chains finished successfully.
 Mean chain execution time: 0.0 seconds.
 Total execution time: 0.1 seconds.</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>fit2<span class="sc">$</span><span class="fu">summary</span>() <span class="sc">|&gt;</span> </span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>fit2<span class="sc">$</span><span class="fu">summary</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <table class="table table-sm table-striped small">
 <colgroup>
@@ -3562,6 +3569,11 @@ Total execution time: 0.1 seconds.</code></pre>
 </tbody>
 </table>
 </div>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>true_parameters</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>   mu sigma 
+  130    25 </code></pre>
+</div>
 </div>
 <p>There’s just one wrinkle in the above code: I needed to define a custom initialization function for <code>sample()</code> to avoid the following error message:</p>
 <pre><code>Chain 1   Log probability evaluates to log(0), i.e. negative infinity.
@@ -3575,7 +3587,7 @@ Chain 1 Initialization between (-2, 2) failed after 100 attempts.</code></pre>
 </section>
 <section id="censored-poisson-example" class="level2">
 <h2 class="anchored" data-anchor-id="censored-poisson-example">Censored Poisson Example</h2>
-<p>We should triple-check this, but I believe the cell-suppression issue only concerns small but <em>non-zero</em> counts. In other words, my understanding is that we know for sure whether we have observed a zero. I’ve written this example accordingly.</p>
+<p>We should check this, but my impression is that for most states the cell-suppression issue only concerns small <em>non-zero</em> counts. In other words, we know for sure whether we have observed a zero. I’ve written this example accordingly. Life would actually be somewhat <em>simpler</em> if any counts less than or equal to <span class="math inline">\(\ell\)</span> were censored, since we wouldn’t need to handle the zeros separately.</p>
 <p>Suppose that we have an iid collection of Poisson distributed counts. Any count above <span class="math inline">\(\ell\)</span> is observed and any count of zero is observed, but any count between <span class="math inline">\(1\)</span> and <span class="math inline">\(\ell\)</span> inclusive is unobserved: <span class="math display">\[
 Y_i \sim \text{iid Poisson}(\mu), \quad C_i = \mathbb{1}(1 \leq Y_i \leq \ell), \quad C_i \text{ observed}, \quad \text{observe } Y_i \text{ iff } C_i = 0.
 \]</span> Since the censored observations are discrete, we can’t treat them as unknown parameters in STAN: for the time being the software can only sample continuous parameters. But we can integrate them out. Let <span class="math inline">\(\texttt{dpois}(y|\mu)\)</span> denote the Poisson pmf with mean <span class="math inline">\(\mu\)</span> evaluated at <span class="math inline">\(y\)</span> and <span class="math inline">\(\texttt{ppois}(y|\mu)\)</span> denote the corresponding CDF. Then the likelihood contribution of an uncensored observation is simply <span class="math inline">\(\texttt{dpois}(Y_i|\mu)\)</span>, while that of a censored observation is given by <span class="math display">\[
@@ -3586,8 +3598,8 @@ L(\mu|\mathbf{y}, \ell) = \prod_{i=1}^n \texttt{dpois}(y_i|\mu)^{1 - C_i} \left[
 \log L(\mu|\mathbf{y}, \ell) = \sum_{i=1}^n (1 - C_i) \log \left[ \texttt{dpois}(y_i|\mu)\right] + N_\text{cens} \log \left[\texttt{ppois}(\ell|\mu) - \texttt{dpois}(0|\mu)\right]
 \]</span> defining <span class="math inline">\(N_\text{cens} = \sum_{i=1}^n C_i\)</span> as above. We can implement this in STAN as follows:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>censored_poisson <span class="ot">&lt;-</span> <span class="fu">cmdstan_model</span>(<span class="st">&#39;censored-poisson.stan&#39;</span>)</span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>censored_poisson<span class="sc">$</span><span class="fu">print</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>censored_poisson <span class="ot">&lt;-</span> <span class="fu">cmdstan_model</span>(<span class="st">&#39;censored-poisson.stan&#39;</span>)</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>censored_poisson<span class="sc">$</span><span class="fu">print</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>data {
   int&lt;lower=0&gt; N_obs;
@@ -3607,16 +3619,16 @@ model {
 <p>The code here is similar to that from the from the censored normal example. The functions <code>poisson_lcdf()</code> and <code>poisson_lpmf()</code> are the log of the Poisson CDF and pmf. The function <a href="https://mc-stan.org/docs/functions-reference/composed-functions.html#composed-functions"><code>log_diff_exp(real x, real y)</code></a>, on the other hand, is an efficient and numerically stable implementation of <span class="math inline">\(\log(e^x - e^y)\)</span>.</p>
 <p>Now we can simulate some data and test it out. If we ignore the cell suppression, we obtain an overestimate of <span class="math inline">\(\mu\)</span>:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>ell <span class="ot">&lt;-</span> <span class="dv">3</span></span>
-<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>N_total <span class="ot">&lt;-</span> <span class="dv">500</span></span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>mu_true <span class="ot">&lt;-</span> <span class="dv">5</span></span>
-<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>y_true <span class="ot">&lt;-</span> <span class="fu">rpois</span>(N_total, mu_true)</span>
-<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>y_obs <span class="ot">&lt;-</span> <span class="fu">ifelse</span>((y_true <span class="sc">==</span> <span class="dv">0</span>) <span class="sc">|</span> (y_true <span class="sc">&gt;</span> ell), y_true, <span class="cn">NA</span>) </span>
-<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>y_obs <span class="sc">|&gt;</span> </span>
-<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">t.test</span>(<span class="at">mu =</span> mu_true) <span class="sc">|&gt;</span> </span>
-<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tidy</span>() <span class="sc">|&gt;</span> </span>
-<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>ell <span class="ot">&lt;-</span> <span class="dv">3</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>N_total <span class="ot">&lt;-</span> <span class="dv">5000</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>mu_true <span class="ot">&lt;-</span> <span class="dv">5</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>y_true <span class="ot">&lt;-</span> <span class="fu">rpois</span>(N_total, mu_true)</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>y_obs <span class="ot">&lt;-</span> <span class="fu">ifelse</span>((y_true <span class="sc">==</span> <span class="dv">0</span>) <span class="sc">|</span> (y_true <span class="sc">&gt;</span> ell), y_true, <span class="cn">NA</span>) </span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>y_obs <span class="sc">|&gt;</span> </span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">t.test</span>(<span class="at">mu =</span> mu_true) <span class="sc">|&gt;</span> </span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tidy</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <table class="table table-sm table-striped small">
 <colgroup>
@@ -3643,12 +3655,12 @@ model {
 </thead>
 <tbody>
 <tr class="odd">
-<td style="text-align: right;">5.98</td>
-<td style="text-align: right;">9.49</td>
+<td style="text-align: right;">5.93</td>
+<td style="text-align: right;">30.13</td>
 <td style="text-align: right;">0</td>
-<td style="text-align: right;">378</td>
-<td style="text-align: right;">5.78</td>
-<td style="text-align: right;">6.19</td>
+<td style="text-align: right;">3695</td>
+<td style="text-align: right;">5.87</td>
+<td style="text-align: right;">5.99</td>
 <td style="text-align: left;">One Sample t-test</td>
 <td style="text-align: left;">two.sided</td>
 </tr>
@@ -3658,22 +3670,22 @@ model {
 </div>
 <p>Now let’s try using STAN. As above, I’ll use an initialization function to address the starting value problem:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">y_obs =</span> y_obs[<span class="sc">!</span><span class="fu">is.na</span>(y_obs)],</span>
-<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>            <span class="at">N_obs =</span> <span class="fu">sum</span>(<span class="sc">!</span><span class="fu">is.na</span>(y_obs)),</span>
-<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>            <span class="at">N_cens =</span> <span class="fu">sum</span>(<span class="fu">is.na</span>(y_obs)),</span>
-<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">ell =</span> ell)</span>
-<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>mu_upper <span class="ot">&lt;-</span> <span class="fu">mean</span>(<span class="sc">!</span><span class="fu">is.na</span>(y_obs))</span>
-<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>fit3 <span class="ot">&lt;-</span> censored_poisson<span class="sc">$</span><span class="fu">sample</span>(</span>
-<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
-<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
-<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
-<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">parallel_chains =</span> <span class="dv">4</span>,</span>
-<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">500</span>,</span>
-<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">init =</span> \() <span class="fu">list</span>(<span class="at">mu =</span> <span class="fu">runif</span>(<span class="dv">1</span>, <span class="dv">0</span>, mu_upper))</span>
-<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">y_obs =</span> y_obs[<span class="sc">!</span><span class="fu">is.na</span>(y_obs)],</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>            <span class="at">N_obs =</span> <span class="fu">sum</span>(<span class="sc">!</span><span class="fu">is.na</span>(y_obs)),</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>            <span class="at">N_cens =</span> <span class="fu">sum</span>(<span class="fu">is.na</span>(y_obs)),</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">ell =</span> ell)</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>mu_upper <span class="ot">&lt;-</span> <span class="fu">mean</span>(<span class="sc">!</span><span class="fu">is.na</span>(y_obs))</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>fit3 <span class="ot">&lt;-</span> censored_poisson<span class="sc">$</span><span class="fu">sample</span>(</span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">parallel_chains =</span> <span class="dv">4</span>,</span>
+<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">500</span>,</span>
+<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">init =</span> \() <span class="fu">list</span>(<span class="at">mu =</span> <span class="fu">runif</span>(<span class="dv">1</span>, <span class="dv">0</span>, mu_upper))</span>
+<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Running MCMC with 4 parallel chains...
 
@@ -3682,48 +3694,48 @@ Chain 1 Iteration:  500 / 2000 [ 25%]  (Warmup)
 Chain 1 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
-Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 2 Iteration:    1 / 2000 [  0%]  (Warmup) 
 Chain 2 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
-Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 3 Iteration:    1 / 2000 [  0%]  (Warmup) 
 Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
-Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 4 Iteration:    1 / 2000 [  0%]  (Warmup) 
 Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
-Chain 1 finished in 0.0 seconds.
-Chain 2 finished in 0.0 seconds.
-Chain 3 finished in 0.0 seconds.
-Chain 4 finished in 0.0 seconds.
+Chain 1 finished in 0.1 seconds.
+Chain 2 finished in 0.1 seconds.
+Chain 3 finished in 0.1 seconds.
+Chain 4 finished in 0.1 seconds.
 
 All 4 chains finished successfully.
-Mean chain execution time: 0.0 seconds.
-Total execution time: 0.1 seconds.</code></pre>
+Mean chain execution time: 0.1 seconds.
+Total execution time: 0.3 seconds.</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>fit3<span class="sc">$</span><span class="fu">summary</span>() <span class="sc">|&gt;</span> knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>fit3<span class="sc">$</span><span class="fu">summary</span>() <span class="sc">|&gt;</span> knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <table class="table table-sm table-striped small">
 <colgroup>
-<col style="width: 12%">
-<col style="width: 10%">
-<col style="width: 10%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 11%">
 <col style="width: 6%">
 <col style="width: 6%">
-<col style="width: 10%">
-<col style="width: 10%">
+<col style="width: 11%">
+<col style="width: 11%">
 <col style="width: 6%">
-<col style="width: 12%">
-<col style="width: 12%">
+<col style="width: 11%">
+<col style="width: 11%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -3742,30 +3754,34 @@ Total execution time: 0.1 seconds.</code></pre>
 <tbody>
 <tr class="odd">
 <td style="text-align: left;">lp__</td>
-<td style="text-align: right;">1593.27</td>
-<td style="text-align: right;">1593.55</td>
-<td style="text-align: right;">0.69</td>
-<td style="text-align: right;">0.31</td>
-<td style="text-align: right;">1591.85</td>
-<td style="text-align: right;">1593.77</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">1905.04</td>
-<td style="text-align: right;">2304.41</td>
+<td style="text-align: right;">15033.27</td>
+<td style="text-align: right;">15033.60</td>
+<td style="text-align: right;">0.76</td>
+<td style="text-align: right;">0.30</td>
+<td style="text-align: right;">15031.70</td>
+<td style="text-align: right;">15033.80</td>
+<td style="text-align: right;">1.01</td>
+<td style="text-align: right;">1568.24</td>
+<td style="text-align: right;">NA</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">mu</td>
-<td style="text-align: right;">5.12</td>
-<td style="text-align: right;">5.12</td>
-<td style="text-align: right;">0.10</td>
-<td style="text-align: right;">0.10</td>
-<td style="text-align: right;">4.95</td>
-<td style="text-align: right;">5.29</td>
-<td style="text-align: right;">1</td>
-<td style="text-align: right;">1573.29</td>
-<td style="text-align: right;">1912.48</td>
+<td style="text-align: right;">5.01</td>
+<td style="text-align: right;">5.01</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">4.96</td>
+<td style="text-align: right;">5.06</td>
+<td style="text-align: right;">1.01</td>
+<td style="text-align: right;">1501.66</td>
+<td style="text-align: right;">1970.03</td>
 </tr>
 </tbody>
 </table>
+</div>
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>mu_true</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 5</code></pre>
 </div>
 </div>
 <p>Here the posterior 90% credible interval covers the true parameter value, because we have correctly accounted for the cell suppression problem.</p>
@@ -3774,35 +3790,67 @@ Total execution time: 0.1 seconds.</code></pre>
 <h2 class="anchored" data-anchor-id="poisson-regression-example">Poisson Regression Example</h2>
 <p>This example is identical to the preceding one, except that we introduce a covariate <span class="math inline">\(X_i\)</span> that allows the Poisson rate to vary across observations. First I’ll simulate some data from a Poisson regression model, and then I’ll censor any values of <code>y</code> between <code>1</code> and <code>3</code>:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1848</span>)</span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">250</span></span>
-<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">runif</span>(n, <span class="sc">-</span><span class="dv">1</span>, <span class="dv">2</span>)</span>
-<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>ell <span class="ot">&lt;-</span> <span class="dv">3</span></span>
-<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>y_true <span class="ot">&lt;-</span> <span class="fu">rpois</span>(n, <span class="fu">exp</span>(<span class="fl">0.8</span> <span class="sc">+</span> <span class="fl">0.5</span> <span class="sc">*</span> <span class="fu">scale</span>(x)))</span>
-<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>y_obs <span class="ot">&lt;-</span> <span class="fu">ifelse</span>((y_true <span class="sc">==</span> <span class="dv">0</span>) <span class="sc">|</span> (y_true <span class="sc">&gt;</span> ell), y_true, <span class="cn">NA</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1848</span>)</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">5000</span></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">runif</span>(n, <span class="sc">-</span><span class="dv">1</span>, <span class="dv">2</span>)</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>ell <span class="ot">&lt;-</span> <span class="dv">3</span></span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>alpha_true <span class="ot">&lt;-</span> <span class="fl">0.8</span></span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>beta_true <span class="ot">&lt;-</span> <span class="fl">0.5</span></span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>y_true <span class="ot">&lt;-</span> <span class="fu">rpois</span>(n, <span class="fu">exp</span>(alpha_true <span class="sc">+</span> beta_true <span class="sc">*</span> x))</span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">ifelse</span>((y_true <span class="sc">==</span> <span class="dv">0</span>) <span class="sc">|</span> (y_true <span class="sc">&gt;</span> ell), y_true, <span class="cn">NA</span>)</span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>true_parameters <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="at">alpha =</span> alpha_true,</span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a>                     <span class="at">beta =</span> beta_true)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>The new ingredient in this model is an equation that relates the Poisson rate to <span class="math inline">\(X_i\)</span>, namely <span class="math display">\[
-\log(\mu_i) = \alpha + \beta (X_i - \bar{X})/S_X
-\]</span> where I center and scale <span class="math inline">\(X_i\)</span> to make it easier to think about the meaning of the coefficients. The log-likelihood is almost identical to the one from above. The only change is that <span class="math inline">\(\mu_i\)</span> replaces <span class="math inline">\(\mu\)</span> throughout: <span class="math display">\[
+\log(\mu_i) = \alpha + \beta X_i
+\]</span> The log-likelihood is almost identical to the one from above. The only change is that <span class="math inline">\(\mu_i\)</span> replaces <span class="math inline">\(\mu\)</span> throughout: <span class="math display">\[
 \log L(\mu|\mathbf{y}, \ell) = \sum_{i=1}^n (1 - C_i) \log \left[ \texttt{dpois}(y_i|\mu_i)\right] + \sum_{i=1}^n C_i \log \left[\texttt{ppois}(\ell|\mu_i) - \texttt{dpois}(0|\mu_i)\right].
 \]</span> The simplest way to implement these two sums in the present example is to store the <span class="math inline">\(X_i\)</span> observations for the censored observations separately: notice that <span class="math inline">\(X_i\)</span> is always observed even when <span class="math inline">\(Y_i\)</span> is not!</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">y_obs =</span> y_obs[<span class="sc">!</span><span class="fu">is.na</span>(y_obs)],</span>
-<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>            <span class="at">x_obs =</span> x[<span class="sc">!</span><span class="fu">is.na</span>(y_obs)], </span>
-<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>            <span class="at">x_cens =</span> x[<span class="fu">is.na</span>(y_obs)],</span>
-<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">N_obs =</span> <span class="fu">sum</span>(<span class="sc">!</span><span class="fu">is.na</span>(y_obs)),</span>
-<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>            <span class="at">N_cens =</span> <span class="fu">sum</span>(<span class="fu">is.na</span>(y_obs)),</span>
-<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>            <span class="at">ell =</span> ell)</span>
-<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>censored_poisson_regression_model <span class="ot">&lt;-</span> <span class="fu">cmdstan_model</span>(<span class="st">&#39;censored-poisson-regression-basic.stan&#39;</span>)</span>
-<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>censored_poisson_regression_fit <span class="ot">&lt;-</span> censored_poisson_regression_model<span class="sc">$</span><span class="fu">sample</span>(</span>
-<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> dat, </span>
-<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">1234</span>, <span class="co"># random seed for MCMC</span></span>
-<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">4</span>, </span>
-<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">parallel_chains =</span> <span class="dv">4</span>, </span>
-<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">500</span> <span class="co"># print status update after every 500 iterations</span></span>
-<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>censored <span class="ot">&lt;-</span> <span class="fu">is.na</span>(y)</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">y_obs =</span> y[<span class="sc">!</span>censored],</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>            <span class="at">x_obs =</span> x[<span class="sc">!</span>censored], </span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">N_obs =</span> <span class="fu">sum</span>(<span class="sc">!</span>censored),</span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>            <span class="at">x_cens =</span> x[censored],</span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a>            <span class="at">N_cens =</span> <span class="fu">sum</span>(censored),</span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>            <span class="at">ell =</span> ell)</span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a>censored_poisson_regression_model <span class="ot">&lt;-</span> <span class="fu">cmdstan_model</span>(<span class="st">&#39;censored-poisson-regression-basic.stan&#39;</span>)</span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>censored_poisson_regression_model<span class="sc">$</span><span class="fu">print</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>data {
+  int&lt;lower=0&gt; N_obs;
+  int&lt;lower=0&gt; N_cens;
+  int&lt;lower=0&gt; ell;
+  array[N_obs] int&lt;lower=0&gt; y_obs; 
+  vector[N_obs] x_obs; 
+  vector[N_cens] x_cens;
+}
+
+parameters {
+  real alpha;
+  real beta;
+}
+
+model {
+  y_obs ~ poisson_log(alpha + beta * x_obs); 
+  real mu_j;
+  for(j in 1:N_cens) {
+    mu_j = exp(alpha + beta * x_cens[j]);
+    target += log_diff_exp(poisson_lcdf(ell | mu_j), poisson_lpmf(0 | mu_j));
+  }
+}</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>censored_poisson_regression_fit <span class="ot">&lt;-</span> </span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>  censored_poisson_regression_model<span class="sc">$</span><span class="fu">sample</span>(</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> dat, </span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">1234</span>, <span class="co"># random seed for MCMC</span></span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">4</span>, </span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">parallel_chains =</span> <span class="dv">4</span>, </span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">500</span> <span class="co"># print status update after every 500 iterations</span></span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Running MCMC with 4 parallel chains...
 
@@ -3810,50 +3858,50 @@ Chain 1 Iteration:    1 / 2000 [  0%]  (Warmup)
 Chain 2 Iteration:    1 / 2000 [  0%]  (Warmup) 
 Chain 3 Iteration:    1 / 2000 [  0%]  (Warmup) 
 Chain 4 Iteration:    1 / 2000 [  0%]  (Warmup) 
-Chain 1 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 Chain 2 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
-Chain 1 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
-Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
-Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
-Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 1 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
-Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
-Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 1 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
-Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
-Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
-Chain 1 finished in 1.0 seconds.
-Chain 2 finished in 1.0 seconds.
+Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 3 finished in 15.3 seconds.
+Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 2 finished in 15.5 seconds.
 Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
-Chain 3 finished in 1.0 seconds.
-Chain 4 finished in 1.1 seconds.
+Chain 4 finished in 16.7 seconds.
+Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 1 finished in 17.6 seconds.
 
 All 4 chains finished successfully.
-Mean chain execution time: 1.0 seconds.
-Total execution time: 1.2 seconds.</code></pre>
+Mean chain execution time: 16.3 seconds.
+Total execution time: 17.8 seconds.</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>censored_poisson_regression_fit<span class="sc">$</span><span class="fu">summary</span>() <span class="sc">|&gt;</span> </span>
-<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>censored_poisson_regression_fit<span class="sc">$</span><span class="fu">summary</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <table class="table table-sm table-striped small">
 <colgroup>
-<col style="width: 13%">
-<col style="width: 8%">
+<col style="width: 12%">
 <col style="width: 10%">
-<col style="width: 7%">
-<col style="width: 7%">
-<col style="width: 8%">
-<col style="width: 8%">
-<col style="width: 7%">
-<col style="width: 13%">
-<col style="width: 13%">
+<col style="width: 10%">
+<col style="width: 6%">
+<col style="width: 6%">
+<col style="width: 10%">
+<col style="width: 10%">
+<col style="width: 6%">
+<col style="width: 12%">
+<col style="width: 12%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -3872,50 +3920,55 @@ Total execution time: 1.2 seconds.</code></pre>
 <tbody>
 <tr class="odd">
 <td style="text-align: left;">lp__</td>
-<td style="text-align: right;">62.59</td>
-<td style="text-align: right;">62.91</td>
-<td style="text-align: right;">1.03</td>
-<td style="text-align: right;">0.74</td>
-<td style="text-align: right;">60.54</td>
-<td style="text-align: right;">63.58</td>
-<td style="text-align: right;">1.01</td>
-<td style="text-align: right;">1044.75</td>
-<td style="text-align: right;">1735.24</td>
+<td style="text-align: right;">4230.25</td>
+<td style="text-align: right;">4230.53</td>
+<td style="text-align: right;">0.94</td>
+<td style="text-align: right;">0.67</td>
+<td style="text-align: right;">4228.34</td>
+<td style="text-align: right;">4231.13</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">1767.49</td>
+<td style="text-align: right;">2215.32</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">alpha</td>
-<td style="text-align: right;">0.40</td>
-<td style="text-align: right;">0.40</td>
-<td style="text-align: right;">0.09</td>
-<td style="text-align: right;">0.09</td>
-<td style="text-align: right;">0.25</td>
-<td style="text-align: right;">0.54</td>
+<td style="text-align: right;">0.81</td>
+<td style="text-align: right;">0.81</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.79</td>
+<td style="text-align: right;">0.83</td>
 <td style="text-align: right;">1.01</td>
-<td style="text-align: right;">1295.59</td>
-<td style="text-align: right;">1360.40</td>
+<td style="text-align: right;">904.02</td>
+<td style="text-align: right;">1654.44</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;">beta</td>
-<td style="text-align: right;">0.73</td>
-<td style="text-align: right;">0.73</td>
-<td style="text-align: right;">0.08</td>
-<td style="text-align: right;">0.07</td>
-<td style="text-align: right;">0.61</td>
-<td style="text-align: right;">0.86</td>
+<td style="text-align: right;">0.49</td>
+<td style="text-align: right;">0.49</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">0.47</td>
+<td style="text-align: right;">0.51</td>
 <td style="text-align: right;">1.01</td>
-<td style="text-align: right;">1223.66</td>
-<td style="text-align: right;">1549.79</td>
+<td style="text-align: right;">797.13</td>
+<td style="text-align: right;">1695.86</td>
 </tr>
 </tbody>
 </table>
 </div>
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>true_parameters</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>alpha  beta 
+  0.8   0.5 </code></pre>
 </div>
-<p>It works quite well! In contrast, here are the results of a Poisson regression that ignores the censoring:</p>
+</div>
+<p>It works quite well! In contrast, here are the results of a Poisson regression that ignores the censoring. Interestingly, the slope coefficient is still fine here, only the intercept is incorrect. Presumably there are other values of <span class="math inline">\(\ell\)</span>, <span class="math inline">\(\alpha\)</span> and <span class="math inline">\(\beta\)</span> that would cause more problems:</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>dat_ignore <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">y =</span> dat<span class="sc">$</span>y_obs, <span class="at">x =</span> dat<span class="sc">$</span>x_obs)</span>
-<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="fu">glm</span>(y <span class="sc">~</span> x, dat_ignore, <span class="at">family =</span> <span class="fu">poisson</span>()) <span class="sc">|&gt;</span> </span>
-<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tidy</span>() <span class="sc">|&gt;</span> </span>
-<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>dat_ignore <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">y =</span> y, <span class="at">x =</span> x)</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a><span class="fu">glm</span>(y <span class="sc">~</span> x, dat_ignore, <span class="at">family =</span> <span class="fu">poisson</span>()) <span class="sc">|&gt;</span> </span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tidy</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <table class="table table-sm table-striped small">
 <thead>
@@ -3930,20 +3983,66 @@ Total execution time: 1.2 seconds.</code></pre>
 <tbody>
 <tr class="odd">
 <td style="text-align: left;">(Intercept)</td>
-<td style="text-align: right;">0.30</td>
-<td style="text-align: right;">0.12</td>
-<td style="text-align: right;">2.39</td>
+<td style="text-align: right;">0.98</td>
 <td style="text-align: right;">0.02</td>
+<td style="text-align: right;">54.15</td>
+<td style="text-align: right;">0</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">x</td>
-<td style="text-align: right;">0.85</td>
-<td style="text-align: right;">0.09</td>
-<td style="text-align: right;">9.83</td>
-<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.50</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">37.92</td>
+<td style="text-align: right;">0</td>
 </tr>
 </tbody>
 </table>
+</div>
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>true_parameters</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>alpha  beta 
+  0.8   0.5 </code></pre>
+</div>
+</div>
+<p>In contrast, the infeasible Poisson regression based on the “full” dataset (i.e. if there were no censoring) is as follows:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>dat_infeasible <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">y =</span> y_true, <span class="at">x =</span> x)</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a><span class="fu">glm</span>(y <span class="sc">~</span> x, dat_infeasible, <span class="at">family =</span> <span class="fu">poisson</span>()) <span class="sc">|&gt;</span> </span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tidy</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;">term</th>
+<th style="text-align: right;">estimate</th>
+<th style="text-align: right;">std.error</th>
+<th style="text-align: right;">statistic</th>
+<th style="text-align: right;">p.value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">(Intercept)</td>
+<td style="text-align: right;">0.82</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">71.10</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">x</td>
+<td style="text-align: right;">0.48</td>
+<td style="text-align: right;">0.01</td>
+<td style="text-align: right;">50.29</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>true_parameters</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>alpha  beta 
+  0.8   0.5 </code></pre>
 </div>
 </div>
 </section>
