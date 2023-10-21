@@ -1,0 +1,199 @@
+---
+title: "Heckman Selection Model"
+format: 
+  html:
+    embed-resources: true
+---
+
+# What is this?
+The simplest possible version of the "Heckman selection model" implemented using STAN and compared against the (frequentist) Heckman two-step estimator. First we simulate some data from the model and examine the source of the bias in a "naive" OLS approach. Next we implement the (frequentist Heckman two-step estimation procedure both by hand and using a package. Next we derive the (partial) likelihood for this problem. Finally, we use STAN to carry out Bayesian estimation.
+
+# The Model
+We want to estimate the coefficients of a linear regression, but we only observe the outcome variable for a selected sample of individuals: 
+
+$$
+\begin{align*}
+Y &= \left\{ \begin{array}{ll} Y^*, &\text{if } S = 1\\
+\text{missing}, &\text{if } S = 0\end{array}\right. \\ \\
+Y^* &= X'\beta + U & \text{(Outcome Equation)}\\
+S &= \mathbb{1}\{Z'\gamma + V > 0\} & \text{(Selection Equation)}\\ \\
+\begin{bmatrix}
+U \\ V
+\end{bmatrix} &\sim \text{Normal}\left( \begin{bmatrix} 0 \\ 0 \end{bmatrix},
+\begin{bmatrix} \sigma^2 & \rho \sigma \\
+\rho \sigma & 1\end{bmatrix}\right)
+\end{align*}
+$$
+
+Notice that we normalize the variance of $V$ to one, since the scale of the error isn't separately identifiable from the scale of the coefficient vector in a probit regression.
+
+# Simulated Data
+
+```{r}
+#| warning: false
+#| message: false
+library(mvtnorm)
+library(tidyverse)
+library(broom)
+
+set.seed(394996)
+
+n <- 5000
+
+x <- rnorm(n)
+xmat <- cbind(1, x)
+
+#q <- 0.3
+#z <- rbinom(n, 1, q)
+z <- rnorm(n)
+zmat <- cbind(xmat, z)
+
+beta <- c(0.5, 1)
+gamma <- c(0.2, 2, 0.8)
+
+rho <- 0.7
+sigma <- 2
+Sigma <- matrix(c(sigma^2, rho * sigma,
+                  rho * sigma, 1), 2, 2, byrow = TRUE)
+uv_mat <- rmvnorm(n, sigma = Sigma) 
+u <- uv_mat[,1]
+v <- uv_mat[,2]
+
+ystar <- drop(xmat %*% beta) + u
+observed <- drop(zmat %*% gamma) + v > 1
+s <- 1 * observed
+y <- ifelse(observed, ystar, NA_real_)
+  
+params_true <- list(beta = beta, gamma = gamma, rho = rho, sigma = sigma)
+```
+
+In this simulation there is a very weak relationship between `x` and the observed `y` values despite a very strong relationship between `x` and `ystar`. There are two effects here. First, observations with large `x` values are more likely to be observed. This by itself isn't enough to yield an incorrect slope in large samples, although it would lower the R-squared, causing it to appear as though `x` is not very predictive.  Second, the unobserved determinant `v` of `s` is positively correlated with the unobserved determinant `u` of `ystar`. *Together* these two effects give us very inaccurate values for the slope and intercept. 
+
+We can make this more precise as follows. In this model, it can be shown that  
+$$
+\mathbb{E}[Y_i|X_i, S_i = 1] = X_i' \beta + \rho \sigma  \cdot \lambda(Z_i'\gamma), \quad \lambda(c) \equiv \frac{\varphi(c)}{\Phi(c)}
+$$
+following the derivation in my [lecture materials](https://www.economictricks.com/syllabus) and noting that $\mathbb{E}[U|V] = \rho \sigma$. Thus restricting ourselves to observations with $S_i = 1$ we can write
+$$
+Y_i|(S_i = 1) = X_i' \beta + \rho \sigma \cdot \lambda(Z_i'\gamma) + \epsilon_i
+$$
+where the error term $\epsilon_i$ by construction satisfies
+$$
+\mathbb{E}[\epsilon_i|X_i, \lambda(Z_i'\gamma), S_i = 1] = 0.
+$$
+So what happens if we regress $Y_i$ on $X_i$ for only observations with $S_i = 1$? First, if $\rho = 0$ we'll get the correct value of $\beta$ since $\mathbb{E}[Y_i|X_i, S_i = 1] = X_i' \beta$ in this case. Second, if $X_i$ and $\lambda(Z_i'\gamma)$ are uncorrelated, as would be the case if $Z_i$ and $X_i$ are independent, we will likewise obtain the correct value of $\beta$ *regardless* of the value of $\rho$. 
+
+This is just a particular case of a well known result for linear regression: the omitted variables bias formula. In particular: omitting an additional regressor $W_i$ has no effect on our estimate of the coefficient on $X_i$ provided that $\text{Cov}(X_i, W_i) = 0$, the coefficient on $W_i$ is itself zero, or both. In our simulation design $X_i$ is correlated with $\lambda(Z_i'\gamma)$ because $X_i$ is *an element* of $Z_i$ and $\rho \neq 0$. This is why a naive OLS regression of $Y_i$ on $X_i$ fails badly in the simulated dataset:
+
+```{r}
+#| message: false
+tibble(x = x, y = ystar, `y observed` = observed) |> 
+  ggplot(aes(x = x, y = y)) +
+  geom_point(aes(col = `y observed`), alpha = 0.2) +
+  geom_smooth(method = 'lm', col = 'black', se = FALSE) +
+  geom_smooth(data = ~ filter(.x, `y observed`), method = 'lm', col = '#00BFC4',
+              se = FALSE) +
+  theme_minimal()
+
+# Ignoring selection
+lm(y ~ x) |> 
+  tidy() |> 
+  knitr::kable(digits = 2)
+
+params_true$beta
+```
+
+# Heckman Two-step Estimator, aka "Heckit"
+
+Under the assumptions of the selection model, regressing the observed values of $Y_i$ on $X_i$ amounts to an omitted variable problem, where the omitted variable is $\lambda(Z_i'\gamma)$ and $\lambda(c) = \phi(c)/\Phi(c)$ is the "Inverse Mills Ratio." For a derivation, see my [lecture materials](https://www.economictricks.com/syllabus/).
+
+## Step 1
+Run a probit regression of $S$ on $Z$ to estimate $\gamma$ and construct $\lambda(Z_i'\widehat{\gamma})$, where $\lambda(c) \equiv \texttt{dnorm(c)} / \texttt{pnorm(c)}$
+```{r}
+#| warning: false
+probit <- glm(s ~ x + z, family = binomial(link = 'probit')) 
+z_gamma <- predict(probit, type = 'link') # on the scale of linear predictor
+lambda <- dnorm(z_gamma) / pnorm(z_gamma)
+```
+
+## Step 2
+Regress the observed values of $Y_i$ on $X_i$ and $\lambda(Z_i' \widehat{\gamma})$. The intercept and coefficient on `x` are our desired estimates; the cofficient on `lambda` tells us whether or not there is unobserved selection and the direction of selection, if present. Note that the standard errors are *incorrect* since they fail to account for the the status of `lambda` as a "generated regressor."
+```{r}
+heckit_by_hand <- lm(y ~ x + lambda)
+heckit_by_hand |> 
+  tidy() |> 
+  knitr::kable(digits = 2)
+
+params_true$beta
+```
+
+## A Note on Identification
+Notice that because we have an excluded regressor `z`, there is substantial variation in `lambda` for any fixed value of `x` except when `x` is very large. In particular, there is substantial variation in the range of values for which $\lambda(x)$ is *approximately linear*:
+```{r}
+tibble(x = x, lambda = lambda) |> 
+  ggplot(aes(x = x, y = lambda)) + 
+  geom_point(alpha = 0.3) +
+  theme_minimal()
+```
+In principle, we could still identify the model without an exclusion restriction, but it would be much harder since $X_i$ and $\lambda(X_i'\gamma)$ would be very nearly linearly dependent. This would make it very difficult to separate the effects of `lambda` and `x` in the second-stage regression.
+
+## Using a Package
+To get the correct standard errors, and to check our calculations from above, we can use the `heckit()` function from the `sampleSelection` R package. To use this function, we specify the  
+```{r}
+#| message: false
+#| warning: false
+library(sampleSelection)
+heckit_automated <- heckit(selection = s ~ x + z, # selection equation
+                           outcome = y ~ x) # outcome equation
+summary(heckit_automated)
+```
+Notice that we obtain exactly the same point estimates as when we ran the Heckit estimation procedure by hand: 
+```{r}
+coef(heckit_by_hand)
+coef(heckit_automated)[4:6]
+```
+Strangely, we also appear to have almost the same standard errors. This shouldn't work in general, so there's probably something about my simulation DGP that's causing this.
+
+
+# Deriving the Likelihood
+
+The Heckman two-step approach is not fully efficient, because it doesn't make use of all of our modelling assumptions. To fully incorporate this information, we need to work out the likelihood of the model. This likelihood is similar to those from `censored-data-STAN.qmd`.
+
+
+**Later: type out the handwritten derivation from my blue notebook!** 
+
+Hence, the (partial) likelihood for a single observation is given by
+$$
+\begin{align*}
+\ell_i(\theta) &= S_i \left\{\log\left[\Phi \left(\frac{W_i + \rho U_i / \sigma}{\sqrt{1 - \rho^2}} \right) \right] + \log \left[\frac{1}{\sigma}\varphi\left( \frac{U_i}{\sigma}\right)\right]\right\}  + (1 - S_i) \log \left[ \Phi(-W_i)\right]\\
+W_i &\equiv Z_i'\gamma\\
+U_i &\equiv Y_i - X_i'\beta
+\end{align*}
+$$
+and the overall (partial) likelihood simply sums across all $n$ observations:
+$$
+\begin{align*}
+\ell_n(\theta) &=  \sum_{S_i=0} \log \Phi(-W_i) + \sum_{S_i=1}\left[\log \Phi \left(\frac{W_i + \rho U_i / \sigma}{\sqrt{1 - \rho^2}} \right) + \log\varphi\left( \frac{U_i}{\sigma}\right) - \log \sigma \right]\\
+W_i &\equiv Z_i'\gamma\\
+U_i &\equiv Y_i - X_i'\beta
+\end{align*}
+$$
+Notice that $\Phi(-W_i) = 1 - \Phi(W_i)$. This is actually how we will implement the first term below.
+
+# STAN Implementation
+To estimate this model in STAN we'll use the same `target +=` approach described in `censored-data-STAN.qmd` to update the (un-normalized) log-likelihood. 
+
+
+
+
+My STAN implementation borrows from [this example](https://www.jchau.org/2021/02/07/fitting-the-heckman-selection-model-with-stan-and-r/) as well as [this one](https://discourse.mc-stan.org/t/heckman-selection-model-code-simulation/4853).
+
+# References
+
+- <https://www.economictricks.com>
+- Hansen (2022) *Econometrics*, Chapter 27.10 gives a derivation of the likelihood **but the answer is incorrect**! 
+- Wooldridge (2010) page 808 gives a derivation of the likelihood that I've worked through in detail in my handwritten notes. It's correct and agrees with the following STAN implementations.
+- [This post](https://rlhick.people.wm.edu/stories/econ_407_notes_heckman.html) explains in detail how the parameters of the model determine how badly the "naive OLS" approach fares. 
+- <https://discourse.mc-stan.org/t/heckman-selection-model-code-simulation/4853>
+- <https://www.jchau.org/2021/02/07/fitting-the-heckman-selection-model-with-stan-and-r/>
+- <https://discourse.mc-stan.org/t/hierarchical-heckman-style-selection-models/22626>
