@@ -173,20 +173,74 @@ $$
 and the overall (partial) likelihood simply sums across all $n$ observations:
 $$
 \begin{align*}
-\ell_n(\theta) &=  \sum_{S_i=0} \log \Phi(-W_i) + \sum_{S_i=1}\left[\log \Phi \left(\frac{W_i + \rho U_i / \sigma}{\sqrt{1 - \rho^2}} \right) + \log\varphi\left( \frac{U_i}{\sigma}\right) - \log \sigma \right]\\
+\ell_n(\theta) &=  \sum_{S_i=0} \log \Phi(-W_i) + \sum_{S_i=1} \log \Phi \left(\frac{W_i + \rho U_i / \sigma}{\sqrt{1 - \rho^2}} \right) + \sum_{S_i = 1} \log\left[\frac{1}{\sigma}\varphi\left( \frac{U_i}{\sigma}\right) \right]\\
 W_i &\equiv Z_i'\gamma\\
 U_i &\equiv Y_i - X_i'\beta
 \end{align*}
 $$
-Notice that $\Phi(-W_i) = 1 - \Phi(W_i)$. This is actually how we will implement the first term below.
+Notice that $\Phi(-W_i) = 1 - \Phi(W_i)$. This is actually how we will implement the first term below. Notice further that the final term is simply a normal likelihood for each observed $Y_i$ with a mean of $X_i'\beta$ and a variance of $\sigma^2$. 
 
 # STAN Implementation
 To estimate this model in STAN we'll use the same `target +=` approach described in `censored-data-STAN.qmd` to update the (un-normalized) log-likelihood. 
 
+The following function sets up the data for use in the STAN program. It returns a list with the number of "selected" observations $n_1 = \sum_i S_i$, the number of "unselected" observations $n_0 = \sum_i (1 - S_i)$, the number of regressors $p$ in the outcome model including the intercept, the $(n_1 \times p)$ outcome model regressor matrix $\mathbf{X}$, and two selection model regressor matrices: $\mathbf{Z}_0$ is a $(q\times n_0)$ matrix of $Z_i$ vectors for which $S_i = 0$ while $\mathbf{Z}_1$ is a $(q \times n_1)$ matrix of $Z_i$ vectors for which $S_i = 1$.
+```{r}
+prep_data <- function(outcome_formula, selection_formula, df) {
 
+  if(attr(terms(outcome_formula), 'response') == 1) {
+    response_name <- all.vars(outcome_formula)[1]
+    selected <- !is.na(df[, response_name, drop = TRUE])  
+    X <- model.matrix(outcome_formula, data = df)
+    Z0 <- model.matrix(selection_formula, data = subset(df, !selected))
+    Z1 <- model.matrix(selection_formula, data = subset(df, selected))
+    n0 <- sum(!selected)
+    n1 <- sum(selected) 
+    p <- ncol(X)
+    q <- ncol(Z0)
+    return(list(X = X, 
+                Z0 = Z0, 
+                Z1 = Z1, 
+                y = y[selected], 
+                n0 = n0, 
+                n1 = n1, 
+                p = p, 
+                q = q))
+  } else {
+    stop('no response variable is specified in outcome_formula. 
+         Please supply a two-sided formula, i.e. y ~ x rather than ~ x.')
+  } 
+}
 
+dat <- prep_data(outcome_formula = y ~ x,
+                 selection_formula = ~ x + z,
+                 df = tibble(y, x, z))
 
-My STAN implementation borrows from [this example](https://www.jchau.org/2021/02/07/fitting-the-heckman-selection-model-with-stan-and-r/) as well as [this one](https://discourse.mc-stan.org/t/heckman-selection-model-code-simulation/4853).
+str(dat)
+```
+
+Finally, we fit the model in STAN and summarize the results: 
+```{r}
+#| message: false
+#| warning: false
+library(cmdstanr)
+
+heckit_STAN <- cmdstan_model('heckman-selection.stan')
+heckit_STAN$print()
+
+heckit_STAN_fit  <- heckit_STAN$sample(
+  data = dat,
+  seed = 123,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500
+)
+
+heckit_STAN_fit$summary() |> 
+  knitr::kable(digits = 2)
+
+params_true
+```
+
 
 # References
 

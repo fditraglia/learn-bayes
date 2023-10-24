@@ -1,8 +1,8 @@
 data {
   int<lower=1> n0; // number of unobserved outcomes
   int<lower=1> n1; // number of observed outcomes
-  int<lower=1> p; // # of regressors in outcome model (excluding intercept)
-  int<lower=1> q; // # of regressors in selection model (excluding intercept) 
+  int<lower=1> p; // # of regressors in outcome model (including intercept)
+  int<lower=1> q; // # of regressors in selection model (including intercept) 
 
   // Outcome model:
   vector[n1] y; // outcome

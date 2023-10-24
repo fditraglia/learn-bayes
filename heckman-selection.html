@@ -3387,15 +3387,316 @@ U_i &amp;\equiv Y_i - X_i&#39;\beta
 \end{align*}
 \]</span> and the overall (partial) likelihood simply sums across all <span class="math inline">\(n\)</span> observations: <span class="math display">\[
 \begin{align*}
-\ell_n(\theta) &amp;=  \sum_{S_i=0} \log \Phi(-W_i) + \sum_{S_i=1}\left[\log \Phi \left(\frac{W_i + \rho U_i / \sigma}{\sqrt{1 - \rho^2}} \right) + \log\varphi\left( \frac{U_i}{\sigma}\right) - \log \sigma \right]\\
+\ell_n(\theta) &amp;=  \sum_{S_i=0} \log \Phi(-W_i) + \sum_{S_i=1} \log \Phi \left(\frac{W_i + \rho U_i / \sigma}{\sqrt{1 - \rho^2}} \right) + \sum_{S_i = 1} \log\left[\frac{1}{\sigma}\varphi\left( \frac{U_i}{\sigma}\right) \right]\\
 W_i &amp;\equiv Z_i&#39;\gamma\\
 U_i &amp;\equiv Y_i - X_i&#39;\beta
 \end{align*}
-\]</span></p>
+\]</span> Notice that <span class="math inline">\(\Phi(-W_i) = 1 - \Phi(W_i)\)</span>. This is actually how we will implement the first term below. Notice further that the final term is simply a normal likelihood for each observed <span class="math inline">\(Y_i\)</span> with a mean of <span class="math inline">\(X_i&#39;\beta\)</span> and a variance of <span class="math inline">\(\sigma^2\)</span>.</p>
 </section>
 <section id="stan-implementation" class="level1">
 <h1>STAN Implementation</h1>
-<p>To implement it in STAN, we’ll use the same <code>target +=</code> approach described in <code>censored-data-STAN.qmd</code> to update the (un-normalized) log-likelihood. My STAN implementation borrows from <a href="https://www.jchau.org/2021/02/07/fitting-the-heckman-selection-model-with-stan-and-r/">this example</a> as well as <a href="https://discourse.mc-stan.org/t/heckman-selection-model-code-simulation/4853">this one</a>.</p>
+<p>To estimate this model in STAN we’ll use the same <code>target +=</code> approach described in <code>censored-data-STAN.qmd</code> to update the (un-normalized) log-likelihood.</p>
+<p>The following function sets up the data for use in the STAN program. It returns a list with the number of “selected” observations <span class="math inline">\(n_1 = \sum_i S_i\)</span>, the number of “unselected” observations <span class="math inline">\(n_0 = \sum_i (1 - S_i)\)</span>, the number of regressors <span class="math inline">\(p\)</span> in the outcome model including the intercept, the <span class="math inline">\((n_1 \times p)\)</span> outcome model regressor matrix <span class="math inline">\(\mathbf{X}\)</span>, and two selection model regressor matrices: <span class="math inline">\(\mathbf{Z}_0\)</span> is a <span class="math inline">\((q\times n_0)\)</span> matrix of <span class="math inline">\(Z_i\)</span> vectors for which <span class="math inline">\(S_i = 0\)</span> while <span class="math inline">\(\mathbf{Z}_1\)</span> is a <span class="math inline">\((q \times n_1)\)</span> matrix of <span class="math inline">\(Z_i\)</span> vectors for which <span class="math inline">\(S_i = 1\)</span>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>prep_data <span class="ot">&lt;-</span> <span class="cf">function</span>(outcome_formula, selection_formula, df) {</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span>(<span class="fu">attr</span>(<span class="fu">terms</span>(outcome_formula), <span class="st">&#39;response&#39;</span>) <span class="sc">==</span> <span class="dv">1</span>) {</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>    response_name <span class="ot">&lt;-</span> <span class="fu">all.vars</span>(outcome_formula)[<span class="dv">1</span>]</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>    selected <span class="ot">&lt;-</span> <span class="sc">!</span><span class="fu">is.na</span>(df[, response_name, <span class="at">drop =</span> <span class="cn">TRUE</span>])  </span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>    X <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(outcome_formula, <span class="at">data =</span> df)</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>    Z0 <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(selection_formula, <span class="at">data =</span> <span class="fu">subset</span>(df, <span class="sc">!</span>selected))</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>    Z1 <span class="ot">&lt;-</span> <span class="fu">model.matrix</span>(selection_formula, <span class="at">data =</span> <span class="fu">subset</span>(df, selected))</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>    n0 <span class="ot">&lt;-</span> <span class="fu">sum</span>(<span class="sc">!</span>selected)</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>    n1 <span class="ot">&lt;-</span> <span class="fu">sum</span>(selected) </span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>    p <span class="ot">&lt;-</span> <span class="fu">ncol</span>(X)</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>    q <span class="ot">&lt;-</span> <span class="fu">ncol</span>(Z0)</span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="fu">list</span>(<span class="at">X =</span> X, </span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>                <span class="at">Z0 =</span> Z0, </span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>                <span class="at">Z1 =</span> Z1, </span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>                <span class="at">y =</span> y[selected], </span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>                <span class="at">n0 =</span> n0, </span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>                <span class="at">n1 =</span> n1, </span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>                <span class="at">p =</span> p, </span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a>                <span class="at">q =</span> q))</span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">stop</span>(<span class="st">&#39;no response variable is specified in outcome_formula. </span></span>
+<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a><span class="st">         Please supply a two-sided formula, i.e. y ~ x rather than ~ x.&#39;</span>)</span>
+<span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a>  } </span>
+<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">prep_data</span>(<span class="at">outcome_formula =</span> y <span class="sc">~</span> x,</span>
+<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a>                 <span class="at">selection_formula =</span> <span class="sc">~</span> x <span class="sc">+</span> z,</span>
+<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>                 <span class="at">df =</span> <span class="fu">tibble</span>(y, x, z))</span>
+<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(dat)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>List of 8
+ $ X : num [1:1840, 1:2] 1 1 1 1 1 1 1 1 1 1 ...
+  ..- attr(*, &quot;dimnames&quot;)=List of 2
+  .. ..$ : chr [1:1840] &quot;1&quot; &quot;8&quot; &quot;9&quot; &quot;11&quot; ...
+  .. ..$ : chr [1:2] &quot;(Intercept)&quot; &quot;x&quot;
+  ..- attr(*, &quot;assign&quot;)= int [1:2] 0 1
+ $ Z0: num [1:3160, 1:3] 1 1 1 1 1 1 1 1 1 1 ...
+  ..- attr(*, &quot;dimnames&quot;)=List of 2
+  .. ..$ : chr [1:3160] &quot;1&quot; &quot;2&quot; &quot;3&quot; &quot;4&quot; ...
+  .. ..$ : chr [1:3] &quot;(Intercept)&quot; &quot;x&quot; &quot;z&quot;
+  ..- attr(*, &quot;assign&quot;)= int [1:3] 0 1 2
+ $ Z1: num [1:1840, 1:3] 1 1 1 1 1 1 1 1 1 1 ...
+  ..- attr(*, &quot;dimnames&quot;)=List of 2
+  .. ..$ : chr [1:1840] &quot;1&quot; &quot;2&quot; &quot;3&quot; &quot;4&quot; ...
+  .. ..$ : chr [1:3] &quot;(Intercept)&quot; &quot;x&quot; &quot;z&quot;
+  ..- attr(*, &quot;assign&quot;)= int [1:3] 0 1 2
+ $ y : num [1:1840] -2.74 4.41 2.54 1.45 2.05 ...
+ $ n0: int 3160
+ $ n1: int 1840
+ $ p : int 2
+ $ q : int 3</code></pre>
+</div>
+</div>
+<p>Finally, we fit the model in STAN and summarize the results:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(cmdstanr)</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>heckit_STAN <span class="ot">&lt;-</span> <span class="fu">cmdstan_model</span>(<span class="st">&#39;heckman-selection.stan&#39;</span>)</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>heckit_STAN<span class="sc">$</span><span class="fu">print</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>data {
+  int&lt;lower=1&gt; n0; // number of unobserved outcomes
+  int&lt;lower=1&gt; n1; // number of observed outcomes
+  int&lt;lower=1&gt; p; // # of regressors in outcome model (including intercept)
+  int&lt;lower=1&gt; q; // # of regressors in selection model (including intercept) 
+
+  // Outcome model:
+  vector[n1] y; // outcome
+  matrix[n1, p] X; // regressors for outcome model, first column is intercept 
+  
+  // Selection Model:
+  // Regressor matrix is split into two pieces based on whether we observe y
+  // The columns of each matrix match up: same regressors across Z0, Z1
+  // First column of each is intercept 
+  matrix[n0, q] Z0; // y *unobserved* i.e selection indicator = 0
+  matrix[n1, q] Z1; // y *observed* i.e. selection indicator = 1
+}
+
+parameters {
+  // Outcome model
+  vector[p] beta; // coefficient vector
+  real&lt;lower=0&gt; sigma; // error variance
+  
+  // Selection model
+  vector[q] gamma; // coefficient vector
+  real&lt;lower= -1, upper= 1&gt; rho; // corr. between selection and outcome errors
+}
+
+model {
+  // Try flat priors for now
+  
+  // Selection model: Z for which y is unobserved
+  vector[n0] w0 = Z0 * gamma;
+  for(i in 1:n0) { 
+    target += log(Phi_approx(-w0[i])); // Phi_approx() to avoid underflow
+  }
+  
+  // Selection model: Z for which y is observed 
+  vector[n1] w1 = Z1 * gamma;
+  vector[n1] Xb = X * beta; 
+  vector[n1] u = y - Xb;
+  for(i in 1:n1) {
+    target += log(Phi_approx((w1[i] + rho * u[i] / sigma) / sqrt(1 - rho^2)));
+  }
+  
+  // Outcome model:
+  y ~ normal(Xb, sigma);
+}</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>heckit_STAN_fit  <span class="ot">&lt;-</span> heckit_STAN<span class="sc">$</span><span class="fu">sample</span>(</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> dat,</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">123</span>,</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">4</span>,</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">parallel_chains =</span> <span class="dv">4</span>,</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">500</span></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Running MCMC with 4 parallel chains...
+
+Chain 1 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 2 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 3 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 4 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 2 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 1 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 1 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 3 finished in 6.8 seconds.
+Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 2 finished in 6.9 seconds.
+Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 4 finished in 7.0 seconds.
+Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 1 finished in 7.8 seconds.
+
+All 4 chains finished successfully.
+Mean chain execution time: 7.1 seconds.
+Total execution time: 7.8 seconds.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>heckit_STAN_fit<span class="sc">$</span><span class="fu">summary</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 6%">
+<col style="width: 6%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 6%">
+<col style="width: 11%">
+<col style="width: 11%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">variable</th>
+<th style="text-align: right;">mean</th>
+<th style="text-align: right;">median</th>
+<th style="text-align: right;">sd</th>
+<th style="text-align: right;">mad</th>
+<th style="text-align: right;">q5</th>
+<th style="text-align: right;">q95</th>
+<th style="text-align: right;">rhat</th>
+<th style="text-align: right;">ess_bulk</th>
+<th style="text-align: right;">ess_tail</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">lp__</td>
+<td style="text-align: right;">-3407.31</td>
+<td style="text-align: right;">-3407.00</td>
+<td style="text-align: right;">1.91</td>
+<td style="text-align: right;">1.77</td>
+<td style="text-align: right;">-3410.96</td>
+<td style="text-align: right;">-3404.82</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1661.66</td>
+<td style="text-align: right;">2300.32</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">beta[1]</td>
+<td style="text-align: right;">0.60</td>
+<td style="text-align: right;">0.61</td>
+<td style="text-align: right;">0.10</td>
+<td style="text-align: right;">0.10</td>
+<td style="text-align: right;">0.44</td>
+<td style="text-align: right;">0.77</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1628.73</td>
+<td style="text-align: right;">2128.01</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">beta[2]</td>
+<td style="text-align: right;">0.95</td>
+<td style="text-align: right;">0.95</td>
+<td style="text-align: right;">0.08</td>
+<td style="text-align: right;">0.08</td>
+<td style="text-align: right;">0.82</td>
+<td style="text-align: right;">1.07</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1880.98</td>
+<td style="text-align: right;">2480.34</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">sigma</td>
+<td style="text-align: right;">1.99</td>
+<td style="text-align: right;">1.99</td>
+<td style="text-align: right;">0.04</td>
+<td style="text-align: right;">0.04</td>
+<td style="text-align: right;">1.93</td>
+<td style="text-align: right;">2.05</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2395.64</td>
+<td style="text-align: right;">2815.07</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">gamma[1]</td>
+<td style="text-align: right;">-0.86</td>
+<td style="text-align: right;">-0.86</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">-0.92</td>
+<td style="text-align: right;">-0.81</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2414.25</td>
+<td style="text-align: right;">1976.99</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">gamma[2]</td>
+<td style="text-align: right;">2.10</td>
+<td style="text-align: right;">2.10</td>
+<td style="text-align: right;">0.06</td>
+<td style="text-align: right;">0.06</td>
+<td style="text-align: right;">2.00</td>
+<td style="text-align: right;">2.19</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2345.12</td>
+<td style="text-align: right;">2285.03</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">gamma[3]</td>
+<td style="text-align: right;">0.83</td>
+<td style="text-align: right;">0.83</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">0.77</td>
+<td style="text-align: right;">0.88</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">2328.60</td>
+<td style="text-align: right;">2465.71</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">rho</td>
+<td style="text-align: right;">0.65</td>
+<td style="text-align: right;">0.65</td>
+<td style="text-align: right;">0.04</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">0.59</td>
+<td style="text-align: right;">0.71</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1908.14</td>
+<td style="text-align: right;">2444.46</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>params_true</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>$beta
+[1] 0.5 1.0
+
+$gamma
+[1] 0.2 2.0 0.8
+
+$rho
+[1] 0.7
+
+$sigma
+[1] 2</code></pre>
+</div>
+</div>
 </section>
 <section id="references" class="level1">
 <h1>References</h1>
