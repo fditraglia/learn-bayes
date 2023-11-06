@@ -43,8 +43,6 @@ n <- 5000
 x <- rnorm(n)
 xmat <- cbind(1, x)
 
-#q <- 0.3
-#z <- rbinom(n, 1, q)
 z <- rnorm(n)
 zmat <- cbind(xmat, z)
 
@@ -60,7 +58,7 @@ u <- uv_mat[,1]
 v <- uv_mat[,2]
 
 ystar <- drop(xmat %*% beta) + u
-observed <- drop(zmat %*% gamma) + v > 1
+observed <- drop(zmat %*% gamma) + v > 0
 s <- 1 * observed
 y <- ifelse(observed, ystar, NA_real_)
   
@@ -238,9 +236,12 @@ heckit_STAN_fit  <- heckit_STAN$sample(
 heckit_STAN_fit$summary() |> 
   knitr::kable(digits = 2)
 
+summary(heckit_automated)
+
 params_true
 ```
 
+These results seem to match up fairly well with those from the two-step approach above and the true parameter values.
 
 # References
 

@@ -1,0 +1,100 @@
+---
+title: "Underreported Counts"
+format: 
+  html:
+    embed-resources: true
+---
+
+
+# What is this?
+
+Consider a Poisson regression model of the form $Y_i^* \sim \text{Poisson}(\mu_i)$ where $\log \mu_i = X_i'\beta$. We observe the covariates $X_i$ but we *do not* observe the **true count** $Y_i^*$. Instead we observe a noisy measure $Y_i$ where $Y_i \leq Y_i^*$. This is a model of **underreported counts**. In this model, $Y_i^*$ is the number of events that *occurred* and $Y_i^*$ is the number of events that were *recorded*. 
+
+# Simplest Version
+
+The model sketched in this section is not point identified but provides the building blocks for everything that follows below. The derivations are based on the "Emitter Detector Problem" from sections 6.11-6.19 of *Probability Theory* by Jaynes.
+
+Consider a large population of $N$ people and a non-infectious disease, e.g. cancer. The probability that a given person will *fall ill* with the disease in a given year is $r$. The probability that a given person will *die* from the disease in a given year is $\varphi$. Suppose there is no uncertainty in the cause of death. Then the number of deaths is an undercount of the number of people who developed the disease. 
+
+Now let $n$ be the number of people who develop the disease and $c$ be the number of people who die from it. 
+The DAG for the underlying causal model is as follows:
+$$
+s \rightarrow n \rightarrow c \leftarrow \varphi
+$$
+So in particular, we have the following conditional independence relationships:
+$$n\perp \varphi|s, \quad c \perp s | n$$
+
+Conditional on $(N,r)$, the unobserved count $n$ follows a binomial distribution
+$$
+\text{Binomial}(n|N,r) = \binom{N}{n} r^{n} (1 - r)^{N - n}, \quad 0 \leq n \leq N.
+$$
+If $N$ is very large compared to $r$, this distribution is well-approximated by a Poisson with rate $s = r N$. 
+**(Add derivation from handwritten notes for completeness)** 
+$$
+\text{Poisson}(n|s) = \frac{e^{-s}s^n}{n!}, \quad n \geq 0. 
+$$
+Under our assumptions, $c|(n,\varphi)$ is another Binomial RV, namely 
+$$
+c|(n,\varphi) \sim \text{Binomial}(c|n, \varphi) = \binom{n}{c} \varphi^c (1 - \varphi)^{n-c}.
+$$
+Therefore, under our conditional independence assumptions, the distribution of $c|(\varphi, s)$ is *also* Poisson:
+$$
+\begin{align*}
+p(c|\varphi,s) &= \sum_{\text{all} n} p(c,n|\varphi, s)\\
+&= \sum_{\text{all} n} p(c|n,\varphi,s)p(n|\varphi,s)\\
+&= \sum_{\text{all} n} p(c|n,\varphi)p(n|s)\\
+&= \sum_{n=c}^{\infty} \text{Binomial}(c|n,\varphi) \text{Poisson}(n|s)\\
+&\vdots\\
+& \text{fill in algebra from handwritten notes}\\
+&\vdots\\
+&= e^{-s}\frac{(\varphi s)^c}{c!}\sum_{k=0}^\infty \frac{[(1 - \varphi)s]^k}{k!}\\
+&= \exp\left\{ (1 - \varphi)s - s\right\} \frac{(\varphi s)^c}{c!}\\
+&= \exp\left\{-s\varphi \right\} \frac{(\varphi s)^c}{c!}\\
+&= \text{Poisson}(c|\varphi s).
+\end{align*}
+$$
+This is sometimes called a *thinned Poisson process*. The key point is that combining an underlying Poisson RV with a sequence of iid Bernoulli trials that determine whether each event is observed yields *another* Poisson RV, but with a rate equal to the product of the underlying rate and the probability that a given event is observed: $\varphi s$. This makes it clear that $\varphi$ and $s$ are **not separately identifiable** if we only observe $c$.
+
+Now suppose that were were instead interested in inferring $n$ from knowledge of $(c, \varphi, s)$. By Bayes' Theorem and the conditional independence assumptions and derivations from above,
+$$
+\begin{align*}
+p(n|c, \varphi, s)  &= \frac{p(c|n, \varphi, s)p(n|\varphi, s)}{p(c|\varphi, s)} = \frac{p(c|n,\varphi)p(n|s)}{p(c|\varphi, s)} \\ \\
+&= \frac{\text{Binomial}(c|n,\varphi)\text{Poisson}(n|s)}{\text{Poisson}(c|s\varphi)}\\
+&\vdots\\
+&\text{Add algebra from handwritten notes}\\
+&\vdots\\
+&= \frac{1}{(n-c)!} \left[ (1 - \varphi)s\right]^{n-c} \exp\left\{ -(1- \varphi)s\right\} \\
+&= \text{Poisson}\big((n-c) | s(1 - \varphi)\big).
+\end{align*}
+$$
+In other words, conditional on $(c, \varphi, s)$ we have a *shifted* Poisson distribution for $n$, in other words $(n - c)$ is Poisson with rate $s(1 - \varphi)$. This makes intuitive sense: if we observe $c$ deaths from the disease, there must be at least $c$ people who contracted the disease. It follows that
+$$
+\begin{align*}
+\mathbb{E}(n|c,\varphi, s) &= \mathbb{E}(n-c + c|c, \varphi, s)\\
+&= \mathbb{E}(n-c|c, \varphi, s) + c \\
+&= c + s(1 - \varphi).
+\end{align*}
+$$
+
+
+# Adding Covariates
+All of the derivations from above *condition* on the Poisson rates and reporting probabilities, so it's easy to extend the model to allow for covariates. Above I used the notation from Jaynes's book, but now I'll revert to more familiar econometrics notation, as introduced at the beginning of this document. We'll skip the initial Poisson approximation and begin by assuming that
+$$
+\begin{align*}
+Y_i^* |(X_i, \beta) \sim \text{Poisson}(\mu_i), \quad \log \mu_i = X_i'\beta.
+\end{align*}
+$$
+The parameter of interest is $\beta$ but $Y_i^*$ is unobserved. Now suppose that the observed count $Y_i$ is generated according to
+$$
+Y_i|(Y_i^*, Z_i, \gamma) \sim \text{Binomial}(Y_i^*, \pi_i), \quad \log\left( \frac{\pi_i}{1 - \pi_i}\right) = Z_i'\gamma.
+$$
+Using the same assumptions and reasoning as above, it follows that
+$$
+Y_i \sim \text{Poisson}(\lambda_i), \quad \lambda_i = \mu_i \pi_i = \exp\left\{ X_i'\gamma\right\}\frac{\exp\left\{Z_i'\gamma\right\}}{1 + \exp\left\{ Z_i'\gamma\right\}}
+$$
+
+# Adding Dependence 
+
+
+
+# Further Reading
