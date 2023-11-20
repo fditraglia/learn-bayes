@@ -19,6 +19,40 @@ ul.task-list li input[type="checkbox"] {
 width: 0.8em;
 margin: 0 0.8em 0.2em -1em;  vertical-align: middle;
 }
+
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+}
+pre.numberSource { margin-left: 3em; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
@@ -3158,11 +3192,380 @@ Y_i|(Y_i^*, Z_i, \gamma) \sim \text{Binomial}(Y_i^*, \pi_i), \quad \log\left( \f
 Y_i \sim \text{Poisson}(\lambda_i), \quad \lambda_i = \mu_i \pi_i = \exp\left\{ X_i&#39;\gamma\right\}\frac{\exp\left\{Z_i&#39;\gamma\right\}}{1 + \exp\left\{ Z_i&#39;\gamma\right\}}
 \]</span></p>
 </section>
+<section id="simulation-example" class="level1">
+<h1>Simulation Example</h1>
+<p>Simulate data with a single predictor of interest <span class="math inline">\(X\)</span> and a single excluded regressor <span class="math inline">\(Z\)</span>. For simplicity, <span class="math inline">\(X\)</span> doesn’t affect the observation probability although this could be changed.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1983</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">500</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(mvtnorm)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>rho <span class="ot">&lt;-</span> <span class="fl">0.5</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>S <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">c</span>(<span class="dv">1</span>, rho,</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>              rho, <span class="dv">1</span>), <span class="dv">2</span>, <span class="dv">2</span>, <span class="at">byrow =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>x_z <span class="ot">&lt;-</span> <span class="fu">rmvnorm</span>(n, <span class="at">sigma =</span> S)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> x_z[,<span class="dv">1</span>] </span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>z <span class="ot">&lt;-</span> x_z[,<span class="dv">2</span>] </span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>alpha <span class="ot">&lt;-</span> <span class="fl">0.5</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>beta <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>log_mu <span class="ot">&lt;-</span> alpha <span class="sc">+</span> beta <span class="sc">*</span> (x <span class="sc">-</span> <span class="fu">mean</span>(x))</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>ystar <span class="ot">&lt;-</span> <span class="fu">rpois</span>(n, <span class="fu">exp</span>(log_mu))</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>gamma <span class="ot">&lt;-</span> (<span class="sc">-</span><span class="fl">0.5</span>)</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>delta <span class="ot">&lt;-</span> <span class="fl">1.2</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>logit_pi <span class="ot">&lt;-</span> gamma <span class="sc">+</span> delta <span class="sc">*</span> (z <span class="sc">-</span> <span class="fu">mean</span>(z))</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n, <span class="at">size =</span> ystar, <span class="at">prob =</span> <span class="fu">plogis</span>(logit_pi))</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>true_params <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="at">alpha =</span> alpha, <span class="at">beta =</span> beta, <span class="at">gamma =</span> gamma, <span class="at">delta =</span> delta)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>A Poisson regression of <span class="math inline">\(Y\)</span> on <span class="math inline">\(X\)</span> gives the wrong slope and the wrong intercept:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(broom)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">glm</span>(y <span class="sc">~</span> <span class="fu">I</span>(x <span class="sc">-</span> <span class="fu">mean</span>(x)), <span class="at">family =</span> <span class="fu">poisson</span>()) <span class="sc">|&gt;</span> </span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tidy</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;">term</th>
+<th style="text-align: right;">estimate</th>
+<th style="text-align: right;">std.error</th>
+<th style="text-align: right;">statistic</th>
+<th style="text-align: right;">p.value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">(Intercept)</td>
+<td style="text-align: right;">-0.30</td>
+<td style="text-align: right;">0.06</td>
+<td style="text-align: right;">-5.23</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">I(x - mean(x))</td>
+<td style="text-align: right;">1.16</td>
+<td style="text-align: right;">0.04</td>
+<td style="text-align: right;">29.67</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>An (infeasible) poisson regression of <span class="math inline">\(Y^*\)</span> on <span class="math inline">\(X\)</span> gives the correct results:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glm</span>(ystar <span class="sc">~</span> <span class="fu">I</span>(x <span class="sc">-</span> <span class="fu">mean</span>(x)), <span class="at">family =</span> <span class="fu">poisson</span>()) <span class="sc">|&gt;</span> </span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tidy</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;">term</th>
+<th style="text-align: right;">estimate</th>
+<th style="text-align: right;">std.error</th>
+<th style="text-align: right;">statistic</th>
+<th style="text-align: right;">p.value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">(Intercept)</td>
+<td style="text-align: right;">0.56</td>
+<td style="text-align: right;">0.04</td>
+<td style="text-align: right;">14.96</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">I(x - mean(x))</td>
+<td style="text-align: right;">0.96</td>
+<td style="text-align: right;">0.03</td>
+<td style="text-align: right;">34.70</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Now let’s see how the under-reported count model fares:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(cmdstanr)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>This is cmdstanr version 0.5.3</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>- CmdStanR documentation and vignettes: mc-stan.org/cmdstanr</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>- CmdStan path: /home/frank/.cmdstan/cmdstan-2.33.1</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>- CmdStan version: 2.33.1</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">check_cmdstan_toolchain</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>The C++ toolchain required for CmdStan is setup properly!</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>pois_under <span class="ot">&lt;-</span> <span class="fu">cmdstan_model</span>(<span class="st">&#39;poisson-underreported.stan&#39;</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>pois_under<span class="sc">$</span><span class="fu">print</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>data {
+  int&lt;lower=0&gt; N; 
+  vector[N] x; 
+  vector[N] z;
+  array[N] int&lt;lower=0&gt; y; 
+}
+
+transformed data {
+  real x_bar = mean(x); 
+  real z_bar = mean(z); 
+  vector[N] x_demeaned = (x - x_bar); 
+  vector[N] z_demeaned = (z - z_bar);
+}
+
+parameters {
+  real alpha;
+  real beta;
+  real gamma;
+  real delta;
+}
+
+model {
+  // For the moment, see if we can get away with flat priors. My guess is that
+  // we&#39;ll do a very poor job with the intercepts: an informative prior will be
+  // needed on at least one of them.
+  vector[N] mu = exp(alpha + beta * x_demeaned);
+  vector[N] pie = inv_logit(gamma + delta * z_demeaned);
+  vector[N] lambda = mu .* pie; // elementwise product
+  y ~ poisson(lambda); 
+}</code></pre>
+</div>
+</div>
+<p>Now let’s see if we can fit the model:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>dat <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">N =</span> n,</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>            <span class="at">y =</span> y,</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>            <span class="at">x =</span> x, </span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">z =</span> z)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">&lt;-</span> pois_under<span class="sc">$</span><span class="fu">sample</span>(</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> dat, </span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">seed =</span> <span class="dv">1234</span>, <span class="co"># random seed for MCMC</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">chains =</span> <span class="dv">4</span>, </span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">parallel_chains =</span> <span class="dv">4</span>, </span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">refresh =</span> <span class="dv">500</span> <span class="co"># print status update after every 500 iterations</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Running MCMC with 4 parallel chains...
+
+Chain 1 Iteration:    1 / 2000 [  0%]  (Warmup) </code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 1 Informational Message: The current Metropolis proposal is about to be rejected because of the following issue:</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 1 Exception: poisson_lpmf: Rate parameter[322] is -nan, but must be nonnegative! (in &#39;/tmp/RtmpKnbJm2/model-515331ba4ca37.stan&#39;, line 29, column 2 to column 22)</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 1 If this warning occurs sporadically, such as for highly constrained variable types like covariance matrices, then the sampler is fine,</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 1 but if this warning occurs often then your model may be either severely ill-conditioned or misspecified.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 1 </code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Chain 2 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 3 Iteration:    1 / 2000 [  0%]  (Warmup) </code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 3 Informational Message: The current Metropolis proposal is about to be rejected because of the following issue:</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 3 Exception: poisson_lpmf: Rate parameter[1] is -nan, but must be nonnegative! (in &#39;/tmp/RtmpKnbJm2/model-515331ba4ca37.stan&#39;, line 29, column 2 to column 22)</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 3 If this warning occurs sporadically, such as for highly constrained variable types like covariance matrices, then the sampler is fine,</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 3 but if this warning occurs often then your model may be either severely ill-conditioned or misspecified.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 3 </code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 3 Informational Message: The current Metropolis proposal is about to be rejected because of the following issue:</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 3 Exception: poisson_lpmf: Rate parameter[159] is -nan, but must be nonnegative! (in &#39;/tmp/RtmpKnbJm2/model-515331ba4ca37.stan&#39;, line 29, column 2 to column 22)</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 3 If this warning occurs sporadically, such as for highly constrained variable types like covariance matrices, then the sampler is fine,</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 3 but if this warning occurs often then your model may be either severely ill-conditioned or misspecified.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Chain 3 </code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Chain 4 Iteration:    1 / 2000 [  0%]  (Warmup) 
+Chain 1 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 2 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+Chain 1 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 3 finished in 0.9 seconds.
+Chain 4 finished in 0.8 seconds.
+Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 1 finished in 0.9 seconds.
+Chain 2 finished in 0.9 seconds.
+
+All 4 chains finished successfully.
+Mean chain execution time: 0.9 seconds.
+Total execution time: 1.0 seconds.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>fit<span class="sc">$</span><span class="fu">summary</span>() <span class="sc">|&gt;</span> </span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<colgroup>
+<col style="width: 13%">
+<col style="width: 8%">
+<col style="width: 10%">
+<col style="width: 7%">
+<col style="width: 7%">
+<col style="width: 8%">
+<col style="width: 8%">
+<col style="width: 7%">
+<col style="width: 13%">
+<col style="width: 13%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">variable</th>
+<th style="text-align: right;">mean</th>
+<th style="text-align: right;">median</th>
+<th style="text-align: right;">sd</th>
+<th style="text-align: right;">mad</th>
+<th style="text-align: right;">q5</th>
+<th style="text-align: right;">q95</th>
+<th style="text-align: right;">rhat</th>
+<th style="text-align: right;">ess_bulk</th>
+<th style="text-align: right;">ess_tail</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">lp__</td>
+<td style="text-align: right;">57.33</td>
+<td style="text-align: right;">57.69</td>
+<td style="text-align: right;">1.54</td>
+<td style="text-align: right;">1.31</td>
+<td style="text-align: right;">54.36</td>
+<td style="text-align: right;">59.09</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1061.71</td>
+<td style="text-align: right;">1032.85</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">alpha</td>
+<td style="text-align: right;">0.55</td>
+<td style="text-align: right;">0.52</td>
+<td style="text-align: right;">0.18</td>
+<td style="text-align: right;">0.16</td>
+<td style="text-align: right;">0.30</td>
+<td style="text-align: right;">0.87</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">798.62</td>
+<td style="text-align: right;">700.84</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">beta</td>
+<td style="text-align: right;">0.96</td>
+<td style="text-align: right;">0.95</td>
+<td style="text-align: right;">0.04</td>
+<td style="text-align: right;">0.04</td>
+<td style="text-align: right;">0.88</td>
+<td style="text-align: right;">1.03</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1532.61</td>
+<td style="text-align: right;">1457.52</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">gamma</td>
+<td style="text-align: right;">-0.37</td>
+<td style="text-align: right;">-0.36</td>
+<td style="text-align: right;">0.32</td>
+<td style="text-align: right;">0.29</td>
+<td style="text-align: right;">-0.91</td>
+<td style="text-align: right;">0.13</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">861.95</td>
+<td style="text-align: right;">757.50</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">delta</td>
+<td style="text-align: right;">1.27</td>
+<td style="text-align: right;">1.26</td>
+<td style="text-align: right;">0.25</td>
+<td style="text-align: right;">0.24</td>
+<td style="text-align: right;">0.87</td>
+<td style="text-align: right;">1.69</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">949.65</td>
+<td style="text-align: right;">975.60</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>true_params</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>alpha  beta gamma delta 
+  0.5   1.0  -0.5   1.2 </code></pre>
+</div>
+</div>
+<p>It seems to work quite well. Notice, however, that inferences for the intercepts are noticeably less precise. The example in the following section shows why. In practice, an informative prior for one of the intercepts could be extremely helpful. Since <span class="math inline">\(\alpha\)</span> is the overall rate in the population, we may be able to give this quantity an informative prior using auxiliary data. E.g. if we’re trying to predict childhood lead exposure, in the US we could use aggregate summary statistics and standard errors from NHANES: <a href="https://www.cdc.gov/exposurereport/data_tables.html" class="uri">https://www.cdc.gov/exposurereport/data_tables.html</a></p>
+</section>
+<section id="where-does-the-identification-come-from" class="level1">
+<h1>Where does the identification come from?</h1>
+<p>Here is an extremely simple example based on the preceding. Suppose that both <span class="math inline">\(X_i\)</span> and <span class="math inline">\(Z_i\)</span> are binary. Let <span class="math inline">\(Z_i\)</span> take on the values <span class="math inline">\(\text{Lo}\)</span> and <span class="math inline">\(\text{Hi}\)</span> while <span class="math inline">\(X_i\)</span> takes on the values <span class="math inline">\(0\)</span> and <span class="math inline">\(1\)</span>. We observe the conditional mean function of <span class="math inline">\(Y_i\)</span> given <span class="math inline">\((X_i, Z_i)\)</span>. This function is completely characterized by four values: <span class="math inline">\(m_0^\text{Lo}, m_0^\text{Hi}, m_1^\text{Lo}\)</span>, and <span class="math inline">\(m_1^\text{Hi}\)</span> where <span class="math inline">\(m_0^\text{Lo} \equiv \mathbb{E}(Y_i|X_i=0, Z_i=\text{Lo})\)</span> and so on. Let <span class="math inline">\(\pi^\text{Lo}\)</span> and <span class="math inline">\(\pi^\text{Hi}\)</span> be the recording probabilities conditional on <span class="math inline">\(Z_i\)</span> and <span class="math inline">\(\mu_d \equiv \mathbb{E}(Y_i^*|X_i)\)</span> for <span class="math inline">\(d = 0,1\)</span>. Then we have four equations in four unknowns: <span class="math display">\[
+\begin{align*}
+m_0^\text{Lo} &amp;= \mu_0\pi^\text{Lo} &amp; m_0^\text{Hi} &amp;= \mu_0\pi^\text{Hi}\\
+m_1^\text{Lo} &amp;= \mu_1\pi^\text{Lo} &amp; m_1^\text{Hi} &amp;= \mu_1\pi^\text{Hi}.
+\end{align*}
+\]</span> Taking ratios: <span class="math display">\[
+\begin{align*}
+m_1^\text{Lo}/m_0^\text{Lo} &amp;= \mu_1/\mu_0\\
+m_1^\text{Hi}/m_0^\text{Hi} &amp;= \mu_1 / \mu_0\\
+m_0^\text{Hi}/m_0^\text{Lo} &amp;= \pi^\text{Hi} / \pi^\text{Lo}\\
+m_1^\text{Hi}/m_1^\text{Lo} &amp;= \pi^\text{Hi} / \pi^\text{Lo}
+\end{align*}
+\]</span> <strong>It appears that this example is <em>not</em> point identified, although we do learn the ratio of detection probabilities along with the ratio of means, and there is a testable restriction. To show lack of point identification, suppose WLOG that <span class="math inline">\(\pi^H\geq \pi^L\)</span>. It’s easy to show that so long as the testable restriction holds, we can never rule out <span class="math inline">\(\pi^H=1\)</span>.</strong></p>
+</section>
 <section id="adding-dependence" class="level1">
 <h1>Adding Dependence</h1>
+<p>At first I thought the above model was unrealistic because of its assumption that “observed events (actions) do not adapt to the recording mechanism” (Cameron &amp; Trivedi 2011, Chapter 13.5.2). But now I’m less sure that this is a problem. In a criminal justice example, where <span class="math inline">\(\pi_i\)</span> is the probability of being arrested, we might worry that the rate of crimes <span class="math inline">\(\mu_i\)</span> changes <em>in response</em> to <span class="math inline">\(\pi_i\)</span>. But in the medical example from above this seems much less plausible. I need to think some more about this to make sure I fully understand the meaning of this model and how to generalize it.</p>
 </section>
-<section id="further-reading" class="level1">
-<h1>Further Reading</h1>
+<section id="references" class="level1">
+<h1>References</h1>
 </section>
 
 </main>
