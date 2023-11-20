@@ -211,14 +211,16 @@ At first I thought the above model was unrealistic because of its assumption tha
 # References
 
 The following references cover under-reported count data specifically:
+
 - [Papadopoulos & Santos Silva (2012)](https://www.sciencedirect.com/science/article/pii/S0165176512003230) 
 - [Cameron & Trivedi (2013) - Regression Analysis of Count Data](https://faculty.econ.ucdavis.edu/faculty/cameron/racd2/) Section 13.5.
 - [Dvorzak & Wagner (2016)](https://journals.sagepub.com/doi/full/10.1177/1471082X15588398)
 - [Stoner et al (2019)](https://www.tandfonline.com/doi/full/10.1080/01621459.2019.1573732)
 - [Brennan et al (2021)](https://arxiv.org/abs/2109.12247)
 - [Arima et al (2023)](https://academic.oup.com/biostatistics/advance-article/doi/10.1093/biostatistics/kxad027/7275700)
+
 There's also a relationship with the literature on instrumental variables estimation of count data, in that we can always view the under-reporting as *unobserved heterogeneity* in a standard Poisson regression model:
 $$
-\exp(\beta_0 + X_i'\beta_1)\pi_i = \exp\left(log \pi_i + \beta_0 + X_i'\beta_1\right)
+\exp(\beta_0 + X_i'\beta_1)\pi_i = \exp\left(\log \pi_i + \beta_0 + X_i'\beta_1\right)
 $$
 So if we observed $\pi_i$ we could simply adjust for it in the form of an offset / exposure. The problem is that we don't observe it and it is likely correlated with $X_i$. So an IV approach could be used here, e.g. [Mullahy](https://direct.mit.edu/rest/article/79/4/586/57029/Instrumental-Variable-Estimation-of-Count-Data). But under-reporting is a very *special* kind of endogeneity so there must be an advantage to using the extra structure that it provies. It could be worth thinking about this more carefully. The identification issues of this model must relate to those of Mullahy's approach. See also the discussion in Wooldridge (2010) Chapter 18.5.

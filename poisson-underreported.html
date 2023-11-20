@@ -3419,23 +3419,23 @@ Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup)
 Chain 2 Iteration:  500 / 2000 [ 25%]  (Warmup) 
 Chain 1 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
-Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
-Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
-Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 4 finished in 0.8 seconds.
 Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
-Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 1 finished in 0.9 seconds.
 Chain 2 finished in 0.9 seconds.
-Chain 4 finished in 0.8 seconds.
-Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 3 finished in 0.9 seconds.
 
 All 4 chains finished successfully.
@@ -3575,8 +3575,17 @@ m_1^\text{Lo} &amp;= \mu_1\pi^\text{Lo} &amp; m_1^\text{Hi} &amp;= \mu_1
 </section>
 <section id="references" class="level1">
 <h1>References</h1>
-<p>The following references cover under-reported count data specifically: - <a href="https://www.sciencedirect.com/science/article/pii/S0165176512003230">Papadopoulos &amp; Santos Silva (2012)</a> - <a href="https://faculty.econ.ucdavis.edu/faculty/cameron/racd2/">Cameron &amp; Trivedi (2013) - Regression Analysis of Count Data</a> Section 13.5. - <a href="https://journals.sagepub.com/doi/full/10.1177/1471082X15588398">Dvorzak &amp; Wagner (2016)</a> - <a href="https://www.tandfonline.com/doi/full/10.1080/01621459.2019.1573732">Stoner et al (2019)</a> - <a href="https://arxiv.org/abs/2109.12247">Brennan et al (2021)</a> - <a href="https://academic.oup.com/biostatistics/advance-article/doi/10.1093/biostatistics/kxad027/7275700">Arima et al (2023)</a> There’s also a relationship with the literature on instrumental variables estimation of count data, in that we can always view the under-reporting as <em>unobserved heterogeneity</em> in a standard Poisson regression model: <span class="math display">\[
-\exp(\beta_0 + X_i&#39;\beta_1)\pi_i = \exp\left(log \pi_i + \beta_0 + X_i&#39;\beta_1\right)
+<p>The following references cover under-reported count data specifically:</p>
+<ul>
+<li><a href="https://www.sciencedirect.com/science/article/pii/S0165176512003230">Papadopoulos &amp; Santos Silva (2012)</a></li>
+<li><a href="https://faculty.econ.ucdavis.edu/faculty/cameron/racd2/">Cameron &amp; Trivedi (2013) - Regression Analysis of Count Data</a> Section 13.5.</li>
+<li><a href="https://journals.sagepub.com/doi/full/10.1177/1471082X15588398">Dvorzak &amp; Wagner (2016)</a></li>
+<li><a href="https://www.tandfonline.com/doi/full/10.1080/01621459.2019.1573732">Stoner et al (2019)</a></li>
+<li><a href="https://arxiv.org/abs/2109.12247">Brennan et al (2021)</a></li>
+<li><a href="https://academic.oup.com/biostatistics/advance-article/doi/10.1093/biostatistics/kxad027/7275700">Arima et al (2023)</a></li>
+</ul>
+<p>There’s also a relationship with the literature on instrumental variables estimation of count data, in that we can always view the under-reporting as <em>unobserved heterogeneity</em> in a standard Poisson regression model: <span class="math display">\[
+\exp(\beta_0 + X_i&#39;\beta_1)\pi_i = \exp\left(\log \pi_i + \beta_0 + X_i&#39;\beta_1\right)
 \]</span> So if we observed <span class="math inline">\(\pi_i\)</span> we could simply adjust for it in the form of an offset / exposure. The problem is that we don’t observe it and it is likely correlated with <span class="math inline">\(X_i\)</span>. So an IV approach could be used here, e.g. <a href="https://direct.mit.edu/rest/article/79/4/586/57029/Instrumental-Variable-Estimation-of-Count-Data">Mullahy</a>. But under-reporting is a very <em>special</em> kind of endogeneity so there must be an advantage to using the extra structure that it provies. It could be worth thinking about this more carefully. The identification issues of this model must relate to those of Mullahy’s approach. See also the discussion in Wooldridge (2010) Chapter 18.5.</p>
 </section>
 
