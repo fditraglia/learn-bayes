@@ -188,9 +188,20 @@ so *ratios* of parameters are point-identified in this simple discrete example. 
 $$
 \mu_1/\mu_0 = m_1^\text{Lo}/m_0^\text{Lo} = m_1^\text{Hi}/m_0^\text{Hi} = \mu_1 / \mu_0.
 $$
-The parameters themselves, however, are not identified. In particular, we can *never rule out* the possibility that $\pi^H=1$, i.e. there is no under-reporting.
-To see why, suppose WLOG that $\pi^G \geq \pi^L$ and that the testable implication holds.
-
+The parameters themselves, however, are not identified. In particular, we can *never rule out* the possibility that there is no under-reporting for one of the two values that $Z$ can take on.
+To see why, suppose WLOG that $m_0^\text{Hi} > m_0^\text{Lo}$ so that $\pi^L < \pi^H$. Suppose further that the model is correct, in which case its testable implication holds.
+Then if $\pi^H = 1$ we have
+$$
+\begin{align*}
+m_0^\text{Lo} &= \mu_0\pi^\text{Lo} & m_0^\text{Hi} &= \mu_0\\
+m_1^\text{Lo} &= \mu_1\pi^\text{Lo} & m_1^\text{Hi} &= \mu_1
+\end{align*}
+$$
+so it follows that
+$$
+\pi^\text{Lo} = m_0^\text{Lo}/m_0^\text{Hi} = m_1^\text{Lo}/m_1^\text{Hi} = \pi^\text{Lo}.
+$$
+If the testable restriction holds, so does this equality. And since $m_0^\text{Hi} > m_0^\text{Lo}$, we have $\pi^\text{Lo} \in [0,1]$. 
 
 # Adding Dependence 
 
