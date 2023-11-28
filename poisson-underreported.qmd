@@ -5,40 +5,27 @@ format:
     embed-resources: true
 ---
 
-
 # What is this?
 
-Consider a Poisson regression model of the form $Y_i^* \sim \text{Poisson}(\mu_i)$ where $\log \mu_i = X_i'\beta$. We observe the covariates $X_i$ but we *do not* observe the **true count** $Y_i^*$. Instead we observe a noisy measure $Y_i$ where $Y_i \leq Y_i^*$. This is a model of **underreported counts**. In this model, $Y_i^*$ is the number of events that *occurred* and $Y_i^*$ is the number of events that were *recorded*. 
+Consider a Poisson regression model of the form $Y_i^* \sim \text{Poisson}(\mu_i)$ where $\log \mu_i = X_i'\beta$. We observe the covariates $X_i$ but we *do not* observe the **true count** $Y_i^*$. Instead we observe a noisy measure $Y_i$ where $Y_i \leq Y_i^*$. This is a model of **underreported counts**. In this model, $Y_i^*$ is the number of events that *occurred* and $Y_i^*$ is the number of events that were *recorded*.
 
 # Simplest Version
 
 The model sketched in this section is not point identified but provides the building blocks for everything that follows below. The derivations are based on the "Emitter Detector Problem" from sections 6.11-6.19 of *Probability Theory* by Jaynes.
 
-Consider a large population of $N$ people and a non-infectious disease, e.g. cancer. The probability that a given person will *fall ill* with the disease in a given year is $r$. The probability that a given person will *die* from the disease in a given year is $\varphi$. Suppose there is no uncertainty in the cause of death. Then the number of deaths is an undercount of the number of people who developed the disease. 
+Consider a large population of $N$ people and a non-infectious disease, e.g. cancer. The probability that a given person will *fall ill* with the disease in a given year is $r$. The probability that a given person will *die* from the disease in a given year is $\varphi$. Suppose there is no uncertainty in the cause of death. Then the number of deaths is an undercount of the number of people who developed the disease.
 
-Now let $n$ be the number of people who develop the disease and $c$ be the number of people who die from it. 
-The DAG for the underlying causal model is as follows:
-$$
+Now let $n$ be the number of people who develop the disease and $c$ be the number of people who die from it, and $s = rN$ the rate of *falling ill*. The DAG for the underlying causal model is as follows: $$
 s \rightarrow n \rightarrow c \leftarrow \varphi
-$$
-So in particular, we have the following conditional independence relationships:
-$$n\perp \varphi|s, \quad c \perp s | n$$
+$$ So in particular, we have the following conditional independence relationships: $$n\perp \varphi|s, \quad c \perp s | n$$
 
-Conditional on $(N,r)$, the unobserved count $n$ follows a binomial distribution
-$$
+Conditional on $(N,r)$, the unobserved count $n$ follows a binomial distribution $$
 \text{Binomial}(n|N,r) = \binom{N}{n} r^{n} (1 - r)^{N - n}, \quad 0 \leq n \leq N.
-$$
-If $N$ is very large compared to $r$, this distribution is well-approximated by a Poisson with rate $s = r N$. 
-**(Add derivation from handwritten notes for completeness)** 
-$$
+$$ If $N$ is very large compared to $r$, this distribution is well-approximated by a Poisson with rate $s = r N$. **(Add derivation from handwritten notes for completeness)** $$
 \text{Poisson}(n|s) = \frac{e^{-s}s^n}{n!}, \quad n \geq 0. 
-$$
-Under our assumptions, $c|(n,\varphi)$ is another Binomial RV, namely 
-$$
+$$ Under our assumptions, $c|(n,\varphi)$ is another Binomial RV, namely $$
 c|(n,\varphi) \sim \text{Binomial}(c|n, \varphi) = \binom{n}{c} \varphi^c (1 - \varphi)^{n-c}.
-$$
-Therefore, under our conditional independence assumptions, the distribution of $c|(\varphi, s)$ is *also* Poisson:
-$$
+$$ Therefore, under our conditional independence assumptions, the distribution of $c|(\varphi, s)$ is *also* Poisson: $$
 \begin{align*}
 p(c|\varphi,s) &= \sum_{\text{all} n} p(c,n|\varphi, s)\\
 &= \sum_{\text{all} n} p(c|n,\varphi,s)p(n|\varphi,s)\\
@@ -52,11 +39,9 @@ p(c|\varphi,s) &= \sum_{\text{all} n} p(c,n|\varphi, s)\\
 &= \exp\left\{-s\varphi \right\} \frac{(\varphi s)^c}{c!}\\
 &= \text{Poisson}(c|\varphi s).
 \end{align*}
-$$
-This is sometimes called a *thinned Poisson process*. The key point is that combining an underlying Poisson RV with a sequence of iid Bernoulli trials that determine whether each event is observed yields *another* Poisson RV, but with a rate equal to the product of the underlying rate and the probability that a given event is observed: $\varphi s$. This makes it clear that $\varphi$ and $s$ are **not separately identifiable** if we only observe $c$.
+$$ This is sometimes called a *thinned Poisson process*. The key point is that combining an underlying Poisson RV with a sequence of iid Bernoulli trials that determine whether each event is observed yields *another* Poisson RV, but with a rate equal to the product of the underlying rate and the probability that a given event is observed: $\varphi s$. This makes it clear that $\varphi$ and $s$ are **not separately identifiable** if we only observe $c$.
 
-Now suppose that were were instead interested in inferring $n$ from knowledge of $(c, \varphi, s)$. By Bayes' Theorem and the conditional independence assumptions and derivations from above,
-$$
+Now suppose that were were instead interested in inferring $n$ from knowledge of $(c, \varphi, s)$. By Bayes' Theorem and the conditional independence assumptions and derivations from above, $$
 \begin{align*}
 p(n|c, \varphi, s)  &= \frac{p(c|n, \varphi, s)p(n|\varphi, s)}{p(c|\varphi, s)} = \frac{p(c|n,\varphi)p(n|s)}{p(c|\varphi, s)} \\ \\
 &= \frac{\text{Binomial}(c|n,\varphi)\text{Poisson}(n|s)}{\text{Poisson}(c|s\varphi)}\\
@@ -66,9 +51,7 @@ p(n|c, \varphi, s)  &= \frac{p(c|n, \varphi, s)p(n|\varphi, s)}{p(c|\varphi, s)}
 &= \frac{1}{(n-c)!} \left[ (1 - \varphi)s\right]^{n-c} \exp\left\{ -(1- \varphi)s\right\} \\
 &= \text{Poisson}\big((n-c) | s(1 - \varphi)\big).
 \end{align*}
-$$
-In other words, conditional on $(c, \varphi, s)$ we have a *shifted* Poisson distribution for $n$, in other words $(n - c)$ is Poisson with rate $s(1 - \varphi)$. This makes intuitive sense: if we observe $c$ deaths from the disease, there must be at least $c$ people who contracted the disease. It follows that
-$$
+$$ In other words, conditional on $(c, \varphi, s)$ we have a *shifted* Poisson distribution for $n$, in other words $(n - c)$ is Poisson with rate $s(1 - \varphi)$. This makes intuitive sense: if we observe $c$ deaths from the disease, there must be at least $c$ people who contracted the disease. It follows that $$
 \begin{align*}
 \mathbb{E}(n|c,\varphi, s) &= \mathbb{E}(n-c + c|c, \varphi, s)\\
 &= \mathbb{E}(n-c|c, \varphi, s) + c \\
@@ -76,26 +59,22 @@ $$
 \end{align*}
 $$
 
-
 # Adding Covariates
-All of the derivations from above *condition* on the Poisson rates and reporting probabilities, so it's easy to extend the model to allow for covariates. Above I used the notation from Jaynes's book, but now I'll revert to more familiar econometrics notation, as introduced at the beginning of this document. We'll skip the initial Poisson approximation and begin by assuming that
-$$
+
+All of the derivations from above *condition* on the Poisson rates and reporting probabilities, so it's easy to extend the model to allow for covariates. Above I used the notation from Jaynes's book, but now I'll revert to more familiar econometrics notation, as introduced at the beginning of this document. We'll skip the initial Poisson approximation and begin by assuming that $$
 \begin{align*}
 Y_i^* |(X_i, \beta) \sim \text{Poisson}(\mu_i), \quad \log \mu_i = X_i'\beta.
 \end{align*}
-$$
-The parameter of interest is $\beta$ but $Y_i^*$ is unobserved. Now suppose that the observed count $Y_i$ is generated according to
-$$
+$$ The parameter of interest is $\beta$ but $Y_i^*$ is unobserved. Now suppose that the observed count $Y_i$ is generated according to $$
 Y_i|(Y_i^*, Z_i, \gamma) \sim \text{Binomial}(Y_i^*, \pi_i), \quad \log\left( \frac{\pi_i}{1 - \pi_i}\right) = Z_i'\gamma.
-$$
-Using the same assumptions and reasoning as above, it follows that
-$$
+$$ Using the same assumptions and reasoning as above, it follows that $$
 Y_i \sim \text{Poisson}(\lambda_i), \quad \lambda_i = \mu_i \pi_i = \exp\left\{ X_i'\gamma\right\}\frac{\exp\left\{Z_i'\gamma\right\}}{1 + \exp\left\{ Z_i'\gamma\right\}}
 $$
 
 # Simulation Example
 
 Simulate data with a single predictor of interest $X$ and a single excluded regressor $Z$. For simplicity, $X$ doesn't affect the observation probability although this could be changed.
+
 ```{r}
 set.seed(1983)
 n <- 500
@@ -121,19 +100,24 @@ true_params <- c(alpha = alpha, beta = beta, gamma = gamma, delta = delta)
 ```
 
 A Poisson regression of $Y$ on $X$ gives the wrong slope and the wrong intercept:
+
 ```{r}
 library(broom)
 glm(y ~ I(x - mean(x)), family = poisson()) |> 
   tidy() |> 
   knitr::kable(digits = 2)
 ```
+
 An (infeasible) poisson regression of $Y^*$ on $X$ gives the correct results:
+
 ```{r}
 glm(ystar ~ I(x - mean(x)), family = poisson()) |> 
   tidy() |> 
   knitr::kable(digits = 2)
 ```
+
 Now let's see how the under-reported count model fares:
+
 ```{r}
 library(cmdstanr)
 check_cmdstan_toolchain()
@@ -142,6 +126,7 @@ pois_under$print()
 ```
 
 Now let's see if we can fit the model:
+
 ```{r}
 dat <- list(N = n,
             y = y,
@@ -165,62 +150,129 @@ true_params
 
 It seems to work quite well. Notice, however, that inferences for the intercepts are noticeably less precise. The example in the following section shows why. In practice, an informative prior for one of the intercepts could be extremely helpful. Since $\alpha$ is the overall rate in the population, we may be able to give this quantity an informative prior using auxiliary data. E.g. if we're trying to predict childhood lead exposure, in the US we could use aggregate summary statistics and standard errors from NHANES: <https://www.cdc.gov/exposurereport/data_tables.html>
 
-
 # Where does the identification come from?
 
-Here is an extremely simple example based on the preceding. Suppose that both $X_i$ and $Z_i$ are binary. Let $Z_i$ take on the values $\text{Lo}$ and $\text{Hi}$ while $X_i$ takes on the values $0$ and $1$. We observe the conditional mean function of $Y_i$ given $(X_i, Z_i)$. This function is completely characterized by four values: $m_0^\text{Lo}, m_0^\text{Hi}, m_1^\text{Lo}$, and $m_1^\text{Hi}$ where $m_0^\text{Lo} \equiv \mathbb{E}(Y_i|X_i=0, Z_i=\text{Lo})$ and so on. Let $\pi^\text{Lo}$ and $\pi^\text{Hi}$ be the recording probabilities conditional on $Z_i$ and $\mu_d \equiv \mathbb{E}(Y_i^*|X_i)$ for $d = 0,1$. Then we have four equations in four unknowns:
-$$
+Here is an extremely simple example based on the preceding. Suppose that both $X_i$ and $Z_i$ are binary. Let $Z_i$ take on the values $\text{Lo}$ and $\text{Hi}$ while $X_i$ takes on the values $0$ and $1$. We observe the conditional mean function of $Y_i$ given $(X_i, Z_i)$. This function is completely characterized by four values: $m_0^\text{Lo}, m_0^\text{Hi}, m_1^\text{Lo}$, and $m_1^\text{Hi}$ where $m_0^\text{Lo} \equiv \mathbb{E}(Y_i|X_i=0, Z_i=\text{Lo})$ and so on. Let $\pi^\text{Lo}$ and $\pi^\text{Hi}$ be the recording probabilities conditional on $Z_i$ and $\mu_d \equiv \mathbb{E}(Y_i^*|X_i)$ for $d = 0,1$. Then we have four equations in four unknowns: $$
 \begin{align*}
 m_0^\text{Lo} &= \mu_0\pi^\text{Lo} & m_0^\text{Hi} &= \mu_0\pi^\text{Hi}\\
 m_1^\text{Lo} &= \mu_1\pi^\text{Lo} & m_1^\text{Hi} &= \mu_1\pi^\text{Hi}.
 \end{align*}
-$$
-Taking ratios:
-$$
+$$ Taking ratios: $$
 \begin{align*}
 m_1^\text{Lo}/m_0^\text{Lo} &= \mu_1/\mu_0\\
 m_1^\text{Hi}/m_0^\text{Hi} &= \mu_1 / \mu_0\\
 m_0^\text{Hi}/m_0^\text{Lo} &= \pi^\text{Hi} / \pi^\text{Lo}\\
 m_1^\text{Hi}/m_1^\text{Lo} &= \pi^\text{Hi} / \pi^\text{Lo}
 \end{align*}
-$$
-so *ratios* of parameters are point-identified in this simple discrete example. There is also a a testable restriction:
-$$
+$$ so *ratios* of parameters are point-identified in this simple discrete example. There is also a a testable restriction: $$
 \mu_1/\mu_0 = m_1^\text{Lo}/m_0^\text{Lo} = m_1^\text{Hi}/m_0^\text{Hi} = \mu_1 / \mu_0.
-$$
-The parameters themselves, however, are not identified. In particular, we can *never rule out* the possibility that there is no under-reporting for one of the two values that $Z$ can take on.
-To see why, suppose WLOG that $m_0^\text{Hi} > m_0^\text{Lo}$ so that $\pi^L < \pi^H$. Suppose further that the model is correct, in which case its testable implication holds.
-Then if $\pi^H = 1$ we have
-$$
+$$ The parameters themselves, however, are not identified. In particular, we can *never rule out* the possibility that there is no under-reporting for one of the two values that $Z$ can take on. To see why, suppose WLOG that $m_0^\text{Hi} > m_0^\text{Lo}$ so that $\pi^L < \pi^H$. Suppose further that the model is correct, in which case its testable implication holds. Then if $\pi^H = 1$ we have $$
 \begin{align*}
 m_0^\text{Lo} &= \mu_0\pi^\text{Lo} & m_0^\text{Hi} &= \mu_0\\
 m_1^\text{Lo} &= \mu_1\pi^\text{Lo} & m_1^\text{Hi} &= \mu_1
 \end{align*}
-$$
-so it follows that
-$$
+$$ so it follows that $$
 \pi^\text{Lo} = m_0^\text{Lo}/m_0^\text{Hi} = m_1^\text{Lo}/m_1^\text{Hi} = \pi^\text{Lo}.
+$$ If the testable restriction holds, so does this equality. And since $m_0^\text{Hi} > m_0^\text{Lo}$, we have $\pi^\text{Lo} \in [0,1]$.
+
+# Integrating censoring
+
+Let's now consider the model under the additional compliction that some of the thinned outcomes are censored. For a separate introduction to this setting, e.g. `censored-data-STAN.qmd`. In particular, we assume that we observe the count $Y_i$ only if it is non-zero or above some **known** threshold $l$. $$
+Y_i^{obs} = 
+\begin{cases}
+Y_i & \text{if } Y_i \geq l \: \text{or} \: Y_i = 0\\
+0<?<l & \text{if } Y_i < l
+\end{cases}
 $$
-If the testable restriction holds, so does this equality. And since $m_0^\text{Hi} > m_0^\text{Lo}$, we have $\pi^\text{Lo} \in [0,1]$. 
 
-# Adding Dependence 
+As described in the notebook on censoring, we can write down the likelihood contribution for censored observations as follows:
 
-At first I thought the above model was unrealistic because of its assumption that "observed events (actions) do not adapt to the recording mechanism" (Cameron \& Trivedi 2011, Chapter 13.5.2). But now I'm less sure that this is a problem. In a criminal justice example, where $\pi_i$ is the probability of being arrested, we might worry that the rate of crimes $\mu_i$ changes *in response* to $\pi_i$. But in the medical example from above this seems much less plausible. I need to think some more about this to make sure I fully understand the meaning of this model and how to generalize it.
+```{r}
+# since we lose information with censoring, let's simulate some more data with the same parameters as above
 
+simulate_data <- function(n = 1000, alpha = 0.5, beta = 1, gamma = -0.5, delta = 1.2, rho = 0.5) {
+  library(mvtnorm)
+  
+  S <- matrix(c(1, rho,
+                rho, 1), 2, 2, byrow = TRUE)
+  x_z <- rmvnorm(n, sigma = S)
+  x <- x_z[,1] 
+  z <- x_z[,2] 
+  
+  log_mu <- alpha + beta * (x - mean(x))
+  ystar <- rpois(n, exp(log_mu))
+  
+  logit_pi <- gamma + delta * (z - mean(z))
+  y <- rbinom(n, size = ystar, prob = plogis(logit_pi))
+  
+  # return a data frame of observables
+  data.frame(y = y, x = x, z = z)
+}
+
+# simulate data
+set.seed(1983)
+new_data <- simulate_data(n = 1000)
+
+# add censoring to our simulated data
+l <- 3 # so we cannot distinguish 1 and 2
+new_data$y_obs <- ifelse(new_data$y >= l, new_data$y, ifelse(new_data$y == 0, 0, NA))
+
+# define data for stan
+dat <- list(N_obs = sum(!is.na(new_data$y_obs)),
+      N_cens = sum(is.na(new_data$y_obs)),
+      ell = l,
+      y_obs = new_data$y_obs[!is.na(new_data$y_obs)],
+      x_obs = new_data$x[!is.na(new_data$y_obs)],
+      x_cens = new_data$x[is.na(new_data$y_obs)],
+      z_obs = new_data$z[!is.na(new_data$y_obs)],
+      z_cens = new_data$z[is.na(new_data$y_obs)])
+
+# get ratio of censored data
+dat$N_cens / (dat$N_cens + dat$N_obs)
+```
+
+```{r}
+# load stan model
+pois_under_cens <- cmdstan_model('poisson-underreported-with-censoring.stan')
+pois_under_cens$print()
+```
+
+```{r}
+# sample
+
+fit <- pois_under_cens$sample(
+  data = dat, 
+  seed = 1234, # random seed for MCMC
+  chains = 4, 
+  parallel_chains = 4, 
+  refresh = 500 # print status update after every 500 iterations
+)
+```
+
+```{r}
+# results
+
+fit$summary() |> 
+  knitr::kable(digits = 2)
+```
+
+This is far from the true parameters. For the intercepts this is not to big of a surprise, but something is going wrong about finding β and δ... TODO!
+
+# Adding Dependence
+
+At first I thought the above model was unrealistic because of its assumption that "observed events (actions) do not adapt to the recording mechanism" (Cameron & Trivedi 2011, Chapter 13.5.2). But now I'm less sure that this is a problem. In a criminal justice example, where $\pi_i$ is the probability of being arrested, we might worry that the rate of crimes $\mu_i$ changes *in response* to $\pi_i$. But in the medical example from above this seems much less plausible. I need to think some more about this to make sure I fully understand the meaning of this model and how to generalize it.
 
 # References
 
 The following references cover under-reported count data specifically:
 
-- [Papadopoulos & Santos Silva (2012)](https://www.sciencedirect.com/science/article/pii/S0165176512003230) 
-- [Cameron & Trivedi (2013) - Regression Analysis of Count Data](https://faculty.econ.ucdavis.edu/faculty/cameron/racd2/) Section 13.5.
-- [Dvorzak & Wagner (2016)](https://journals.sagepub.com/doi/full/10.1177/1471082X15588398)
-- [Stoner et al (2019)](https://www.tandfonline.com/doi/full/10.1080/01621459.2019.1573732)
-- [Brennan et al (2021)](https://arxiv.org/abs/2109.12247)
-- [Arima et al (2023)](https://academic.oup.com/biostatistics/advance-article/doi/10.1093/biostatistics/kxad027/7275700)
+-   [Papadopoulos & Santos Silva (2012)](https://www.sciencedirect.com/science/article/pii/S0165176512003230)
+-   [Cameron & Trivedi (2013) - Regression Analysis of Count Data](https://faculty.econ.ucdavis.edu/faculty/cameron/racd2/) Section 13.5.
+-   [Dvorzak & Wagner (2016)](https://journals.sagepub.com/doi/full/10.1177/1471082X15588398)
+-   [Stoner et al (2019)](https://www.tandfonline.com/doi/full/10.1080/01621459.2019.1573732)
+-   [Brennan et al (2021)](https://arxiv.org/abs/2109.12247)
+-   [Arima et al (2023)](https://academic.oup.com/biostatistics/advance-article/doi/10.1093/biostatistics/kxad027/7275700)
 
-There's also a relationship with the literature on instrumental variables estimation of count data, in that we can always view the under-reporting as *unobserved heterogeneity* in a standard Poisson regression model:
-$$
+There's also a relationship with the literature on instrumental variables estimation of count data, in that we can always view the under-reporting as *unobserved heterogeneity* in a standard Poisson regression model: $$
 \exp(\beta_0 + X_i'\beta_1)\pi_i = \exp\left(\log \pi_i + \beta_0 + X_i'\beta_1\right)
-$$
-So if we observed $\pi_i$ we could simply adjust for it in the form of an offset / exposure. The problem is that we don't observe it and it is likely correlated with $X_i$. So an IV approach could be used here, e.g. [Mullahy](https://direct.mit.edu/rest/article/79/4/586/57029/Instrumental-Variable-Estimation-of-Count-Data). But under-reporting is a very *special* kind of endogeneity so there must be an advantage to using the extra structure that it provies. It could be worth thinking about this more carefully. The identification issues of this model must relate to those of Mullahy's approach. See also the discussion in Wooldridge (2010) Chapter 18.5.
+$$ So if we observed $\pi_i$ we could simply adjust for it in the form of an offset / exposure. The problem is that we don't observe it and it is likely correlated with $X_i$. So an IV approach could be used here, e.g. [Mullahy](https://direct.mit.edu/rest/article/79/4/586/57029/Instrumental-Variable-Estimation-of-Count-Data). But under-reporting is a very *special* kind of endogeneity so there must be an advantage to using the extra structure that it provies. It could be worth thinking about this more carefully. The identification issues of this model must relate to those of Mullahy's approach. See also the discussion in Wooldridge (2010) Chapter 18.5.
