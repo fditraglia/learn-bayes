@@ -177,7 +177,7 @@ $$ If the testable restriction holds, so does this equality. And since $m_0^\tex
 
 # Integrating censoring
 
-Let's now consider the model under the additional complication that some of the thinned outcomes are censored. For a separate introduction to this setting, see e.g. `censored-data-STAN.qmd`.
+Let's now consider the model under the additional complication that some of the thinned outcomes are censored.
 
 In particular, we assume that we observe the (thinned) count $Y_i$ only if it is non-zero or above some **known** threshold $l$. $$
 Y_i^{obs} = 
@@ -187,7 +187,9 @@ Y_i & \text{if } Y_i \geq l \: \text{or} \: Y_i = 0\\
 \end{cases}
 $$
 
-As described in the notebook on censoring, we can write down the likelihood contribution for censored observations by integrating over the censored region of the thinned poisson process with rate $\mu_i \pi_i$ for all observations $i$ that have a censored outcome:
+For a separate introduction to this setting, see `censored-data-STAN.qmd`.
+
+As described in the notebook on censoring, we can write down the likelihood contribution for censored observations by integrating over the censored region of the thinned poisson process with rate $\mu_i \pi_i$ for all observations $i$ that have a censored outcome (see STAN program below).
 
 ```{r}
 require(mvtnorm)
