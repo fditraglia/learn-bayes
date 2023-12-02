@@ -28,7 +28,7 @@ model {
     real mu_cens = exp(alpha + beta * x_cens[j]);
     real pi_cens = inv_logit(gamma + delta * z_cens[j]);
     real lambda_cens = mu_cens * pi_cens;
-    target += log_diff_exp(poisson_lccdf(ell | lambda_cens), poisson_lpmf(0 | lambda_cens));
+    target += log_diff_exp(poisson_lcdf(ell | lambda_cens), poisson_lpmf(0 | lambda_cens));
   }
 }
 

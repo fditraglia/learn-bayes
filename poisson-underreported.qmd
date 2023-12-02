@@ -177,7 +177,9 @@ $$ If the testable restriction holds, so does this equality. And since $m_0^\tex
 
 # Integrating censoring
 
-Let's now consider the model under the additional compliction that some of the thinned outcomes are censored. For a separate introduction to this setting, e.g. `censored-data-STAN.qmd`. In particular, we assume that we observe the count $Y_i$ only if it is non-zero or above some **known** threshold $l$. $$
+Let's now consider the model under the additional complication that some of the thinned outcomes are censored. For a separate introduction to this setting, see e.g. `censored-data-STAN.qmd`.
+
+In particular, we assume that we observe the (thinned) count $Y_i$ only if it is non-zero or above some **known** threshold $l$. $$
 Y_i^{obs} = 
 \begin{cases}
 Y_i & \text{if } Y_i \geq l \: \text{or} \: Y_i = 0\\
@@ -185,14 +187,13 @@ Y_i & \text{if } Y_i \geq l \: \text{or} \: Y_i = 0\\
 \end{cases}
 $$
 
-As described in the notebook on censoring, we can write down the likelihood contribution for censored observations as follows:
+As described in the notebook on censoring, we can write down the likelihood contribution for censored observations by integrating over the censored region of the thinned poisson process with rate $\mu_i \pi_i$ for all observations $i$ that have a censored outcome:
 
 ```{r}
+require(mvtnorm)
 # since we lose information with censoring, let's simulate some more data with the same parameters as above
 
 simulate_data <- function(n = 1000, alpha = 0.5, beta = 1, gamma = -0.5, delta = 1.2, rho = 0.5) {
-  library(mvtnorm)
-  
   S <- matrix(c(1, rho,
                 rho, 1), 2, 2, byrow = TRUE)
   x_z <- rmvnorm(n, sigma = S)
@@ -256,7 +257,7 @@ fit$summary() |>
   knitr::kable(digits = 2)
 ```
 
-This is far from the true parameters. For the intercepts this is not to big of a surprise, but something is going wrong about finding β and δ... TODO!
+As before, the intercepts are very imprecise, but the slopes are correct!
 
 # Adding Dependence
 
