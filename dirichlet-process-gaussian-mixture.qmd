@@ -44,26 +44,27 @@ model$print()
 ## Fit the model
 
 ```{r}
-dat <- 
-#Xtilde <- tibble(X, id) |> 
-#  group_by(id) |> 
-#  summarize(Xtilde = mean(log(X + 1))) |> 
-#  pull(Xtilde)
-#
-#dat <- list(Ni = Ni, N = N, id = id, X = X, Y = Y, Z = Z,
-#            Xtilde = Xtilde, logXplus1 = log(X + 1))
-#
-#fit1 <- model1$sample(
-#  data = dat,
-#  seed = 5678,
-#  chains = 4,
-#  parallel_chains = 4,
-#  refresh = 500
-#  #iter_warmup = 2000,
-#  #iter_sampling = 6000
-#)
-#
-#fit1$summary(variables = c('beta', 'phi', 'tau', 'xi', 'abar', 'kappa', 
+dat <- list(y = raw_data$y,  
+            K = 10, 
+            N = length(raw_data$y), 
+            alpha_shape = 1, 
+            alpha_rate = 10,
+            sigma_shape = 1, 
+            sigma_rate = 10)
+
+fit <- model$sample(
+  data = dat,
+  seed = 5678,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500)
+
+true_params <- raw_data[c('w', 'mu', 'sig')]
+true_params
+
+fit$summary() |> 
+  knitr::kable(digits = 2)
+#fit$summary(variables = c('beta', 'phi', 'tau', 'xi', 'abar', 'kappa', 
 #                           'pi', 'sigma_theta', 'theta_bar')) |> 
 #  knitr::kable(digits = 2)
 #
