@@ -175,6 +175,61 @@ $$ so it follows that $$
 \pi^\text{Lo} = m_0^\text{Lo}/m_0^\text{Hi} = m_1^\text{Lo}/m_1^\text{Hi} = \pi^\text{Lo}.
 $$ If the testable restriction holds, so does this equality. And since $m_0^\text{Hi} > m_0^\text{Lo}$, we have $\pi^\text{Lo} \in [0,1]$.
 
+# Have X also affect the observation probability
+
+Let us now consider the same model but with $X$ also affecting the observation probability. So
+
+$$
+Y_i \sim \text{Poisson}(\lambda_i), \quad \lambda_i = \mu_i \pi_i = \exp\left\{ X_i'\beta\right\}\frac{\exp\left\{Z_i'\gamma + X_i'\kappa \right\}}{1 + \exp\left\{ Z_i'\gamma + X_i'\kappa \right\}}
+$$
+
+Let's simulate this:
+
+```{r}
+# everything else as before
+kappa <- 0.5 # NEW!
+logit_pi <- gamma + delta * (z - mean(z)) + kappa * (x - mean(x)) # NEW!
+y <- rbinom(n, size = ystar, prob = plogis(logit_pi)) # NEW!
+
+true_params <- c(alpha = alpha, beta = beta, gamma = gamma, delta = delta, kappa = kappa) # NEW
+```
+
+We add the new component to the logit component in the stan model
+
+```{r}
+pois_under_x_in_logit <- cmdstan_model('poisson-underreported-x-in-logit.stan')
+pois_under_x_in_logit$print()
+```
+
+We fit the model:
+
+```{r}
+dat <- list(N = n,
+            y = y,
+            x = x, 
+            z = z)
+
+fit <- pois_under_x_in_logit$sample(
+  data = dat, 
+  seed = 1234, # random seed for MCMC
+  chains = 4, 
+  parallel_chains = 4, 
+  refresh = 500 # print status update after every 500 iterations
+)
+```
+
+The results are as follows
+
+```{r}
+fit$summary() |> 
+  knitr::kable(digits = 2)
+```
+
+This looks good, although the estimates are slightly less precise for all parameters (except $\delta$?), which is to be expected because of the correlation between $X$ and $Z$.
+
+```{r}
+# add modelcomparison
+
 # Integrating censoring
 
 Let's now consider the model under the additional complication that some of the thinned outcomes are censored.
