@@ -209,7 +209,7 @@ dat <- list(N = n,
             x = x, 
             z = z)
 
-fit <- pois_under_x_in_logit$sample(
+fit_x_in_logit <- pois_under_x_in_logit$sample(
   data = dat, 
   seed = 1234, # random seed for MCMC
   chains = 4, 
@@ -221,14 +221,28 @@ fit <- pois_under_x_in_logit$sample(
 The results are as follows
 
 ```{r}
-fit$summary() |> 
+fit_x_in_logit$summary() |> 
   knitr::kable(digits = 2)
 ```
 
-This looks good, although the estimates are slightly less precise for all parameters (except $\delta$?), which is to be expected because of the correlation between $X$ and $Z$.
+This looks good, although the estimates are less precise for all parameters. This is to be expected because of the correlation between $X$ and $Z$
 
 ```{r}
-# add modelcomparison
+# add comparison between the two models
+comparison <- cbind(
+  rbind(
+    fit$summary(c("alpha", "beta", "gamma", "delta"), 
+                c("mean", "median", "sd")),
+    rep(NA,4)),
+  fit_x_in_logit$summary(c("alpha", "beta", "gamma", "delta", "kappa"), 
+                         c("mean", "median", "sd"))
+)
+
+colnames(comparison)[c(1, 5)] <- c("Model 1", "Model 2")
+
+comparison |>
+  knitr::kable(digits = 2)
+```
 
 # Integrating censoring
 
