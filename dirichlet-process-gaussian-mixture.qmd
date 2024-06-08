@@ -1,0 +1,73 @@
+---
+title: "Dirichlet Process Mixture of Gaussians"
+format: 
+  html:
+    embed-resources: true
+---
+
+Based on the following blog post: <https://luiarthur.github.io/TuringBnpBenchmarks/dpsbgmm>.
+
+$$
+\begin{aligned}
+\alpha &\sim \text{Gamma}(a, b) \\
+v_k |\alpha &\sim \text{Beta}(1, \alpha), \quad k = 1, \hdots, K-1\\
+\mathbf{w} &= \text{stickbreak}(\mathbf{v})\\
+\mu_k &\sim G_\mu, \quad k = 1, \hdots, K\\
+\sigma_k &\sim G_\sigma, \quad k = 1, \hdots, K\\
+y_i |\boldsymbol{\mu}, \boldsymbol{\sigma}, \mathbf{w} &\sim \sum_{k=1}^K w_k \cdot \text{Normal}(\mu_k, \sigma_k), \quad i = 1, \hdots, N
+\end{aligned}
+$$
+
+## Read in the Data
+This contains *both* the parameters of the mixture model *and* the vector `y` of data:
+```{r}
+#| warning: false
+#| message: false
+library(jsonlite)
+url <- 'https://raw.githubusercontent.com/luiarthur/TuringBnpBenchmarks/master/src/dp-gmm/data/gmm-data-n200.json'
+raw_data <- fromJSON(url) # returns a list
+str(raw_data)
+```
+
+### Compile the STAN Model
+There was some invalid STAN syntax in the code at the above url, which was written for an older version of STAN. 
+I fixed the syntax errors but left everything else unchanged: 
+```{r}
+#| warning: false
+#| message: false
+library(cmdstanr)
+
+model <- cmdstan_model('dirichlet-process-gaussian-mixture.stan')
+model$print()
+```
+
+## Fit the model
+
+```{r}
+dat <- list(y = raw_data$y,  
+            K = 10, 
+            N = length(raw_data$y), 
+            alpha_shape = 1, 
+            alpha_rate = 10,
+            sigma_shape = 1, 
+            sigma_rate = 10)
+
+fit <- model$sample(
+  data = dat,
+  seed = 5678,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500)
+
+true_params <- raw_data[c('w', 'mu', 'sig')]
+true_params
+
+fit$summary() |> 
+  knitr::kable(digits = 2)
+#fit$summary(variables = c('beta', 'phi', 'tau', 'xi', 'abar', 'kappa', 
+#                           'pi', 'sigma_theta', 'theta_bar')) |> 
+#  knitr::kable(digits = 2)
+#
+#true_params
+```
+
