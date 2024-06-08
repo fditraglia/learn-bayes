@@ -1,0 +1,65 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+embed-resources: true
+---
+
+
+```{r}
+#| message: false
+library(cmdstanr)
+ode_sim <- cmdstan_model('ode-harmonic-oscillator-sim.stan')
+ode <- cmdstan_model('ode-harmonic-oscillator.stan')
+ode$print()
+ode_sim$print()
+```
+
+```{r}
+# Load cmdstanr library
+library(cmdstanr)
+
+# Define the data for the model
+T <- 100  # number of time points
+y0 <- c(1.0, 0.0)  # initial conditions
+t0 <- 0.0  # initial time
+ts <- seq(0, 10, length.out = T)  # time points
+theta <- 0.15  # damping coefficient
+
+data_list <- list(
+  T = T,
+  y0 = y0,
+  t0 = t0,
+  ts = ts,
+  theta = theta
+)
+
+# Sample from the model
+fit <- ode_sim$sample(
+  data = data_list,
+  seed = 123,
+  chains = 4,
+  parallel_chains = 4,
+  fixed_param = TRUE,
+  iter_sampling = 1000,
+  iter_warmup = 500
+)
+
+# Extract the generated quantities
+generated_quantities <- fit$draws("y_sim")
+
+# Convert to a more convenient format (e.g., a data frame)
+y_sim_array <- posterior::as_draws_array(generated_quantities)
+y_sim_df <- as.data.frame(y_sim_array)
+
+# Convert to a tibble for easier handling
+y_sim_tbl <- as_tibble(y_sim_df)
+
+# Display the tibble
+print(y_sim_tbl)
+
+```
+
+
+
+
