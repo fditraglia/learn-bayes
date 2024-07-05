@@ -146,17 +146,16 @@ Maybe we should call it "Bayes-Laplace" inference: [Laplace](https://en.wikipedi
 
 ---
 
-## Differing Interpretations of Probability^[Quotes on this slide are from Chapter 11 of Hacking's [An Introduction to Probability and Inductive Logic](https://www.cambridge.org/highereducation/books/an-introduction-to-probability-and-inductive-logic/EA38518337057366AD690C789DD546B8?utm_campaign=shareaholic&utm_medium=copy_link&utm_source=bookmark).]
-
-### Frequency-Type (Frequentists)
+## Frequency-Type (Frequentists)
 - What is the probability that a coin flip will come up heads?
 - "We seem to be making a completely factual statement about a material object, namely the coin (and the device)
 - In principle, we could repeat the experiment many times under identical conditions.
 - This use of the term probability "is related to ideas such as frequency, disposition, tendency, symmetry, propensity."
 - Some people call this "objective" probability but that's a loaded term: don't let words do your thinking for you!
 
+---
 
-### Belief-Type (Bayesians)
+## Belief-Type (Bayesians)
 - What is the probability that Joe Biden will win the 2024 election?"
 - One-time event: doesn't make sense to talk about frequency / propensity. 
 - Some people call this "subjective" probability but that's also a loaded term!
