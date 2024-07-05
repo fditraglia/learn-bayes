@@ -1,0 +1,137 @@
+---
+title: "Instrumental Variables with Rethinking"
+format: 
+  html:
+    embed-resources: true
+---
+
+
+# What is this?
+
+I don't think `brms` is really set up for the kinds of models we will ultimately need to fit, namely nonlinear instrumental variables models.
+It looks like we will need to bite the bullet and learn STAN.
+Unfortunately the only example of IV estimation with STAN that I could find online was [this tutorial](https://khakieconomics.github.io/2017/11/26/Bayesian_iv.html). While helpful, it's a bit complicated and I want to start with the very basics.
+Here I work through the xample from Section 14.3 of [Statistical Rethinking](https://xcelab.net/rm/statistical-rethinking/) using the `ulam()` command from the [`rethinking` package](https://github.com/rmcelreath/rethinking).
+I then extract the underlying STAN code.
+
+# First just run it verbatim
+
+This is lifted directly from the book. Below I'll modify and extend.
+What is the causal effect of education $E$ on wages $W$?
+An unobserved confounder $U$ (ability) causes both $E$ and $W$ but fortunately we have a valid instrument $Q$ (quarter of birth).
+
+
+## Simulate data
+In the simulation, the causal effect of $E$ on $W$ is zero and everything is standardized. (Why? I think he talks about this earlier in the book and that it helps with setting up priors in a reasonable way.)
+
+```{r}
+#| warning: false
+#| message: false
+library(rethinking)
+set.seed(73)
+N <- 500
+U_sim <- rnorm(N)
+Q_sim <- sample(1:4, size = N, replace = TRUE) # quarter of birth
+E_sim <- rnorm(N, U_sim + Q_sim) # education
+W_sim <- rnorm(N, U_sim + 0 * E_sim) # wage
+dat_sim <- list(
+  W = standardize(W_sim), 
+  E = standardize(E_sim),
+  Q = standardize(Q_sim)
+)
+```
+
+
+## First Model: OLS
+
+```{r}
+m14.4 <- ulam(
+  alist(
+    W ~ dnorm(mu, sigma), 
+    mu <- aW + bEW * E, 
+    aW ~ dnorm(0, 0.2),  
+    bEW ~ dnorm(0, 0.5), 
+    sigma ~ dexp(1)),
+  data = dat_sim, chains = 4, cores = 4)
+precis(m14.4)
+```
+
+
+
+## Second Model: Instrument as a Bad Control
+
+```{r}
+#| warning: false
+m14.5 <- ulam(
+  alist(
+    W ~ dnorm(mu, sigma), 
+    mu <- aW + bEW * E + bQW * Q, 
+    aW ~ dnorm(0, 0.2),  
+    bEW ~ dnorm(0, 0.5), 
+    bQW ~ dnorm(0, 0.5),
+    sigma ~ dexp(1)),
+  data = dat_sim, chains = 4, cores = 4)
+precis(m14.5)
+```
+
+
+## Third Model: Instrumental Variables
+
+```{r}
+#| warning: false
+m14.6 <- ulam(
+  alist(
+    c(W, E) ~ multi_normal(c(muW, muE), Rho, Sigma),
+    muW <- aW + bEW * E,
+    muE <- aE + bQE * Q, 
+    c(aW, aE) ~ normal(0, 0.2), # indep priors
+    c(bEW, bQE) ~ normal(0, 0.5), # indep priors
+    Rho ~ lkj_corr(2), 
+    Sigma ~ exponential(1)),
+  data = dat_sim, chains = 4, cores = 4)
+precis(m14.6, depth = 3)
+```
+
+
+
+
+## Sample From the IV Prior
+
+```{r}
+#| message: false
+#| warning: false
+m14.6_prior <- extract.prior(m14.6)
+str(m14.6_prior)
+hist(m14.6_prior$bEW)
+```
+
+
+
+## Prior Predictive Simulations
+Supposedly we can use the `link()` function but I'm a bit confused. The question is what data we need to supply. I think it should only be the instrument, but somehow it's expecting us to provide the regressor as well. Also, it only seems to simulate the means of $W$ and $E$. I need to think a bit more about this
+
+```{r}
+prior_pred <- link(m14.6, data = list(Q = standardize(Q_sim), 
+                                      E = standardize(E_sim))) 
+with(prior_pred, plot(muW, muE))
+```
+
+
+
+## Sample from the IV Posterior
+
+```{r}
+#| message: false
+#| warning: false
+m14.6_post <- extract.samples(m14.6)
+hist(m14.6_post$bEW)
+```
+
+
+
+## Extract the underlying STAN code
+
+```{r}
+stancode(m14.6)
+```
+

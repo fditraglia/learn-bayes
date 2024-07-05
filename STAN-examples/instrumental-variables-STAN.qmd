@@ -156,6 +156,13 @@ fit1 <- model1$sample(
 fit1$summary() |> 
   knitr::kable(digits = 2)
 ```
+## IV with a Hierarchical Prior
+
+This section is based on an example from [khakieconomics](https://khakieconomics.github.io/2017/11/26/Bayesian_iv.html) and appears to be closely related to [Chamberlain & Imbens (1996)](https://www.nber.org/papers/t0204). 
+(I plan to replicate Chamberlain & Imbens next.)
+I find the notation from `khakieconomics` a bit opaque, so what follows is my translation of the case with a *single* endogenous regressor and a hierarchical prior.
+
+
 
 
 ## Relation to SUR 
