@@ -27,14 +27,13 @@ opts_chunk$set(echo=TRUE, warning=FALSE, message=FALSE)
 
 ---
 
-## Goals of this Presentation 
+## Goals of this Presentation^[Unless otherwise indicated, all quotes are from Sims (2010).]
 
 1. Summarize the main points of [Sims (2010) - Understanding Non-Bayesians](http://sims.princeton.edu/yftp/UndrstndgNnBsns/GewekeBookChpter.pdf)
 2. Relate them to the broader discussion of Bayesian vs.\ Frequentist inference.
 
-\vspace{1em}
 
-\alert{I'll put my own commentary and that of others in RED to make it clear when I am not paraphrasing Sims (2010).}
+
 
 ---
 
@@ -42,10 +41,13 @@ opts_chunk$set(echo=TRUE, warning=FALSE, message=FALSE)
 
 :::: {.columns}
 ::: {.column width="70%"}
+
+\vspace{2em}
+
 - "Understanding Non-Bayesians" was originally written for the [Handbook of Bayesian Econometrics](https://doi.org/10.1093/oxfordhb/9780199559084.001.0001) in 2010.
 - Oxford University Press objected to Sims posting a pre-print on [his website](https://www.princeton.edu/~sims/).
-- Sims support open access research and withdrew from the handbook in protest; the paper remains unpublished. 
-- In 2011 [Chris Sims](https://en.wikipedia.org/wiki/Christopher_A._Sims) was awarded the [Nobel Prize in Economics](https://www.nobelprize.org/prizes/economic-sciences/2011/summary/) with Tom Sargent for "understanding cause and effect in the macroeconomy."
+- Sims favors open access and withdrew from the handbook in protest; the paper remains unpublished. 
+- In 2011 [Sims](https://en.wikipedia.org/wiki/Christopher_A._Sims) was awarded the [Economics Nobel](https://www.nobelprize.org/prizes/economic-sciences/2011/summary/) for "understanding cause and effect in the macroeconomy."
 - Take that OUP!
 
 :::
@@ -63,39 +65,81 @@ opts_chunk$set(echo=TRUE, warning=FALSE, message=FALSE)
 ::: {.column width="70%"}
 > Once one becomes used to thinking about inference from a Bayesian perspective, it becomes difficult to understand why many econometricians are uncomfortable with that way of thinking. But some very good econometricians are either firmly non-Bayesian or (more commonly these days) think of Bayesian approaches as a "tool" which might sometimes be appropriate, sometimes not.
 
+\vspace{1em}
+
+### Some Pedantry
+
+Maybe we should call it "Bayes-Laplace" inference: [Laplace](https://en.wikipedia.org/wiki/Pierre-Simon_Laplace#Analytic_theory_of_probabilities) developed what we would recognize as "Bayesian" inference.
+
 :::
 
 :::{.column width="30%"}
 
 ![Laplace in 1775](Laplace-in-1775.jpg)
 
+
+
 :::
 
 ::::
 
-\alert{If we gave credit where credit is really due, we should be calling it "Laplacian Inference" since it was}
-[Laplace](https://en.wikipedia.org/wiki/Pierre-Simon_Laplace#Analytic_theory_of_probabilities) \alert{who first articulated what we would recognize as Bayesian inference.}
+---
+
+## What is this paper about?
+
+
+- Purpose: Articulate counterarguments to Bayesian perspective
+- Some counterarguments are easily dismissed
+- Others relate to deep questions about inference in infinite-dimensional spaces
+
+\vspace{2em}
+
+> My conclusion is that the Bayesian perspective is indeed universally applicable, but that "non-parametric" inference is hard, in ways about which both Bayesians and non-Bayesians are sometimes careless.
+
+
 
 ---
 
-## Introduction
+## Bayesian versus Frequentist Approaches
 
-* Difficulty in understanding non-Bayesian perspectives
-* Purpose: Articulate counterarguments to Bayesian perspective
-* Some counterarguments are easily dismissed
-* Others relate to deep questions about inference in infinite-dimensional spaces
+### Frequentist 
+- "Insists on a sharp distinction between unobserved, but non-random 'parameters' and observable, random data."
+- "Works entirely with the probability distributions of data, conditional on unknown parameters--estimators and test statistics, for example--and makes assertions about the distribution of those function of the data, conditional on parameters"
+
+### Bayesian 
+- "Treats everything as random before it is observed, and everything observed as, once observed, no longer random." 
+- "Aims at assisting in constructing probability statements about anything as yet unobserved (including 'parameters') conditional on the observed data."
 
 ---
 
-## Bayesian vs. Frequentist Approaches
+## Let's try to unpack this a bit...
 
-### Frequentist Approach:
-* Sharp distinction between parameters and data
-* Works with probability distributions of data, conditional on parameters
+### Frequentists
+- Condition on parameters and make probability statements that average over different *datasets* you could potentially observe.
+- E.g. $X_1 ..., X_{100}$ is a random sample from a $\text{N}(\mu, \sigma^2)$ population with $\sigma=1$ known.
+- "$\bar{X}_n \pm 1.96 \times \sigma/\sqrt{n}$ is a 95\% confidence interval for $\mu$." 
+- Translation: In 95\% of the datasets we could possibly observe, the sample mean will land within about $\pm 0.2$ of the true (fixed and unknown) value of $\mu$.
+- The observed interval $\bar{x} \pm 0.2$ either contains $\mu$ or doesn't: nothing is random after we have observed the data. 
+- Traditional (Neyman-Pearson) inference is *pre-experimental*: inductive behavior rather than inductive inference.
 
-### Bayesian Approach:
-* Treats everything as random before observation
-* Aims to construct probability statements about unobserved quantities
+---
+
+## Let's try to unpack this a bit...
+
+### Bayesians
+- Condition on *observed data* and make probability statements that average over different *parameter values* that could potentially have generated the data.
+- E.g. $X_1 ..., X_{100}$ is a random sample from a $\text{N}(\mu, \sigma^2)$ population with $\sigma=1$ known.
+- Need a prior: just for simplicity choose a "vague" one e.g. $\mu \sim \text{N}(0, 10000)$
+- "The posterior distribution of $\mu$ is (approximately) $\text{N}(\bar{x}, 1/100)$, so the 95\% highest posterior density interval (HPDI) for $\mu$ is approximately $\bar{x} \pm 0.2$." 
+- Translation: Given the observed data, there is around a 95\% probability that the true value of $\mu$ lies within $\pm 0.2$ of the sample mean.
+- The observed sample mean $\bar{x}$ is fixed and known; the population mean is unknown and treated as random.
+- Bayesian inference is *post-experimental* (conditional): inductive inference under an assumed model given observed information.
+
+---
+
+## Why does Sims put the word "parameters" in quotes?
+
+Poirier (1996) textbook on econometrics: chapter 5? 
 
 ---
 
