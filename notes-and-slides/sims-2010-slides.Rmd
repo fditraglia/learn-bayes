@@ -89,7 +89,7 @@ Maybe we should call it "Bayes-Laplace" inference: [Laplace](https://en.wikipedi
 
 
 - Purpose: Articulate counterarguments to Bayesian perspective
-- Some counterarguments are easily dismissed
+- Some counterarguments are "easily dismissed"
 - Others relate to deep questions about inference in infinite-dimensional spaces
 
 \vspace{2em}
@@ -112,10 +112,9 @@ Maybe we should call it "Bayes-Laplace" inference: [Laplace](https://en.wikipedi
 
 ---
 
-## Let's try to unpack this a bit...
+## Let's unpack this a bit: Frequentists 
 
-### Frequentists
-- Condition on parameters and make probability statements that average over different *datasets* you could potentially observe.
+- Condition on parameters; make probability statements that average over different *datasets* you could potentially observe.
 - E.g. $X_1 ..., X_{100}$ is a random sample from a $\text{N}(\mu, \sigma^2)$ population with $\sigma=1$ known.
 - "$\bar{X}_n \pm 1.96 \times \sigma/\sqrt{n}$ is a 95\% confidence interval for $\mu$." 
 - Translation: In 95\% of the datasets we could possibly observe, the sample mean will land within about $\pm 0.2$ of the true (fixed and unknown) value of $\mu$.
@@ -124,16 +123,49 @@ Maybe we should call it "Bayes-Laplace" inference: [Laplace](https://en.wikipedi
 
 ---
 
-## Let's try to unpack this a bit...
+## Let's unpack this a bit: Bayesians
 
-### Bayesians
-- Condition on *observed data* and make probability statements that average over different *parameter values* that could potentially have generated the data.
+- Condition on *observed data*; make probability statements that average over different *parameter values* that could potentially have generated the data.
 - E.g. $X_1 ..., X_{100}$ is a random sample from a $\text{N}(\mu, \sigma^2)$ population with $\sigma=1$ known.
 - Need a prior: just for simplicity choose a "vague" one e.g. $\mu \sim \text{N}(0, 10000)$
 - "The posterior distribution of $\mu$ is (approximately) $\text{N}(\bar{x}, 1/100)$, so the 95\% highest posterior density interval (HPDI) for $\mu$ is approximately $\bar{x} \pm 0.2$." 
-- Translation: Given the observed data, there is around a 95\% probability that the true value of $\mu$ lies within $\pm 0.2$ of the sample mean.
-- The observed sample mean $\bar{x}$ is fixed and known; the population mean is unknown and treated as random.
+- Translation: Given the observed data, there is around a 95\% probability that the population mean $\mu$ lies within $\pm 0.2$ of the sample mean $\bar{x}$.
+- The observed sample mean $\bar{x}$ is fixed and known; the population mean $\mu$ is unknown and treated as random.
 - Bayesian inference is *post-experimental* (conditional): inductive inference under an assumed model given observed information.
+
+---
+
+## Differing Interpretations of Probability
+
+- Crucial background to the differences between Bayesians and Frequentists.
+- Math is the same either way (Kolmogorov Axioms) but meaning is different.
+- Bayesians: **"Belief-type"** (aka Epistemic) interpretation. 
+- Frequentists: **"Frequency-type"** (aka Aleatory) interpretation.
+- Sims doesn't discuss this so the next two slides (including quotes) follow Chapter 11 of [An Introduction to Probability and Inductive Logic](https://www.cambridge.org/highereducation/books/an-introduction-to-probability-and-inductive-logic/EA38518337057366AD690C789DD546B8?utm_campaign=shareaholic&utm_medium=copy_link&utm_source=bookmark) by Ian Hacking.
+
+
+---
+
+## Differing Interpretations of Probability^[Quotes on this slide are from Chapter 11 of Hacking's [An Introduction to Probability and Inductive Logic](https://www.cambridge.org/highereducation/books/an-introduction-to-probability-and-inductive-logic/EA38518337057366AD690C789DD546B8?utm_campaign=shareaholic&utm_medium=copy_link&utm_source=bookmark).]
+
+### Frequency-Type (Frequentists)
+- What is the probability that a coin flip will come up heads?
+- "We seem to be making a completely factual statement about a material object, namely the coin (and the device)
+- In principle, we could repeat the experiment many times under identical conditions.
+- This use of the term probability "is related to ideas such as frequency, disposition, tendency, symmetry, propensity."
+- Some people call this "objective" probability but that's a loaded term: don't let words do your thinking for you!
+
+
+### Belief-Type (Bayesians)
+- What is the probability that Joe Biden will win the 2024 election?"
+- One-time event: doesn't make sense to talk about frequency / propensity. 
+- Some people call this "subjective" probability but that's also a loaded term!
+
+---
+
+## Learn some \$*@%\&!\# physics before you talk to me about coin flips!^[See Chapter of 10 of Jaynes' [Probability Theory: The Logic of Science](https://bayes.wustl.edu/etj/prob/book.pdf) for more discussion.]
+
+
 
 ---
 
@@ -181,6 +213,18 @@ Poirier (1996) textbook on econometrics: chapter 5?
 
 ---
 
+## Example: Angrist and Krueger (1991) Quarter of Birth
+
+- The Wasserman problem is about non-parametrics and you can read about it here.
+- But we don't need anything too exotic to see the issues Sims is talking about.
+- If you're not an economist and don't know what instrumental variables is, here's a very quick introduction.
+- Give the introduction.
+- Then make the point of Chamberlain \& Imbens (1996)
+- Point out that the Frequentist solution is also terrible in this case since it corresponds to an insane prior!
+- Useful dialogue between Bayesians and Frequentists: what prior does the frequentist solution correspond to? Frequency properties of Bayesian estimators?
+
+---
+
 ## Example 1: The Wasserman Problem
 
 * Setup: Observing $(\xi, R, Y)$ with unobserved $\theta$ 
@@ -194,6 +238,8 @@ Poirier (1996) textbook on econometrics: chapter 5?
 
 ## Critique of Wasserman's Conclusions
 
+I probably still want to mention these points, but I don't really want to get into the Wasserman example since it won't be as familiar to the audience.
+
 * Bayesian methods are not necessarily insensitive to data
 * Importance of appropriate prior specification
 * Pitfalls of high-dimensional parameter spaces
@@ -201,6 +247,8 @@ Poirier (1996) textbook on econometrics: chapter 5?
 ---
 
 ## Example 2: Robust Variance Estimates in Regression
+
+Not sure how much I should say about this one, but if I do mention it then it might be worth mentioning the Leamer "White-washing" stuff along with the paper where he talks about the "sandwich" estimator versus GLS and something about when the point estimates will change.
 
 * OLS with sandwich covariance matrix
 * Efficiency bounds (Chamberlain, 1987)
