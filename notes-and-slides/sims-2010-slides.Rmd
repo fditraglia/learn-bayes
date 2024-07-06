@@ -29,7 +29,7 @@ opts_chunk$set(echo=TRUE, warning=FALSE, message=FALSE)
 
 ## Goals of this Presentation^[Unless otherwise indicated, all quotes are from Sims (2010).]
 
-1. Summarize the main points of [Sims (2010) - Understanding Non-Bayesians](http://sims.princeton.edu/yftp/UndrstndgNnBsns/GewekeBookChpter.pdf)
+1. Summarize some key points from [Sims (2010) - Understanding Non-Bayesians](http://sims.princeton.edu/yftp/UndrstndgNnBsns/GewekeBookChpter.pdf).
 2. Relate them to the broader discussion of Bayesian vs.\ Frequentist inference.
 
 
@@ -139,26 +139,35 @@ Maybe we should call it "Bayes-Laplace" inference: [Laplace](https://en.wikipedi
 
 - Crucial background to the differences between Bayesians and Frequentists.
 - Math is the same either way (Kolmogorov Axioms) but meaning is different.
-- Bayesians: **"Belief-type"** (aka Epistemic) interpretation. 
-- Frequentists: **"Frequency-type"** (aka Aleatory) interpretation.
-- Sims doesn't discuss this so the next two slides (including quotes) follow Chapter 11 of [An Introduction to Probability and Inductive Logic](https://www.cambridge.org/highereducation/books/an-introduction-to-probability-and-inductive-logic/EA38518337057366AD690C789DD546B8?utm_campaign=shareaholic&utm_medium=copy_link&utm_source=bookmark) by Ian Hacking.
+- Bayesians: **"Belief-type"**  interpretation. 
+- Frequentists: **"Frequency-type"**  interpretation.
+- Sims doesn't discuss this. The next two slides (including quotes) are based on Chapter 11 of [An Introduction to Probability and Inductive Logic](https://www.cambridge.org/highereducation/books/an-introduction-to-probability-and-inductive-logic/EA38518337057366AD690C789DD546B8?utm_campaign=shareaholic&utm_medium=copy_link&utm_source=bookmark) by Ian Hacking.
 
 
 ---
 
-## Frequency-Type (Frequentists)
-- What is the probability that a coin flip will come up heads?
-- "We seem to be making a completely factual statement about a material object, namely the coin (and the device)
-- In principle, we could repeat the experiment many times under identical conditions.
-- This use of the term probability "is related to ideas such as frequency, disposition, tendency, symmetry, propensity."
-- Some people call this "objective" probability but that's a loaded term: don't let words do your thinking for you!
+## Belief-Type: "It is probable that the dinosaurs were made extinct by a giant asteroid hitting the earth."
+
+### Interpersonal / Evidential: Keynes, Jeffreys, Jaynes 
+- "Relative to the available evidence, the probability that the dinosaurs were made extinct by a giant asteroid hitting the earth is high--about 0.9."
+- "She thinks that [the statement] is *interpersonal*--because it is about what is reasonable for any reasonable person to believe. And since the degree of belief should depend on the available *evidence* we call this *interpersonal/evidential*."
+
+### Personal Degree of Belief: de Finetti, Savage
+- "I personally am very confident that the dinosaurs were made extinct by a giant asteroid hitting earth."
+- "If I had to make a bet on it, I would bet 9 to 1 that the dinosaurs were made extinct by a giant asteroid hitting the earth."
+
 
 ---
 
-## Belief-Type (Bayesians)
-- What is the probability that Joe Biden will win the 2024 election?"
-- One-time event: doesn't make sense to talk about frequency / propensity. 
-- Some people call this "subjective" probability but that's also a loaded term!
+## Frequency-Type: "The probability of getting heads with this coin is 0.6." 
+
+> The truth of this statement seems to have nothing to do with what be believe. We seem to be making a completely factual statement about a material object, namely the coin ... We may be saying something like:
+>
+>   - In repeated tossing, the *relative frequency* of heads settles down to a stable proportion, 6/10.
+>   - The coin has a *tendency* to come down heads far more often than tails.
+>   - It has a *propensity* or *disposition* to favor heads.
+>   - Or we are saying something more basic about the asymmetry of the coin and the tossing device. We may be referring to the *geometry* and *physics* of the coin, which cause it to come down more often heads than tails.
+
 
 ---
 
