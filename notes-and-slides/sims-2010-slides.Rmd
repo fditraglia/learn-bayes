@@ -1,5 +1,5 @@
 ---
-title: "Understanding Non-Bayesians: Sims (2010)"
+title: "'Understanding Non-Bayesians'"
 author: "Francis J. DiTraglia"
 date: "Summer of Bayes 2024"
 institute: "University of Oxford"
@@ -212,6 +212,37 @@ Poirier (1996) textbook on econometrics: chapter 5?
 
 ---
 
+## Some Other Views on "Subjectivity"
+
+### Gelman et al (2014) - *Bayesian Data Analysis*
+\vspace{0.5em}
+> Bayesian methods are sometimes said to be especially subjective because of their reliance on a prior distribution, but in most problems, scientific judgement is necessary to specify both the "likelihood" and "prior" parts of the model. For example, linear regression models are generally at least as suspect as any prior distribution that might be assumed about the regression parameters.
+
+### McElreath (2020) - *Statistical Rethinking*
+\vspace{0.5em}
+
+> Within Bayesian data analysis in the natural and social sciences, the prior is considered to be just part of the model. As such it should be chosen, evaluated, and revised just like all the other components of the model ... priors and Bayesian data analysis are no more inherently subjective thatn likelihoods and the repeated sampling assumptions required for significance testing. 
+
+<!--
+### Johnson, Ott & Dogucu (2022) - Bayes Rules! Intro to Applied Bayesian Modeling
+\vspace{0.5em}
+
+> Frequentist methods were embraced as the superior *objective* alternative to the *subjective* Bayesian philosophy. This subjective stigma is slowly fading for several reasons. First, the "subjective" label can be stamped on *all* statistical analyses, whether frequentist or Bayesian. Our prior knowledge naturally informs what we measure, why we measure it, and how we model it. Second, post-Enlightenment, "subjective" is no longer such a dirty word.
+-->
+
+---
+
+## Fighting Words... 
+
+
+### Jaynes (2003) - *Probability Theory: The Logic of Science*
+\vspace{0.5em}
+
+> Today one wonders how it is possible that orthodox logic continues to be taught in some places year after year and praised as "objective", while Bayesians are charged with "subjectivity". Orthodoxians, preoccupied with fantasies about nonexistent data sets and, in principle, unobservable limiting frequencies – while ignoring relevant prior information – are in no position to charge anybody with "subjectivity". If there is no sufficient statistic, the orthodox accuracy claim based on a single "statistic" simply ignores not only the prior information, but also all the evidence in the data that is relevant to that accuracy: hardly an "objective" procedure. If there are ancillary statistics and the orthodoxian follows Fisher by conditioning on them, he obtains just the estimate that Bayes' theorem based on a noninformative prior would have given him by a shorter calculation. Bayes' theorem would have given also a defensible accuracy claim.
+
+
+---
+
 ## Easily Dismissed Objection \#2: "Bayesian Inference is Harder"
 
 - Frequentist inference is often (wrongly) conflated with "convenient and intuitively appealing estimators" asymptotic approximations. 
@@ -249,15 +280,14 @@ Poirier (1996) textbook on econometrics: chapter 5?
 
 ---
 
-1. **"Bayesian inference is subjective"**
-   - Bayesians can take an "objective" approach by describing the likelihood
-   - Good frequentist practice also involves informal use of prior beliefs
+## Modern Simulation-based Methods 
 
-2. **"Bayesian inference is harder"**
-   - Often easier to characterize optimal small-sample inference from Bayesian perspective
-   - Frequentist asymptotic results can often be given Bayesian interpretations
+- Probabilistic programming languages (PPLs) like STAN, JAGS, BUGS, PyMC3 make it extremely easy to build and estimate complex Bayesian models.
+- We'll have a session on this in September.
+- [StanCon 2024](https://mc-stan.org/events/stancon2024/) is in Oxford this year! (September 9-13th, 2024) 
 
 ---
+
 
 ## Less Easily Dismissed Objections
 
