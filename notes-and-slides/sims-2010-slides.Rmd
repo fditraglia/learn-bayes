@@ -227,6 +227,28 @@ Poirier (1996) textbook on econometrics: chapter 5?
 
 ---
 
+## But what about GMM, IV and Kernel Smoothing?!
+
+- "There is no reason in principle that very easily implemented estimators like [these] ... have to be interpreted from a Frequentist perspective."
+- Kwan (1998) if $\sqrt{n} (\hat{\beta} - \beta) \to_d \text{Normal}(0, \Sigma)$ then, under regularly conditions and for large $n$, we can approximate $\beta|\widehat{\beta} \approx \text{Normal}(\widehat{\beta}, \Sigma/n)$.
+- When the regularity conditions hold, can interpret Frequentist confidence intervals as (approximate) Bayesian posterior credible intervals.
+- Only conditions on $\widehat{\beta}$, not the full data: "throws information away."
+
+---
+
+## Stronger Result
+
+> If we have a trustworthy model for which the likelihood function can be computed, the likelihood function will, under regularity conditions, take on a Gaussian shape in large samples, with the mean at the maximum likelihood estimate (MLE) and the covariance matrix given by the usual frequentist estimator for the covariance matrix of an MLE.
+
+### Differences from Kwan (1998) Result
+
+1. For large $n$, conditioning on MLE and using a large-sample normal approximation doesn't throw away information: as good as conditioning on all the data.
+2. Only a shortcut: from a Bayesian perspective, can always check the quality of the approximation by examining the whole likelihood function.
+3. Lacks "robustness" in that: "interpreting the likelihood shape as the posterior generally requires believing that the likelihood is correctly specified." 
+
+
+---
+
 1. **"Bayesian inference is subjective"**
    - Bayesians can take an "objective" approach by describing the likelihood
    - Good frequentist practice also involves informal use of prior beliefs
