@@ -33,8 +33,6 @@ opts_chunk$set(echo=TRUE, warning=FALSE, message=FALSE)
 2. Relate them to the broader discussion of Bayesian vs.\ Frequentist inference.
 
 
-
-
 ---
 
 ## Fun Facts 
@@ -97,42 +95,6 @@ Maybe we should call it "Bayes-Laplace" inference: [Laplace](https://en.wikipedi
 > My conclusion is that the Bayesian perspective is indeed universally applicable, but that "non-parametric" inference is hard, in ways about which both Bayesians and non-Bayesians are sometimes careless.
 
 
-
----
-
-## Bayesian versus Frequentist Approaches
-
-### Frequentist 
-- "Insists on a sharp distinction between unobserved, but non-random 'parameters' and observable, random data."
-- "Works entirely with the probability distributions of data, conditional on unknown parameters--estimators and test statistics, for example--and makes assertions about the distribution of those function of the data, conditional on parameters"
-
-### Bayesian 
-- "Treats everything as random before it is observed, and everything observed as, once observed, no longer random." 
-- "Aims at assisting in constructing probability statements about anything as yet unobserved (including 'parameters') conditional on the observed data."
-
----
-
-## Let's unpack this a bit: Frequentists 
-
-- Condition on parameters; make probability statements that average over different *datasets* you could potentially observe.
-- E.g. $X_1 ..., X_{100}$ is a random sample from a $\text{N}(\mu, \sigma^2)$ population with $\sigma=1$ known.
-- "$\bar{X}_n \pm 1.96 \times \sigma/\sqrt{n}$ is a 95\% confidence interval for $\mu$." 
-- Translation: In 95\% of the datasets we could possibly observe, the sample mean will land within about $\pm 0.2$ of the true (fixed and unknown) value of $\mu$.
-- The observed interval $\bar{x} \pm 0.2$ either contains $\mu$ or doesn't: nothing is random after we have observed the data. 
-- Traditional (Neyman-Pearson) inference is *pre-experimental*: inductive behavior rather than inductive inference.
-
----
-
-## Let's unpack this a bit: Bayesians
-
-- Condition on *observed data*; make probability statements that average over different *parameter values* that could potentially have generated the data.
-- E.g. $X_1 ..., X_{100}$ is a random sample from a $\text{N}(\mu, \sigma^2)$ population with $\sigma=1$ known.
-- Need a prior: just for simplicity choose a "vague" one e.g. $\mu \sim \text{N}(0, 10000)$
-- "The posterior distribution of $\mu$ is (approximately) $\text{N}(\bar{x}, 1/100)$, so the 95\% highest posterior density interval (HPDI) for $\mu$ is approximately $\bar{x} \pm 0.2$." 
-- Translation: Given the observed data, there is around a 95\% probability that the population mean $\mu$ lies within $\pm 0.2$ of the sample mean $\bar{x}$.
-- The observed sample mean $\bar{x}$ is fixed and known; the population mean $\mu$ is unknown and treated as random.
-- Bayesian inference is *post-experimental* (conditional): inductive inference under an assumed model given observed information.
-
 ---
 
 ## Differing Interpretations of Probability
@@ -175,11 +137,51 @@ Maybe we should call it "Bayes-Laplace" inference: [Laplace](https://en.wikipedi
 
 
 
+
+---
+
+## Bayesian versus Frequentist Approaches
+
+### Frequentist 
+- "Insists on a sharp distinction between unobserved, but non-random 'parameters' and observable, random data."
+- "Works entirely with the probability distributions of data, conditional on unknown parameters--estimators and test statistics, for example--and makes assertions about the distribution of those function of the data, conditional on parameters"
+
+### Bayesian 
+- "Treats everything as random before it is observed, and everything observed as, once observed, no longer random." 
+- "Aims at assisting in constructing probability statements about anything as yet unobserved (including 'parameters') conditional on the observed data."
+
+---
+
+## Let's unpack this a bit: Frequentists 
+
+- Condition on parameters; make probability statements that average over different *datasets* you could potentially observe.
+- E.g. $X_1 ..., X_{100}$ is a random sample from a $\text{N}(\mu, \sigma^2)$ population with $\sigma=1$ known.
+- "$\bar{X}_n \pm 1.96 \times \sigma/\sqrt{n}$ is a 95\% confidence interval for $\mu$." 
+- Translation: In 95\% of the datasets we could possibly observe, the sample mean will land within about $\pm 0.2$ of the true (fixed and unknown) value of $\mu$.
+- The observed interval $\bar{x} \pm 0.2$ either contains $\mu$ or doesn't: nothing is random after we have observed the data. 
+- Traditional (Neyman-Pearson) inference is *pre-experimental*: inductive behavior rather than inductive inference.
+
+---
+
+## Let's unpack this a bit: Bayesians
+
+- Condition on *observed data*; make probability statements that average over different *parameter values* that could potentially have generated the data.
+- E.g. $X_1 ..., X_{100}$ is a random sample from a $\text{N}(\mu, \sigma^2)$ population with $\sigma=1$ known.
+- Need a prior: just for simplicity choose a "vague" one e.g. $\mu \sim \text{N}(0, 10000)$
+- "The posterior distribution of $\mu$ is (approximately) $\text{N}(\bar{x}, 1/100)$, so the 95\% highest posterior density interval (HPDI) for $\mu$ is approximately $\bar{x} \pm 0.2$." 
+- Translation: Given the observed data, there is around a 95\% probability that the population mean $\mu$ lies within $\pm 0.2$ of the sample mean $\bar{x}$.
+- The observed sample mean $\bar{x}$ is fixed and known; the population mean $\mu$ is unknown and treated as random.
+- Bayesian inference is *post-experimental* (conditional): inductive inference under an assumed model given observed information.
+
 ---
 
 ## Why does Sims put the word "parameters" in quotes?
 
 Poirier (1996) textbook on econometrics: chapter 5? 
+
+- "Bayesians take models seriously not literally; Frequentists take models literally not seriously."
+
+- Quote from Porier about specification testing.
 
 ---
 
@@ -190,7 +192,40 @@ Poirier (1996) textbook on econometrics: chapter 5?
 
 ---
 
-## Easily Dismissed Objections
+## "Easily Dismissed" Objection \#1: "Bayesian Inference is Subjective" 
+
+> Researchers who take a Bayesian perspective can take a completely "objective" approach, by aiming at description of the likelihood. Frequentists have no formal interpretation of the global likelihood shape. Frequentist textbook descriptions of methods make no reference to subjective prior beliefs, but everyone recognizes that good applied statistical practice, even for frequentists, entails informal use of prior beliefs when an actual decision is involved. Its supposed "subjectivity" is therefore no reason to forswear the Bayesian approach to inference.
+
+---
+
+## More on "Subjectivity" -- Bayesians 
+
+> Bayesian inference makes the role of subjective prior beliefs in decision-making explicit, and describes clearly how such beliefs should be modified in the light of observations. But most scientific work with data least to publication, not directly to decision-making. That is, most data analysis is aimed at an audience who face different decision problems and may have diverse prior beliefs. In this situation ... useful data analysis summarizes the shape of the likelihood. Sometimes it is helpful to apply non-flat, simple, standardized prior in reporting likelihood shape, but **these are chosen not to reflect the investigator's personal beliefs, but to make the likelihood description more useful to a diverse audience**. A Bayesian perspective makes the entire shape of the likelihood in any sample directly interpretable, whereas a frequentist perspective has to focus on the large-sample behavior of the likelihood near its peak.
+
+
+---
+
+## More on "Subjectivity" -- Frequentists 
+
+> Though frequentist data analysis makes no explicit use of prior information, **good applied work does use prior beliefs informally even if it is not explicitly Bayesian**. Models are experimented with, and versions that allow reasonable interpretations of the estimated parameter values are favored. Lag lengths in dynamic models are experimented with, and shorter lag lengths are favored if longer ones add little explanatory power. These are reasonable ways to behave, but they are not "objective".
+
+
+---
+
+## Easily Dismissed Objection \#2: "Bayesian Inference is Harder"
+
+- Frequentist inference is often (wrongly) conflated with "convenient and intuitively appealing estimators" asymptotic approximations. 
+- Could instead aim for exact finite-sample distribution theory and fully efficient estimators but this is often intractable.
+- "Easier to characterize optimal small-sample inference from a Bayesian perspective, and much of the Bayesian literature has insisted that this is a special advantage."
+- Simulation-based methods make it easy to explore the shape of complicated likelihood functions in large, non-linear models.
+
+---
+
+## From Chapter 1 of *Asymptotic Statistics* by van der Vaart 
+
+> For a relatively small number of statistical problems there exists and exact, optimal solution ... If exact optimality theory does not give results, be it because the problem is intractable or because there exist no "optimal" procedures, then asymptotic optimality theory may help ... **strictly speaking, most asymptotic results that are currently available are logically useless. This is because most asymptotic results are limit results, rather than approximations consisting of an approximating formula plus an accurate error bound** ... This is why there is good asymptotics and bad asymptotics and why two types of asymptotics sometimes lead to conflicting claims ... Because it may be theoretically very hard to ascertain that approximation errors are small, one often takes recourse to simulation studies 
+
+---
 
 1. **"Bayesian inference is subjective"**
    - Bayesians can take an "objective" approach by describing the likelihood
