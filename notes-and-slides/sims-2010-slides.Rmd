@@ -98,6 +98,7 @@ Maybe we should call it "Bayes-Laplace" inference: [Laplace](https://en.wikipedi
 \vspace{2em}
 
 - Some of the insights in the paper are a bit scattered; I've re-arranged a bit. 
+- I also don't have time to cover everything!
 
 
 ---
@@ -140,7 +141,13 @@ Maybe we should call it "Bayes-Laplace" inference: [Laplace](https://en.wikipedi
 
 ## Learn some \$*@%\&!\# physics before you talk to me about coin flips!^[See Chapter of 10 of Jaynes' [Probability Theory: The Logic of Science](https://bayes.wustl.edu/etj/prob/book.pdf) for more discussion.]
 
+\vspace{1em}
 
+> During its flight the angular momentum of the coin maintains a fixed direction in space (but the angular *velocity* does not; and so the tumbling may appear chaotic to the naked eye). Let us denote this fixed direction by the unit vector $n$; it can be any direction you choose, and **it is determined by the particular kind of twist you give the coin at the instance of launching. Whether the coin is biased or not, it will show exactly the same fact throught the motion if viewed from this direction.**
+
+\vspace{1em}
+
+> Denote by $k$ a unit vector passing through the coin along its axis, with its point on the 'heads' side. Now toss the coin with a twist so that $k$ and $n$ make an acute angle, then catch it with your palm held flat, in a plane normal to $n$. On successive tosses, you can let the angle between $n$ and $k$ vary widely; the tumbling motion will then appear entirely different to the eye on different tosses, and yet it would require almost superhuman powers of observation to discover your strategy.
 
 
 ---
@@ -187,13 +194,15 @@ Maybe we should call it "Bayes-Laplace" inference: [Laplace](https://en.wikipedi
 
 ---
 
-## Why does Sims put the word "parameters" in quotes?
+## Why does Sims put the word "parameters" in quotes?^[See Chapters 1 and 5 of Poirier (1996) *Intermediate Statistics and Econometrics*]
 
-Poirier (1996) textbook on econometrics: chapter 5? 
+> Bayesians take models seriously not literally; Frequentists take models literally not seriously.
 
-- "Bayesians take models seriously not literally; Frequentists take models literally not seriously."
-
-- Quote from Porier about specification testing.
+- "Realism" versus "Instrumentalism": are parameters "real" or merely convenient mathematical fictions that we use to make predictions about observable quantities?
+- There is a spectrum but Bayesians tend more towards instrumentalism and Frequentists towards realism.
+- Testing point null hypothesis or we are using the "true model" is a realist enterprise.
+- de Finetti's representation theorem: infinitely exchangeable sequence of RVs can be represented as a sequence of conditionally indep.\ RVs given a random parameter. 
+- Exactly "likelihood" vs "prior" distinction from Bayesian inference; arises purely as a way of describing distribution of observed data.
 
 
 ---
@@ -305,18 +314,14 @@ Poirier (1996) textbook on econometrics: chapter 5?
 
 ---
 
-## Generating Conservative Models^[Chapter 10 of *Statistical Rethinking* by McElreath explains this better than Sims (2010)]
+## Generating Conservative Models^[Chapter 10 of *Statistical Rethinking* by McElreath explains this better than Sims (2010).]
 
 - Caveats notwithstanding, it might be convenient to set up a "conservative" Bayesian model. How could we do it?
-- Suppose we have "weak assumptions" in the form of moment conditions $\mathbb{E}[g(y,\beta)|\beta)] = 0$. 
-- Goal: find likelihood $f(y|\beta)$ that satisfies these constraints but is otherwise as "uninformative as possible". 
+- Suppose we have "weak assumptions" of the form $\mathbb{E}[g(y,\beta)|\beta)] = 0$. What likelihood $f(y|\beta)$ satisfies this but is as "uninformative as possible". 
 - Formally: "minimize Shannon mutual information between $y$ and $\beta$" 
 - Solution: exponential family models! 
-- E.g.\ linear regression with normal errors solves the problem subject to 
-\[
-\mathbb{E}\left[(y - \mathbf{x}'\boldsymbol{\beta}) \mathbf{x}|\boldsymbol{\beta}\right] = \mathbf{0}
-\]
-
+- E.g.\ linear regression with normal errors for $\mathbb{E}\left[(y - \mathbf{x}'\boldsymbol{\beta}) \mathbf{x}|\boldsymbol{\beta}\right] = \mathbf{0}$
+- "Models generated in this way are conservative *only* for inference about $\beta$ ... [they] are generally dogmatic about other aspects of the distribution" of $y$.
 
 
 ---
@@ -370,25 +375,34 @@ Poirier (1996) textbook on econometrics: chapter 5?
 
 ---
 
-## Challenges in Non-parametrics
+## Challenges of Non-parametrics 
 
-* Infinite-dimensional parameter spaces
-* Consistency issues in Bayesian inference
-* Pitfalls in high-dimensional spaces:
-  - Priors can be unintentionally dogmatic
-  - Importance of careful prior specification
+- Claims that Bayesian inference "breaks down" in high-dimensional problems: "posterior inconsistency" 
+- Sims argues that this problem isn't unique to Bayes: frequentists encounter what amounts to the same problem, but it's "hidden away" in "smoothness assumptions" 
+- High-dimensional problems are just hard! Be careful about prior specification.
+
 
 ---
 
-## Example: Angrist and Krueger (1991) Quarter of Birth
 
-- The Wasserman problem is about non-parametrics and you can read about it here.
-- But we don't need anything too exotic to see the issues Sims is talking about.
-- If you're not an economist and don't know what instrumental variables is, here's a very quick introduction.
-- Give the introduction.
-- Then make the point of Chamberlain \& Imbens (1996)
-- Point out that the Frequentist solution is also terrible in this case since it corresponds to an insane prior!
-- Useful dialogue between Bayesians and Frequentists: what prior does the frequentist solution correspond to? Frequency properties of Bayesian estimators?
+## Chamberlain \& Imbens (1996)
+
+\[
+Y = \alpha + \beta S + U, \quad S = Z'\gamma + V
+\]
+
+\vspace{1em}
+
+> In this paper, we suggest how Bayesian inference might proceed in models with many instruments that are potentially weakly correlated with the endogenous regressor ... We apply this model to an example that has motivated much of the theoretical work in this area, the Angrist and Krueger (1991) ...  analysis of returns to schooling using quarter of birth to form instrumental variables. 
+
+\vspace{1em}
+
+> The conventional choice for a "diffuse" prior distribution [for $\gamma$] is in fact very informative ... [it] dogmatically asserts that the instrumental variables are *collectively* very powerful predictors of $S$.
+
+- Frequentist solution (TSLS) is similar to the "flat prior" Bayesian approach.
+- Useful dialogue: what prior does the frequentist solution correspond to? Frequency properties of Bayes? 
+
+<!--
 
 ---
 
@@ -413,16 +427,19 @@ I probably still want to mention these points, but I don't really want to get in
 
 ---
 
+-->
+
+<!--
 ## Example 2: Robust Variance Estimates in Regression
 
-Not sure how much I should say about this one, but if I do mention it then it might be worth mentioning the Leamer "White-washing" stuff along with the paper where he talks about the "sandwich" estimator versus GLS and something about when the point estimates will change.
 
 * OLS with sandwich covariance matrix
-* Efficiency bounds (Chamberlain, 1987)
+* Efficiency bounds (Chamberlain, 1987): "sandwich estimator provides the efficiency bound
 * When is OLS with sandwich appropriate?
   - Large samples
   - Likely nonlinear regression function
   - Interest in best linear predictor
+
 
 ---
 
@@ -433,9 +450,6 @@ Not sure how much I should say about this one, but if I do mention it then it mi
 * Pragmatic Bayesian approach:
   - Recognize limitations of asymptotic approximations
   - Consider model improvements when appropriate
-  - Use OLS with sandwich judiciously
+  - Use OLS with sandwich standard errors judiciously
 
----
-
-## Questions?
-
+-->
