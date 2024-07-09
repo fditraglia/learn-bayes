@@ -79,6 +79,7 @@ Maybe we should call it "Bayes-Laplace" inference: [Laplace](https://en.wikipedi
 
 :::
 
+
 ::::
 
 ---
@@ -93,6 +94,10 @@ Maybe we should call it "Bayes-Laplace" inference: [Laplace](https://en.wikipedi
 \vspace{2em}
 
 > My conclusion is that the Bayesian perspective is indeed universally applicable, but that "non-parametric" inference is hard, in ways about which both Bayesians and non-Bayesians are sometimes careless.
+
+\vspace{2em}
+
+- Some of the insights in the paper are a bit scattered; I've re-arranged a bit. 
 
 
 ---
@@ -175,6 +180,13 @@ Maybe we should call it "Bayes-Laplace" inference: [Laplace](https://en.wikipedi
 
 ---
 
+
+## Implications for Decision-Making
+
+> Bayesian inference therefore feeds naturally into discussion of decisions that must be made under uncertainty, while frequentist analysis does not. There are theorems showing that under certtain assumptions is is optimal to make decisions based on probability distributions over unknown quantities, but it is probabily more important that most actual decision makers find the language of probability a natural way to discuss under uncertainty and how the results of data analysis may be relevant to their decisions.
+
+---
+
 ## Why does Sims put the word "parameters" in quotes?
 
 Poirier (1996) textbook on econometrics: chapter 5? 
@@ -183,12 +195,20 @@ Poirier (1996) textbook on econometrics: chapter 5?
 
 - Quote from Porier about specification testing.
 
+
 ---
 
-## Implications for Decision-Making
+## "Easily Dismissed" Objection \# 1: "Bayseian Inference is Subjective" 
 
-* Bayesian inference feeds naturally into decision-making under uncertainty
-* Frequentist analysis does not directly provide probabilities for decision-makers
+> Bayesian inference makes the role of subjective prior beliefs in decision-making explicit, and describes clearly how such beliefs should be modified in the light of observations. But most scientific work with data least to publication, not directly to decision-making. That is, most data analysis is aimed at an audience who face different decision problems and may have diverse prior beliefs. In this situation ... useful data analysis summarizes the shape of the likelihood. Sometimes it is helpful to apply non-flat, simple, standardized prior in reporting likelihood shape, but **these are chosen not to reflect the investigator's personal beliefs, but to make the likelihood description more useful to a diverse audience**. A Bayesian perspective makes the entire shape of the likelihood in any sample directly interpretable, whereas a frequentist perspective has to focus on the large-sample behavior of the likelihood near its peak.
+
+
+---
+
+## "Easily Dismissed" Objection \# 1: "Bayseian Inference is Subjective" 
+
+> Though frequentist data analysis makes no explicit use of prior information, **good applied work does use prior beliefs informally even if it is not explicitly Bayesian**. Models are experimented with, and versions that allow reasonable interpretations of the estimated parameter values are favored. Lag lengths in dynamic models are experimented with, and shorter lag lengths are favored if longer ones add little explanatory power. These are reasonable ways to behave, but they are not "objective".
+
 
 ---
 
@@ -196,21 +216,6 @@ Poirier (1996) textbook on econometrics: chapter 5?
 
 > Researchers who take a Bayesian perspective can take a completely "objective" approach, by aiming at description of the likelihood. Frequentists have no formal interpretation of the global likelihood shape. Frequentist textbook descriptions of methods make no reference to subjective prior beliefs, but everyone recognizes that good applied statistical practice, even for frequentists, entails informal use of prior beliefs when an actual decision is involved. Its supposed "subjectivity" is therefore no reason to forswear the Bayesian approach to inference.
 
----
-
-## More on "Subjectivity" -- Bayesians 
-
-> Bayesian inference makes the role of subjective prior beliefs in decision-making explicit, and describes clearly how such beliefs should be modified in the light of observations. But most scientific work with data least to publication, not directly to decision-making. That is, most data analysis is aimed at an audience who face different decision problems and may have diverse prior beliefs. In this situation ... useful data analysis summarizes the shape of the likelihood. Sometimes it is helpful to apply non-flat, simple, standardized prior in reporting likelihood shape, but **these are chosen not to reflect the investigator's personal beliefs, but to make the likelihood description more useful to a diverse audience**. A Bayesian perspective makes the entire shape of the likelihood in any sample directly interpretable, whereas a frequentist perspective has to focus on the large-sample behavior of the likelihood near its peak.
-
-
----
-
-## More on "Subjectivity" -- Frequentists 
-
-> Though frequentist data analysis makes no explicit use of prior information, **good applied work does use prior beliefs informally even if it is not explicitly Bayesian**. Models are experimented with, and versions that allow reasonable interpretations of the estimated parameter values are favored. Lag lengths in dynamic models are experimented with, and shorter lag lengths are favored if longer ones add little explanatory power. These are reasonable ways to behave, but they are not "objective".
-
-
----
 
 ## Some Other Views on "Subjectivity"
 
@@ -252,13 +257,22 @@ Poirier (1996) textbook on econometrics: chapter 5?
 
 ---
 
+## Side Note on Modern Simulation-based Methods 
+
+- Probabilistic programming languages (PPLs) like STAN, JAGS, BUGS, PyMC3 make it extremely easy to build and estimate complex Bayesian models.
+- We'll have a session on this in September with special guest [Alex Andorra](https://github.com/AlexAndorra).
+- [StanCon 2024](https://mc-stan.org/events/stancon2024/) is in Oxford this year! (September 9-13th, 2024) 
+
+---
+
+
 ## From Chapter 1 of *Asymptotic Statistics* by van der Vaart 
 
 > For a relatively small number of statistical problems there exists and exact, optimal solution ... If exact optimality theory does not give results, be it because the problem is intractable or because there exist no "optimal" procedures, then asymptotic optimality theory may help ... **strictly speaking, most asymptotic results that are currently available are logically useless. This is because most asymptotic results are limit results, rather than approximations consisting of an approximating formula plus an accurate error bound** ... This is why there is good asymptotics and bad asymptotics and why two types of asymptotics sometimes lead to conflicting claims ... Because it may be theoretically very hard to ascertain that approximation errors are small, one often takes recourse to simulation studies 
 
 ---
 
-## But what about GMM, IV and Kernel Smoothing?!
+## But what about GMM, OLS and IV?! 
 
 - "There is no reason in principle that very easily implemented estimators like [these] ... have to be interpreted from a Frequentist perspective."
 - Kwan (1998) if $\sqrt{n} (\hat{\beta} - \beta) \to_d \text{Normal}(0, \Sigma)$ then, under regularly conditions and for large $n$, we can approximate $\beta|\widehat{\beta} \approx \text{Normal}(\widehat{\beta}, \Sigma/n)$.
@@ -277,24 +291,82 @@ Poirier (1996) textbook on econometrics: chapter 5?
 2. Only a shortcut: from a Bayesian perspective, can always check the quality of the approximation by examining the whole likelihood function.
 3. Lacks "robustness" in that: "interpreting the likelihood shape as the posterior generally requires believing that the likelihood is correctly specified." 
 
+---
+
+## "Pragmatic Bayesian" Approach
+
+> In some circumstances we need to be able to reach conclusions conditional on standard, easily computed statistics, even when they are not sufficient statistics, and that sometimes approximate distribution theory, justified by the fact that in large samples with high probability the approximation is good, is the best that can be done with the available time and reources. Yet at the same time, it is always worthwhile to consider whether such compromises are throwing away a great deal of information or resulting in seriously distorted posterior distributions.
 
 ---
 
-## Modern Simulation-based Methods 
+## What does it mean to be "conservative"? 
 
-- Probabilistic programming languages (PPLs) like STAN, JAGS, BUGS, PyMC3 make it extremely easy to build and estimate complex Bayesian models.
-- We'll have a session on this in September.
-- [StanCon 2024](https://mc-stan.org/events/stancon2024/) is in Oxford this year! (September 9-13th, 2024) 
+> These models are conservative in a sense -- they promise no more precise estimates, asymptotically, that what can be obtained under the "weakest" of the models defined by the assumptions supporting the frequentist asymptotics. But to say they are conservative may be misleading. Using a model that fails to make efficient use of the data can lead to large, avoidable losses. Concluding that the data do not support a finding that a drug or social policy intervention has important effects is a costly error if the conclusions is incorrect, and reading such a conclusion in a naive attempt to be "robust" by using "weak assumptions" is not in any real sense conservative.
+
+---
+
+## Generating Conservative Models^[Chapter 10 of *Statistical Rethinking* by McElreath explains this better than Sims (2010)]
+
+- Caveats notwithstanding, it might be convenient to set up a "conservative" Bayesian model. How could we do it?
+- Suppose we have "weak assumptions" in the form of moment conditions $\mathbb{E}[g(y,\beta)|\beta)] = 0$. 
+- Goal: find likelihood $f(y|\beta)$ that satisfies these constraints but is otherwise as "uninformative as possible". 
+- Formally: "minimize Shannon mutual information between $y$ and $\beta$" 
+- Solution: exponential family models! 
+- E.g.\ linear regression with normal errors solves the problem subject to 
+\[
+\mathbb{E}\left[(y - \mathbf{x}'\boldsymbol{\beta}) \mathbf{x}|\boldsymbol{\beta}\right] = \mathbf{0}
+\]
+
+
 
 ---
 
 
-## Less Easily Dismissed Objections
+## Less Easily Dismissed Objection \#1: Handy Methods Seem Un-Bayesian
 
-### Handy methods that seem un-Bayesian
-* IV, GMM, sandwich estimators, kernel methods
-* Can be given limited information Bayesian interpretations
-* Involve implicit Bayesian judgments in asymptotic theory
+- To me this doesn't really seem like an "objection" -- more of a continuation of the "Pragmatic Bayesian" discussion from above.
+- Above: IV, GMM etc.\ can be given "limited information" Bayesian interpretation.
+- Frequentist asymptotic distribution can be viewed as an approximate Bayesian posterior under "essentially the same weak assumptions"
+- I.e. don't assume known likelihood: only moment/regularity conditions 
+- "But every application of asymptotic approximate theory relying on 'weak assumptions' involves a Bayesian judgment call."
+- In other words: when does the Frequentist asymptotic distribution theory perform well *on its own terms*?
+- To rely on the Central Limit Theorem in practice, for example, is to implicitly assume we're in a region of the parameter space where it works well.
+
+
+---
+
+
+## An even simpler example than the one from Sims (2010)...
+
+- Suppose that $X_1, ..., X_n \sim \text{iid Bernoulli}(p)$ where $p$ is unknown.
+- Let $\widehat{p}$ be the sample proportion, i.e.\  $\frac{1}{n} \sum_{i=1}^n X_i$
+- The Central Limit Theorem (CLT) gives $\widehat{p} \approx \text{Normal}(p, \widehat{p}(1-\widehat{p})/n)$ for large $n$.
+- Approximate "Limited Information" Posterior: $p \approx \text{Normal}(\widehat{p}, \widehat{p}(1-\widehat{p})/n)$.) 
+- 95\% Confidence / Credible Interval: $\widehat{p} \pm 1.96 \times \sqrt{\widehat{p}(1 - \widehat{p})/n}$
+
+\vspace{1em}
+
+### But this approximation is *terrible* when $p$ is far from $0.5$...
+- Bayesian Perspective: bad conditional properties e.g.\ empty intervals!
+- Frequentist Perspective: coverage probabilities are all over the place!
+- "Textbook" rule of thumb $np(1-p) > 5$ is a Bayesian judgement call (also false!)
+
+
+---
+
+![](wald-intervals-1.png){width=83%}
+\vspace{-1.3em}
+
+![](wald-intervals-2.png){width=83%}
+
+
+---
+
+![](wald-intervals-3.png){width=83%}
+\vspace{-1.3em}
+
+![](wald-intervals-4.png){width=83%}
+
 
 ---
 
