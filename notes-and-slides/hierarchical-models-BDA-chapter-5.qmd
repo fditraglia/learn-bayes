@@ -295,6 +295,8 @@ title(main = 'Prior from Expreiments 1-70: Same Theta')
 
 - Ignores the fact that $\theta_j$ are *estimates* rather than true parameters.
 - As such, *understates* our true uncertainty about $(\alpha, \beta)$.
+- Method of moments formulas assume that $\hat{\theta}_j$ are draws from a Beta distribution but they're not!
+- E.g.\ several of the $\hat{\theta}_j$ are *exactly* zero but the Beta distribution is continuous!
 - Ignores uncertainty in estimates of $(\alpha, \beta)$ as well: just plugs in estimates
 - What if we wanted to estimate *each* of the $\theta_j$ simultaneously? 
 - Shouldn't re-use the same data twice: need to re-estimate $(\alpha, \beta)$ for each $\theta_j$, data from experiments *besides* $j$.

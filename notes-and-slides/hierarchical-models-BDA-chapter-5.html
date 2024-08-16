@@ -3392,6 +3392,8 @@ f(\theta | y) &amp;\propto f(y | \theta) \times f(\theta) \\
 <ul>
 <li>Ignores the fact that <span class="math inline">\(\theta_j\)</span> are <em>estimates</em> rather than true parameters.</li>
 <li>As such, <em>understates</em> our true uncertainty about <span class="math inline">\((\alpha, \beta)\)</span>.</li>
+<li>Method of moments formulas assume that <span class="math inline">\(\hat{\theta}_j\)</span> are draws from a Beta distribution but they’re not!</li>
+<li>E.g. several of the <span class="math inline">\(\hat{\theta}_j\)</span> are <em>exactly</em> zero but the Beta distribution is continuous!</li>
 <li>Ignores uncertainty in estimates of <span class="math inline">\((\alpha, \beta)\)</span> as well: just plugs in estimates</li>
 <li>What if we wanted to estimate <em>each</em> of the <span class="math inline">\(\theta_j\)</span> simultaneously?</li>
 <li>Shouldn’t re-use the same data twice: need to re-estimate <span class="math inline">\((\alpha, \beta)\)</span> for each <span class="math inline">\(\theta_j\)</span>, data from experiments <em>besides</em> <span class="math inline">\(j\)</span>.</li>
