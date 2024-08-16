@@ -3308,16 +3308,25 @@ f(\theta_1, \dots, \theta_{71}) = \int f(\theta_1, \dots, \theta_{71} | \phi) \t
 <li>In particular: set <span class="math inline">\(\hat{\theta}_j = \frac{y_j}{N_j}\)</span> and use the method of moments to estimate <span class="math inline">\((\alpha, \beta)\)</span>.</li>
 </ul>
 </section>
-<section id="initial-notes" class="level2">
-<h2 class="anchored" data-anchor-id="initial-notes">Initial notes</h2>
-<p>Some things to illustrate using the rats example:</p>
-<ol type="1">
-<li>Estimating the proportion for experiment 71 ignoring all the other experiments seems like a bad idea: surely they should tell us something. If we want to estimate all of the proportions from the different experiment, we can appeal to a James-Stein type idea to argue for shrinkage.</li>
-<li>What happens if we assume that experiments 1-70 are estimating the <em>same</em> parameter as experiment 71? In this case we’d have a very strong prior and basically ignore the data from the 71st experiment! This is a bad idea.</li>
-<li>A first attempt at using all the data would be to estimate a common Beta prior for all the parameters of each experiment, using data from experiments 1-70. A crude version of this ignores the fact that the parameters from experiments 1-70 are estimates rather than true parameter values.</li>
-<li>A more sophisticated version would be to try Empirical Bayes. Somewhere or other I have a link or reference to the Binomial version: it’s a bit trickier than the Poisson case. I guess there are really two options: NP Empirical Bayes or Parametric Empirical Bayes with a Beta-Binomial.</li>
-<li>Could then try the full-Bayes approach. There are at least two versions here. One would be to use an arcsine transformation so we can use normal theory. Another would be to do something that explicitly models the Beta distribution. Perhaps the one downside of the normal approximation here is that it wouldn’t fully illustrate how things work <em>in general</em> since we’d typically have means and variances that aren’t entagled as they are in a proportions problem.</li>
-</ol>
+<section id="method-of-moments-estimation-of-alpha-beta" class="level2">
+<h2 class="anchored" data-anchor-id="method-of-moments-estimation-of-alpha-beta">Method of Moments Estimation of <span class="math inline">\((\alpha, \beta)\)</span></h2>
+<ul>
+<li>Suppose we observed <span class="math inline">\(\theta_1, \dots, \theta_{70} \sim \text{iid Beta}(\alpha, \beta)\)</span>.</li>
+<li>We know how the mean and variance of this distribution relate to <span class="math inline">\((\alpha, \beta)\)</span> <span class="math display">\[
+\begin{align*}
+\mathbb{E}[\theta_j] &amp;= \frac{\alpha}{\alpha + \beta}\\
+\text{Var}[\theta_j] &amp;= \frac{\alpha\beta}{(\alpha + \beta)^2(\alpha + \beta + 1)}
+\end{align*}
+\]</span></li>
+<li>Solving for <span class="math inline">\(\alpha\)</span> and <span class="math inline">\(\beta\)</span> gives <span class="math display">\[
+\begin{align*}
+\alpha &amp;= \mathbb{E}[\theta_j] \times \left(\frac{\mathbb{E}[\theta_j] \times (1 - \mathbb{E}[\theta_j])}{\text{Var}[\theta_j]} - 1\right)\\
+\beta &amp;= (1 - \mathbb{E}[\theta_j]) \times \left(\frac{\mathbb{E}[\theta_j] \times (1 - \mathbb{E}[\theta_j])}{\text{Var}[\theta_j]} - 1\right)
+\end{align*}
+\]</span></li>
+<li>Replace <span class="math inline">\(\mathbb{E}[\theta_j]\)</span> and <span class="math inline">\(\text{Var}[\theta_j]\)</span> with sample mean/variance <span class="math inline">\(\theta_j\)</span> to yield estimates <span class="math inline">\((\hat{\alpha}, \hat{\beta})\)</span>.</li>
+<li>Since <span class="math inline">\(\theta_j\)</span> unobserved, replace with <span class="math inline">\(\hat{\theta}_j = \frac{y_j}{N_j}\)</span>.</li>
+</ul>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> rats <span class="sc">|&gt;</span> </span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">slice_head</span>(<span class="at">n =</span> <span class="sc">-</span><span class="dv">1</span>) <span class="sc">|&gt;</span> </span>
@@ -3359,6 +3368,17 @@ f(\theta_1, \dots, \theta_{71}) = \int f(\theta_1, \dots, \theta_{71} | \phi) \t
 1.356149 8.615058 </code></pre>
 </div>
 </div>
+</section>
+<section id="initial-notes" class="level2">
+<h2 class="anchored" data-anchor-id="initial-notes">Initial notes</h2>
+<p>Some things to illustrate using the rats example:</p>
+<ol type="1">
+<li>Estimating the proportion for experiment 71 ignoring all the other experiments seems like a bad idea: surely they should tell us something. If we want to estimate all of the proportions from the different experiment, we can appeal to a James-Stein type idea to argue for shrinkage.</li>
+<li>What happens if we assume that experiments 1-70 are estimating the <em>same</em> parameter as experiment 71? In this case we’d have a very strong prior and basically ignore the data from the 71st experiment! This is a bad idea.</li>
+<li>A first attempt at using all the data would be to estimate a common Beta prior for all the parameters of each experiment, using data from experiments 1-70. A crude version of this ignores the fact that the parameters from experiments 1-70 are estimates rather than true parameter values.</li>
+<li>A more sophisticated version would be to try Empirical Bayes. Somewhere or other I have a link or reference to the Binomial version: it’s a bit trickier than the Poisson case. I guess there are really two options: NP Empirical Bayes or Parametric Empirical Bayes with a Beta-Binomial.</li>
+<li>Could then try the full-Bayes approach. There are at least two versions here. One would be to use an arcsine transformation so we can use normal theory. Another would be to do something that explicitly models the Beta distribution. Perhaps the one downside of the normal approximation here is that it wouldn’t fully illustrate how things work <em>in general</em> since we’d typically have means and variances that aren’t entagled as they are in a proportions problem.</li>
+</ol>
 </section>
 
 </main>

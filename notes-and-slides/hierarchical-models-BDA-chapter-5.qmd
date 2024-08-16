@@ -233,18 +233,25 @@ $$
 - **Idea**: treat *estimates* $\hat{\theta}_j$ as the *true* parameters $\theta_j$; use them to estimate $(\alpha, \beta)$.
 - In particular: set $\hat{\theta}_j = \frac{y_j}{N_j}$ and use the method of moments to estimate $(\alpha, \beta)$.
 
+## Method of Moments Estimation of $(\alpha, \beta)$
 
-
-## Initial notes
-
-Some things to illustrate using the rats example:
-
-1. Estimating the proportion for experiment 71 ignoring all the other experiments seems like a bad idea: surely they should tell us something. If we want to estimate all of the proportions from the different experiment, we can appeal to a James-Stein type idea to argue for shrinkage.
-1. What happens if we assume that experiments 1-70 are estimating the *same* parameter as experiment 71? In this case we'd have a very strong prior and basically ignore the data from the 71st experiment! This is a bad idea.
-1. A first attempt at using all the data would be to estimate a common Beta prior for all the parameters of each experiment, using data from experiments 1-70. A crude version of this ignores the fact that the parameters from experiments 1-70 are estimates rather than true parameter values.
-1. A more sophisticated version would be to try Empirical Bayes. Somewhere or other I have a link or reference to the Binomial version: it's a bit trickier than the Poisson case. I guess there are really two options: NP Empirical Bayes or Parametric Empirical Bayes with a Beta-Binomial.
-1. Could then try the full-Bayes approach. There are at least two versions here. One would be to use an arcsine transformation so we can use normal theory. Another would be to do something that explicitly models the Beta distribution. Perhaps the one downside of the normal approximation here is that it wouldn't fully illustrate how things work *in general* since we'd typically have means and variances that aren't entagled as they are in a proportions problem.
-
+- Suppose we observed $\theta_1, \dots, \theta_{70} \sim \text{iid Beta}(\alpha, \beta)$.
+- We know how the mean and variance of this distribution relate to $(\alpha, \beta)$
+$$
+\begin{align*}
+\mathbb{E}[\theta_j] &= \frac{\alpha}{\alpha + \beta}\\
+\text{Var}[\theta_j] &= \frac{\alpha\beta}{(\alpha + \beta)^2(\alpha + \beta + 1)}
+\end{align*}
+$$
+- Solving for $\alpha$ and $\beta$ gives
+$$
+\begin{align*}
+\alpha &= \mathbb{E}[\theta_j] \times \left(\frac{\mathbb{E}[\theta_j] \times (1 - \mathbb{E}[\theta_j])}{\text{Var}[\theta_j]} - 1\right)\\
+\beta &= (1 - \mathbb{E}[\theta_j]) \times \left(\frac{\mathbb{E}[\theta_j] \times (1 - \mathbb{E}[\theta_j])}{\text{Var}[\theta_j]} - 1\right)
+\end{align*}
+$$
+- Replace $\mathbb{E}[\theta_j]$ and $\text{Var}[\theta_j]$ with sample mean/variance $\theta_j$ to yield estimates $(\hat{\alpha}, \hat{\beta})$.
+- Since $\theta_j$ unobserved, replace with $\hat{\theta}_j = \frac{y_j}{N_j}$.
 
 ```{r}
 p <- rats |> 
@@ -281,4 +288,16 @@ a <- xbar * (xbar * (1 - xbar) / s_sq - 1)
 b <- (1 - xbar) * (xbar * (1 - xbar) / s_sq - 1)
 c(a = a, b = b)
 ```
+
+## Initial notes
+
+Some things to illustrate using the rats example:
+
+1. Estimating the proportion for experiment 71 ignoring all the other experiments seems like a bad idea: surely they should tell us something. If we want to estimate all of the proportions from the different experiment, we can appeal to a James-Stein type idea to argue for shrinkage.
+1. What happens if we assume that experiments 1-70 are estimating the *same* parameter as experiment 71? In this case we'd have a very strong prior and basically ignore the data from the 71st experiment! This is a bad idea.
+1. A first attempt at using all the data would be to estimate a common Beta prior for all the parameters of each experiment, using data from experiments 1-70. A crude version of this ignores the fact that the parameters from experiments 1-70 are estimates rather than true parameter values.
+1. A more sophisticated version would be to try Empirical Bayes. Somewhere or other I have a link or reference to the Binomial version: it's a bit trickier than the Poisson case. I guess there are really two options: NP Empirical Bayes or Parametric Empirical Bayes with a Beta-Binomial.
+1. Could then try the full-Bayes approach. There are at least two versions here. One would be to use an arcsine transformation so we can use normal theory. Another would be to do something that explicitly models the Beta distribution. Perhaps the one downside of the normal approximation here is that it wouldn't fully illustrate how things work *in general* since we'd typically have means and variances that aren't entagled as they are in a proportions problem.
+
+
 
