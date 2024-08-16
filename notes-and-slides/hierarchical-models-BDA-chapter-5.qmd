@@ -1,0 +1,284 @@
+---
+title: "Hierarchical Models - BDA Chapter 5"
+format: 
+  html:
+    embed-resources: true
+---
+
+
+## Rats Dataset
+
+- Example based on Gelman et al. (2013) "Bayesian Data Analysis" Chapter 5.
+- 71 experiments on rats, each with a different number of subjects. 
+- Each experiment has a control group and a treatment group.
+- We have data from the *control group* for each experiment.
+- Observe number of rats in each experiment and number that develop a tumor.
+- Goal is to estimate the incidence of tumors in rats from 71 experiments.
+- Could be any binary outcome, e.g. success/failure, yes/no, etc.
+
+```{r}
+#| message: false
+#| warning: false
+library(tidyverse)
+rats_url <- "http://www.stat.columbia.edu/~gelman/book/data/rats.asc"
+rats <- read.table(rats_url, header = TRUE, skip = 2) |> 
+  as_tibble() 
+
+rats
+```
+
+## Consider the 71st experiment
+How should we estimate the incidence of tumors for this experiment?
+```{r}
+rats |> 
+  slice_tail(n = 1)
+```
+
+### Textbook Frequentist Approach
+$$
+\hat{\theta}_{71} = \frac{y_{71}}{N_{71}} = \frac{4}{14} \approx 0.29, \quad \text{SE}(\hat{\theta}_{71}) = \sqrt{\frac{\hat{\theta}_{71}(1 - \hat{\theta}_{71})}{N_{71}}} \approx 0.12
+$$
+
+- Approximate 95\% confidence interval is $0.29 \pm 2 \times 0.12$ or $[0.05, 0.53]$.
+- Very small sample size; Frequentist asymptotics [can be unreliable]()
+- Completely ignores information from the other 70 experiments!
+
+## Quick Review of Beta$(\alpha, \beta)$ Distribution 
+- Continuous RV;  support set $[0, 1]$; wide range of shapes
+- $X \sim \text{Beta}(\alpha, \beta) \iff f(x| \alpha, \beta) \propto x^{\alpha - 1}(1 - x)^{\beta - 1}$ 
+- $\text{Uniform}(0, 1)$ is a special case: $\text{Beta}(1, 1)$
+$$
+\begin{align*}
+\mathbb{E}[X] &= \frac{\alpha}{\alpha + \beta}\\
+\text{Mode}(X) &= \frac{\alpha - 1}{\alpha + \beta - 2} \quad \text{for } \alpha, \beta > 1\\
+\text{Var}(X) &= \frac{\alpha\beta}{(\alpha + \beta)^2(\alpha + \beta + 1)}
+\end{align*}
+$$
+
+```{r}
+plot_beta_examples <- function(alpha, beta, legend_pos = 'topright') {
+  x <- seq(from = 0.01, to = 0.99, length.out = 500)
+  fx <- map2(alpha, beta, \(a, b) dbeta(x, a, b)) |> 
+    reduce(cbind) 
+  matplot(x, fx, type = 'l', lwd = 3, xlab = 'x', ylab = 'f(x)')
+  my_legend <- map2_chr(alpha, beta, \(x, y) paste0('Beta(', x, ', ', y, ')'))
+  legend(legend_pos, legend = my_legend, lty = 1:4, lwd = 2, col = 1:4)
+}
+
+plot_beta_examples(alpha = c(4, 2, 1, 0.5), 
+                    beta = c(4, 2, 1, 0.5))
+
+plot_beta_examples(alpha = c(0.5, 1, 2), 
+                    beta = c(1,   2, 8))
+
+plot_beta_examples(alpha = c(1,   2, 8),
+                    beta = c(0.5, 1, 2), 'topleft')
+```
+
+
+
+## Textbook Bayesian Inference for a Proportion $\theta$
+- **Likelihood**: $y|\theta \sim \text{Binomial}(N, \theta)$ 
+- **Prior**: $\theta \sim \text{Beta}(\alpha, \beta)$
+ 
+
+$$
+\begin{aligned}
+\text{Posterior} &\propto \text{Likelihood} \times \text{Prior} \\
+f(\theta | y) &\propto f(y | \theta) \times f(\theta) \\
+&\propto \left[\theta^y (1 - \theta)^{N - y}\right] \times \left[\theta^{\alpha - 1} (1 - \theta)^{\beta - 1}\right] \\
+&\propto \theta^{y + \alpha - 1} (1 - \theta)^{N - y + \beta- 1}
+\end{aligned}
+$$
+
+- **Posterior**: $\theta | y \sim \text{Beta}(y + \alpha, N - y + \beta)$.
+- **Posterior Mean**: $\frac{y + \alpha}{N + \alpha + \beta}$
+
+## Experiment \# 71
+- $N_{71} = 14$; $y_{71} = 4$
+- **Posterior**: $\theta \sim \text{Beta}(4 + \alpha, 10 + \beta)$,  **Posterior Mean**: $\hat{\theta}_{71} = \frac{4 + \alpha}{14 + \alpha + \beta}$
+- I don't know much about rats and tumors so I'm not sure what $\alpha$ and $\beta$ to use...
+
+
+```{r}
+library(HDInterval)
+
+plot_prior_to_posterior <- function(y, N, alpha, beta) {
+  a <- y + alpha
+  b <- N - y + beta
+  
+  theta <- seq(from = 0.01, to = 0.99, length.out = 500)
+  prior <- dbeta(theta, alpha, beta)
+  posterior <- dbeta(theta, a, b) 
+  
+  matplot(theta, cbind(prior, posterior), type = 'l', lwd = 2, 
+          col = c('blue', 'red'), xlab = expression(theta), ylab = 'Density')
+  legend('topright', legend = c('Prior', 'Posterior'), lty = 1, lwd = 2, 
+         col = c('blue', 'red'))
+  
+  posterior_mean <- a / (a + b) 
+  hdi_95 <- hdi(qbeta, shape1 = a, shape2 = b, credMass = 0.95)
+  mytext <- paste0('Posterior Mean: ', round(posterior_mean, 2), 
+         '\n95% HPDI: [', round(hdi_95[1], 2), ', ', round(hdi_95[2], 2), ']')
+  text(0.5, 0.5 * max(max(prior), max(posterior)), mytext, adj = 0, 
+       cex = 1.2, col = 'black')
+}
+
+plot_prior_to_posterior(y = 4, N = 14, alpha = 1, beta = 1)
+plot_prior_to_posterior(y = 4, N = 14, alpha = 1, beta = 2)
+plot_prior_to_posterior(y = 4, N = 14, alpha = 2, beta = 8)
+plot_prior_to_posterior(y = 4, N = 14, alpha = 0.5, beta = 1)
+```
+
+## How can we do better?
+- Results aren't too sensitive to reasonable choices of $\alpha$ and $\beta$.
+- But we're still quite uncertain about the true value of $\theta_{71}$!
+- **Idea**: use data from other 70 experiments to inform our prior for the 71st.
+
+
+## First Idea: Pooling Data
+
+- Suppose that the *true* incidence of tumors in rats is the same across all experiments. 
+- Then it would make sense to *pool* the data to estimate $\theta_{71}$
+- One way to think of this: pool the data from experiments 1-70 to "estimate" a prior for experiment 71.
+- Then proceed as before. 
+- Equivalent way to think about it: pool all 71 experiments to learn about the true incidence of tumors in rats.
+
+## A Pooled Prior from Experiments 1-70
+```{r}
+#| echo: false
+y_1_to_70 <- rats |> 
+  slice_head(n = -1) |> 
+  pull(y) |> 
+  sum()
+
+N_1_to_70 <- rats |> 
+  slice_head(n = -1) |> 
+  pull(N) |> 
+  sum()
+```
+
+- **Prior**: $\theta \sim \text{Beta}(\alpha, \beta)$
+- **Likelihood**: $y_{j} | \theta \sim \text{indep. Binomial}(N_j, \theta)$
+- **Equivalently**: $\sum y_j |\theta \sim \text{Binomial}\left(\sum N_j, \theta\right)$
+- **Posterior**: $\theta | \sum y_j \sim \text{Beta}\left(\sum y_j + \alpha, \sum N_j - \sum y_j + \beta\right)$
+- $\sum y_j=$ `r y_1_to_70` and $N_j=$ `r N_1_to_70` for experiments 1-70, so $\alpha$ and $\beta$ will barely matter
+- For simplicity: $\alpha = \beta = 1 \implies \theta | (y_1, \dots y_{70}) \sim \text{Beta}(264, 1463)$
+
+## Inference for Experiment 71 using Pooled Prior
+
+```{r}
+plot_prior_to_posterior(y = 4, N = 14, alpha = 264, beta = 1463)
+```
+
+- Very precise inference for $\theta_{71}$
+- But the data from Experiment 71 is basically ignored!
+- Swamped by the prior constructed from experiments 1-70.
+- Feature or bug?
+  - Feature if we *really believe* same $\theta$ for all experiments
+  - Bug if we think $\theta$ might vary across experiments
+  
+  
+## Better Idea: Hierarchical Model
+
+- Rather than a single $\theta$ for all experiments, allow a different one $\theta_j$ for each.
+- Treat $(\theta_1, \theta_2, \dots, \theta_{70})$ as draws from a *common distribution* 
+$$
+\theta_j | \alpha, \beta \sim \text{independent Beta}(\alpha, \beta)\quad \text{for } j = 1, 2, \dots, 71
+$$
+- Conditional on $(\alpha, \beta)$ the parameters $\theta_1, \dots, \theta_{71}$ are independent
+- Known $(\alpha, \beta) \implies$ no extra information about $\theta_{71}$ from other experiments 
+- Unconditionally, the parameters $\theta_1, \dots, \theta_{71}$ are *dependent*
+- Unknown $(\alpha, \beta) \implies$ other experiments *indirectly* inform us about $\theta_{71}$ through the info they provide about $(\alpha, \beta)$.
+
+## Exchangeability
+
+- **Recall**: unconditionally, the parameters $\theta_1, \dots, \theta_{71}$ are *dependent*
+- But because they come from a *common distribution* they are *identically distributed*.
+- In fact we can say more: they are **exchangeable**: the joint distribution of $(\theta_1, \dots, \theta_{71})$ is invariant to permutations of the indices (c.f. *strong stationarity* in time series)
+- Using the shorthand $\phi$ for $(\alpha, \beta)$, the *conditional* joint distribution of the $\theta_j$ is
+$$
+f(\theta_1, \dots, \theta_{71} | \phi) = f(\theta_1 | \phi) \times \dots \times f(\theta_{71} | \phi) = \prod_{j = 1}^{J} f(\theta_j | \phi)
+$$
+- By the law of total probability, *unconditional* joint distribution is 
+$$
+f(\theta_1, \dots, \theta_{71}) = \int f(\theta_1, \dots, \theta_{71} | \phi) \times f(\phi) d\phi = \int \left[\prod_{j = 1}^{J} f(\theta_j | \phi) \times f(\phi)\right] d\phi
+$$
+- Joint distribution of the $\theta_j$ is a *mixture* iid conditional distributions $f(\theta_j | \phi)$, with mixing distribution $f(\phi)$.
+
+## What does exchangeability mean in practice?
+
+- A kind of "symmetry" between the experiments
+- They're different, but we don't know *how* they're different
+- E.g.\ the experimental conditions may vary but we *don't know* for example, that experiments 1-10 were performed in Lab A and experiments 11-28 in Lab B.
+- If we know more about the experiments, exchangeability would be violated.
+- But in that case we could use the extra information to build an *even better model* in which exchangeability holds after we condition on what we know.
+- This is a bit subtle, but is discussed in some detail in Meager (2019).
+
+
+## The Challenge: $\theta_1, \dots, \theta_{71}$ are *unobserved*
+
+- **Unobserved**: $\theta_j | \alpha, \beta \sim \text{independent Beta}(\alpha, \beta)$
+- **Observed**: $y_j | \theta_j \sim \text{independent Binomial}(N_j, \theta_j)$
+- We want to infer $\theta_{71}$, but we don't know $\alpha$ and $\beta$.
+- Other experiments contain information about $\alpha$ and $\beta$ but don't know $\theta_1, \dots, \theta_{70}$ either! 
+- Somehow we need to *infer* $(\alpha, \beta)$ from the observed data and then use them to infer $\theta_{71}$.
+- Start with a simple and intuitive idea that is *slightly wrong* but gets the idea across.
+- After that I'll show you how to do things the right way!
+
+## A Crude Approximation
+
+- **Unobserved**: $\theta_j | \alpha, \beta \sim \text{independent Beta}(\alpha, \beta)$
+- **Observed**: $y_j | \theta_j \sim \text{independent Binomial}(N_j, \theta_j)$
+- **Idea**: treat *estimates* $\hat{\theta}_j$ as the *true* parameters $\theta_j$; use them to estimate $(\alpha, \beta)$.
+- In particular: set $\hat{\theta}_j = \frac{y_j}{N_j}$ and use the method of moments to estimate $(\alpha, \beta)$.
+
+
+
+## Initial notes
+
+Some things to illustrate using the rats example:
+
+1. Estimating the proportion for experiment 71 ignoring all the other experiments seems like a bad idea: surely they should tell us something. If we want to estimate all of the proportions from the different experiment, we can appeal to a James-Stein type idea to argue for shrinkage.
+1. What happens if we assume that experiments 1-70 are estimating the *same* parameter as experiment 71? In this case we'd have a very strong prior and basically ignore the data from the 71st experiment! This is a bad idea.
+1. A first attempt at using all the data would be to estimate a common Beta prior for all the parameters of each experiment, using data from experiments 1-70. A crude version of this ignores the fact that the parameters from experiments 1-70 are estimates rather than true parameter values.
+1. A more sophisticated version would be to try Empirical Bayes. Somewhere or other I have a link or reference to the Binomial version: it's a bit trickier than the Poisson case. I guess there are really two options: NP Empirical Bayes or Parametric Empirical Bayes with a Beta-Binomial.
+1. Could then try the full-Bayes approach. There are at least two versions here. One would be to use an arcsine transformation so we can use normal theory. Another would be to do something that explicitly models the Beta distribution. Perhaps the one downside of the normal approximation here is that it wouldn't fully illustrate how things work *in general* since we'd typically have means and variances that aren't entagled as they are in a proportions problem.
+
+
+```{r}
+p <- rats |> 
+  slice_head(n = -1) |> 
+  mutate(p = y / N) |> 
+  pull(p)
+
+p_pooled <- rats |> 
+  slice_head(n = -1) |> 
+  summarize(y = sum(y), N = sum(N)) |> 
+  mutate(p = y / N) |> 
+  pull(p)
+
+hist(p, main = 'Point Estimates from Experiments 1-70')
+abline(v = p_pooled, col = 'red', lty = 2, lwd = 2)
+
+#------------------------------------------------------------------------------
+# "Crude" estimate of parameters of Beta distribution for experiments 1-70
+# treating each sample proportion as the population parameter for that 
+# experiment, i.e. ignoring sampling variability. Computed by matching moments
+# of a Beta(a, b) distribution: 
+#
+# mean = a / (a + b)
+# variance = ab / ((a + b)^2 * (a + b + 1))
+#
+# Solving for a and b gives (see e.g. Forbes et al. 2011)
+#
+# a = mean * (mean * (1 - mean) / var - 1)
+# b = (1 - mean) * (mean * (1 - mean) / var - 1)
+#------------------------------------------------------------------------------
+xbar <- mean(p)
+s_sq <- var(p)
+a <- xbar * (xbar * (1 - xbar) / s_sq - 1)
+b <- (1 - xbar) * (xbar * (1 - xbar) / s_sq - 1)
+c(a = a, b = b)
+```
+
