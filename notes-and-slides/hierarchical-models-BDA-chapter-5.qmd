@@ -45,6 +45,7 @@ $$
 
 ## Quick Review of Beta$(\alpha, \beta)$ Distribution 
 - Continuous RV;  support set $[0, 1]$; wide range of shapes
+- Parameters: $\alpha, \beta > 0$
 - $X \sim \text{Beta}(\alpha, \beta) \iff f(x| \alpha, \beta) \propto x^{\alpha - 1}(1 - x)^{\beta - 1}$ 
 - $\text{Uniform}(0, 1)$ is a special case: $\text{Beta}(1, 1)$
 $$
@@ -57,7 +58,7 @@ $$
 
 ```{r}
 plot_beta_examples <- function(alpha, beta, legend_pos = 'topright') {
-  x <- seq(from = 0.01, to = 0.99, length.out = 500)
+  x <- seq(from = 0.005, to = 0.995, length.out = 500)
   fx <- map2(alpha, beta, \(a, b) dbeta(x, a, b)) |> 
     reduce(cbind) 
   matplot(x, fx, type = 'l', lwd = 3, xlab = 'x', ylab = 'f(x)')
@@ -107,7 +108,7 @@ plot_prior_to_posterior <- function(y, N, alpha, beta) {
   a <- y + alpha
   b <- N - y + beta
   
-  theta <- seq(from = 0.01, to = 0.99, length.out = 500)
+  theta <- seq(from = 0.005, to = 0.995, length.out = 500)
   prior <- dbeta(theta, alpha, beta)
   posterior <- dbeta(theta, a, b) 
   
@@ -196,15 +197,6 @@ $$
 - **Recall**: unconditionally, the parameters $\theta_1, \dots, \theta_{71}$ are *dependent*
 - But because they come from a *common distribution* they are *identically distributed*.
 - In fact we can say more: they are **exchangeable**: the joint distribution of $(\theta_1, \dots, \theta_{71})$ is invariant to permutations of the indices (c.f. *strong stationarity* in time series)
-- Using the shorthand $\phi$ for $(\alpha, \beta)$, the *conditional* joint distribution of the $\theta_j$ is
-$$
-f(\theta_1, \dots, \theta_{71} | \phi) = f(\theta_1 | \phi) \times \dots \times f(\theta_{71} | \phi) = \prod_{j = 1}^{J} f(\theta_j | \phi)
-$$
-- By the law of total probability, *unconditional* joint distribution is 
-$$
-f(\theta_1, \dots, \theta_{71}) = \int f(\theta_1, \dots, \theta_{71} | \phi) \times f(\phi) d\phi = \int \left[\prod_{j = 1}^{J} f(\theta_j | \phi) \times f(\phi)\right] d\phi
-$$
-- Joint distribution of the $\theta_j$ is a *mixture* iid conditional distributions $f(\theta_j | \phi)$, with mixing distribution $f(\phi)$.
 
 ## What does exchangeability mean in practice?
 
@@ -254,40 +246,82 @@ $$
 - Since $\theta_j$ unobserved, replace with $\hat{\theta}_j = \frac{y_j}{N_j}$.
 
 ```{r}
-p <- rats |> 
+# Estimates of theta for experiments 1-70
+theta_hat <- rats |> 
   slice_head(n = -1) |> 
   mutate(p = y / N) |> 
   pull(p)
 
-p_pooled <- rats |> 
-  slice_head(n = -1) |> 
-  summarize(y = sum(y), N = sum(N)) |> 
-  mutate(p = y / N) |> 
-  pull(p)
+# Histogram of estimates
+hist(theta_hat, main = 'Estimates from Experiments 1-70', 
+     xlab = expression(hat(theta)), ylab = 'Frequency', col = 'lightblue')
 
-hist(p, main = 'Point Estimates from Experiments 1-70')
-abline(v = p_pooled, col = 'red', lty = 2, lwd = 2)
+# Method of moments estimates of alpha and beta based on experiments 1-70
+theta_mean <- mean(theta_hat)
+theta_var <- var(theta_hat)
+alpha_hat <- theta_mean * (theta_mean * (1 - theta_mean) / theta_var - 1)
+beta_hat <- (1 - theta_mean) * (theta_mean * (1 - theta_mean) / theta_var - 1)
+c(alpha = alpha_hat, beta = beta_hat)
 
-#------------------------------------------------------------------------------
-# "Crude" estimate of parameters of Beta distribution for experiments 1-70
-# treating each sample proportion as the population parameter for that 
-# experiment, i.e. ignoring sampling variability. Computed by matching moments
-# of a Beta(a, b) distribution: 
-#
-# mean = a / (a + b)
-# variance = ab / ((a + b)^2 * (a + b + 1))
-#
-# Solving for a and b gives (see e.g. Forbes et al. 2011)
-#
-# a = mean * (mean * (1 - mean) / var - 1)
-# b = (1 - mean) * (mean * (1 - mean) / var - 1)
-#------------------------------------------------------------------------------
-xbar <- mean(p)
-s_sq <- var(p)
-a <- xbar * (xbar * (1 - xbar) / s_sq - 1)
-b <- (1 - xbar) * (xbar * (1 - xbar) / s_sq - 1)
-c(a = a, b = b)
+# Bayesian Posterior for theta_71 using alpha_hat and beta_hat
+plot_prior_to_posterior(y = 4, N = 14, alpha = alpha_hat, beta = beta_hat)
+title(main = 'Prior from Experiments 1-70: Exchangeable Thetas')
+
+# Contrast with "vague" prior: alpha = beta = 1
+plot_prior_to_posterior(y = 4, N = 14, alpha = 1, beta = 1) 
+title(main = 'Beta(1, 1) Prior')
+
+# Contrast with full pooling
+plot_prior_to_posterior(y = 4, N = 14, alpha = 264, beta = 1463)
+title(main = 'Prior from Expreiments 1-70: Same Theta')
 ```
+
+## Lessons from the Crude Approximation
+- "No Pooling" prior: $\text{Beta}(1, 1)$ 
+  - Gives 71st experiment **too much weight** when estimating $\theta_{71}$
+  - Completely ignores the other 70 experiments!
+  - High variance; tiny bias 
+- "Full Pooling" prior: same $\theta$ for all experiments 
+  - Gives 71st experiment **too little weight** when estimating $\theta_{71}$
+  - Almost completely ignores data from 71st experiment!
+  - Tiny variance; large bias
+- "Partial Pooling" prior: assumes $\theta_j|(\alpha, \beta) \sim \text{indep Beta}(\alpha, \beta)$ 
+  - **strikes a balance** between the full and partial pooling
+  - Uses data from all 71 experiments to estimate $\theta_{71}$
+  - Low variance; low bias
+  
+  
+## Problems with the Crude Approximation
+
+- Ignores the fact that $\theta_j$ are *estimates* rather than true parameters.
+- As such, *understates* our true uncertainty about $(\alpha, \beta)$.
+- Ignores uncertainty in estimates of $(\alpha, \beta)$ as well: just plugs in estimates
+- What if we wanted to estimate *each* of the $\theta_j$ simultaneously? 
+- Shouldn't re-use the same data twice: need to re-estimate $(\alpha, \beta)$ for each $\theta_j$, data from experiments *besides* $j$.
+
+## A Fully Bayesian Hierarchical Model
+
+- Always start by writing down a full, generative probabilistic model!
+- Using the shorthand $\phi$ for $(\alpha, \beta)$, the *conditional* joint distribution of the $\theta_j$ is
+$$
+f(\theta_1, \dots, \theta_{71} | \phi) = f(\theta_1 | \phi) \times \dots \times f(\theta_{71} | \phi) = \prod_{j = 1}^{J} f(\theta_j | \phi)
+$$
+- By the law of total probability, *unconditional* joint distribution is 
+$$
+f(\theta_1, \dots, \theta_{71}) = \int f(\theta_1, \dots, \theta_{71} | \phi) \times f(\phi) d\phi = \int \left[\prod_{j = 1}^{J} f(\theta_j | \phi) \times f(\phi)\right] d\phi
+$$
+- Joint distribution of the $\theta_j$ is a *mixture* iid conditional distributions $f(\theta_j | \phi)$, with mixing distribution $f(\phi)$.
+
+## Things to add
+- Explain the full model: need a **hyperprior**
+- Explain how it's easy to simulate *forwards* from the model
+- Bayes does the reverse; this is harder and we'll use Monte-Carlo methods
+- standard exponential priors for $\alpha$ and $\beta$ should work
+- Show them the sense in which this is a vague prior; maybe simulate it forwards using the observe values of $N_j$.
+- Show a STAN implementation but don't get bogged down in the syntax
+- Make a version of figure 5.4 from Gelman and possibly Figure 5.3 as well
+
+
 
 ## Initial notes
 
