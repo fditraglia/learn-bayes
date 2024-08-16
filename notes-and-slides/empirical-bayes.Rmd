@@ -5,6 +5,12 @@ date: '2022-06-29'
 output: html_document
 ---
 
+
+# NBER 2022 Summer Institute Lectures
+
+1. <https://www.nber.org/lecture/2022-summer-institute-methods-lectures-empirical-bayes-methods-theory-and-application>
+2. <https://www.nber.org/lecture/2022-methods-lecture-christopher-walters-empirical-bayes-applications>
+
 # Robbins' Formula
 
 Come up with a story to go along with this. Efron & Hastie (2016) use insurance claims. Maybe I can come up with something better. (Hiring academics based on the number of papers published over the past $k$ years? Or granting tenure based on output in the past 7 years, treated as an attempt to predict the next 7 years?)
