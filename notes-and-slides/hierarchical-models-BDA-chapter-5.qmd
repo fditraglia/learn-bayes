@@ -5,6 +5,10 @@ format:
     embed-resources: true
 ---
 
+## What is this?
+- A lightning introduction to Hierarchical Bayesian Models
+- Draws from Chapter 5 of Gelman et al. (2013) "Bayesian Data Analysis" and Chapter 17 of Lambert (2018) "A Student's Guide to Bayesian Statistics" along with [this example](https://mc-stan.org/users/documentation/case-studies/pool-binary-trials.html)
+- See also McElreath (2020) "Statistical Rethinking" 
 
 ## Rats Dataset
 
@@ -206,6 +210,8 @@ $$
 - If we know more about the experiments, exchangeability would be violated.
 - But in that case we could use the extra information to build an *even better model* in which exchangeability holds after we condition on what we know.
 - This is a bit subtle, but is discussed in some detail in Meager (2019).
+- Another example: suppose we have 71 *polls* carried out over time. If there are trends in public opinion, the polls are not exchangeable.
+- But after estimating a *trend* in public opinion, the *residuals* from the trend might be exchangeable.
 
 
 ## The Challenge: $\theta_1, \dots, \theta_{71}$ are *unobserved*
@@ -254,7 +260,9 @@ theta_hat <- rats |>
 
 # Histogram of estimates
 hist(theta_hat, main = 'Estimates from Experiments 1-70', 
-     xlab = expression(hat(theta)), ylab = 'Frequency', col = 'lightblue')
+     xlab = expression(hat(theta)), ylab = 'Density', 
+     col = 'lightblue', freq = TRUE)
+rug(theta_hat)
 
 # Method of moments estimates of alpha and beta based on experiments 1-70
 theta_mean <- mean(theta_hat)
@@ -262,6 +270,7 @@ theta_var <- var(theta_hat)
 alpha_hat <- theta_mean * (theta_mean * (1 - theta_mean) / theta_var - 1)
 beta_hat <- (1 - theta_mean) * (theta_mean * (1 - theta_mean) / theta_var - 1)
 c(alpha = alpha_hat, beta = beta_hat)
+
 
 # Bayesian Posterior for theta_71 using alpha_hat and beta_hat
 plot_prior_to_posterior(y = 4, N = 14, alpha = alpha_hat, beta = beta_hat)
@@ -314,26 +323,21 @@ f(\theta_1, \dots, \theta_{71}) = \int f(\theta_1, \dots, \theta_{71} | \phi) \t
 $$
 - Joint distribution of the $\theta_j$ is a *mixture* iid conditional distributions $f(\theta_j | \phi)$, with mixing distribution $f(\phi)$.
 
+## Computing
+- Rather than programming everything from scratch, use a **Probabilistic Programming Language** (PPL)
+- I'll use STAN; other options include PyMC3 and Turing
+- Specify model *structure* at a high level; rely on PPL to translate this into efficient code for drawing from the posterior 
+- We'll have a future session on this.
+
 ## Things to add
 - Explain the full model: need a **hyperprior**
 - Explain how it's easy to simulate *forwards* from the model
 - Bayes does the reverse; this is harder and we'll use Monte-Carlo methods
-- standard exponential priors for $\alpha$ and $\beta$ should work
+- The choice of priors here is a bit tricky. See this [example](https://mc-stan.org/users/documentation/case-studies/pool-binary-trials.html). 
+- To match the example in the book we could set $\alpha = \kappa \phi$ and $\beta = \kappa(1 - \phi)$ and them place a uniform distribution on $\phi$ and a Pareto(1, 1.5) distribution on $\kappa$. 
+- But there's a potential issue here with centered versus non-centered parameterizations in HMC. So an alternative is to work on the logit scale and then use normal priors, in which case we can use the standard trick with non-centered parameterizations.
 - Show them the sense in which this is a vague prior; maybe simulate it forwards using the observe values of $N_j$.
 - Show a STAN implementation but don't get bogged down in the syntax
 - Make a version of figure 5.4 from Gelman and possibly Figure 5.3 as well
-
-
-
-## Initial notes
-
-Some things to illustrate using the rats example:
-
-1. Estimating the proportion for experiment 71 ignoring all the other experiments seems like a bad idea: surely they should tell us something. If we want to estimate all of the proportions from the different experiment, we can appeal to a James-Stein type idea to argue for shrinkage.
-1. What happens if we assume that experiments 1-70 are estimating the *same* parameter as experiment 71? In this case we'd have a very strong prior and basically ignore the data from the 71st experiment! This is a bad idea.
-1. A first attempt at using all the data would be to estimate a common Beta prior for all the parameters of each experiment, using data from experiments 1-70. A crude version of this ignores the fact that the parameters from experiments 1-70 are estimates rather than true parameter values.
-1. A more sophisticated version would be to try Empirical Bayes. Somewhere or other I have a link or reference to the Binomial version: it's a bit trickier than the Poisson case. I guess there are really two options: NP Empirical Bayes or Parametric Empirical Bayes with a Beta-Binomial.
-1. Could then try the full-Bayes approach. There are at least two versions here. One would be to use an arcsine transformation so we can use normal theory. Another would be to do something that explicitly models the Beta distribution. Perhaps the one downside of the normal approximation here is that it wouldn't fully illustrate how things work *in general* since we'd typically have means and variances that aren't entagled as they are in a proportions problem.
-
 
 
