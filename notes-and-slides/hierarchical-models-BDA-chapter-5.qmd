@@ -330,6 +330,10 @@ $$
 - We'll have a future session on this.
 
 
+## Visualizing the Hyper-prior
+
+
+## Sample from the posterior using STAN
 ```{r}
 #| message: false
 #| warning: false
@@ -350,6 +354,9 @@ HB_beta_binomial_fit <- HB_beta_binomial$sample(
 HB_beta_binomial_fit$summary() |> 
   knitr::kable(digits = 3)
 ```
+
+
+## Display the posterior mean for $\theta_j$
 
 ```{r}
 #| message: false
@@ -387,17 +394,38 @@ ggplot(Theta_results_jittered, aes(x = MLE_jittered, y = mean)) +
 
 ```
 
-```{r}
-# Simulation showing how to get posterior inference for theta_71 "by hand"
-# In particular:
-# 1. Draw a sample from the posterior for alpha, beta
-# 2. For each draw, draw a sample from the posterior for theta_71 using the *exact* formula: theta_71 ~ Beta(y_71 + alpha, N_71 - y_71 + beta)
-# 3. Plot the posterior for theta_71 and compare to the result from STAN as well as the crude approximation
+## Display the posterior for $(\alpha, \beta)$
 
+
+## Simulation showing how to get posterior inference for $\theta_{71}$ "by hand"
+ 
+1. Draw a sample from the posterior for alpha, beta
+2. For each draw, draw a sample from the posterior for theta_71 using the *exact* formula: theta_71 ~ Beta(y_71 + alpha, N_71 - y_71 + beta)
+3. Plot the posterior for theta_71 and compare to the result from STAN as well as the crude approximation
+
+```{r}
 # Extract posterior draws for alpha and beta from STAN output
 library(posterior)
 alpha_beta_draws <- HB_beta_binomial_fit$draws(c('a', 'b')) |> 
   as_draws_df()
+
+y_71 <- rats$y[71]
+N_71 <- rats$N[71]
+
+theta_71_sims_HB <- alpha_beta_draws |> 
+  mutate(theta_71 = rbeta(n(), a + y_71, b + N_71 - y_71))
+
+theta_71_crude <- tibble(x = seq(0, 0.6, length.out = 500), 
+                         y = dbeta(x, alpha_hat + y_71, beta_hat + N_71 - y_71))
+
+
+theta_71_sims_HB |>
+  ggplot(aes(x = theta_71)) +
+  geom_density() +
+  geom_vline(xintercept = mean(rats$y[71] / rats$N[71]),) +
+  labs(title = 'Posterior for Theta_71', x = expression(theta[71]), y = 'Density') +
+  theme_minimal() + 
+  geom_line(data = theta_71_crude, aes(x = x, y = y), color = 'red', linetype = 'dashed') 
 ```
 
 
