@@ -329,6 +329,88 @@ $$
 - Specify model *structure* at a high level; rely on PPL to translate this into efficient code for drawing from the posterior 
 - We'll have a future session on this.
 
+
+```{r}
+#| message: false
+#| warning: false
+library(cmdstanr)
+
+filedir <- '~/learn-bayes/STAN-examples/hierarchical-beta-binomial.stan'
+HB_beta_binomial <- cmdstan_model(filedir)
+HB_beta_binomial$print()
+
+HB_beta_binomial_fit <- HB_beta_binomial$sample(
+  data = list(Y = rats$y, N = rats$N, J = nrow(rats)),
+  seed = 123,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500
+)
+
+HB_beta_binomial_fit$summary() |> 
+  knitr::kable(digits = 3)
+```
+
+```{r}
+#| message: false
+# compute the posterior mean for all elements of Theta and append them to rats
+Theta_posterior <- HB_beta_binomial_fit$summary() |>  
+  as_tibble() |> 
+  select(variable, mean, q5, q95) |> 
+  filter(str_detect(variable, 'Theta'))
+
+Theta_results <- rats |>
+  bind_cols(Theta_posterior) |> 
+  mutate(MLE = y / N)
+
+# Make a ggplot with MLE on the x-axis, mean on the y-axis, and confidence 
+# "whiskers" constructed from q5 and q95: note the overplotting!
+ggplot(Theta_results, aes(x = MLE, y = mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = q5, ymax = q95), width = 0.001) +
+  geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
+  labs(x = 'MLE', y = 'Posterior Mean', title = 'Raw vs Adjusted Estimates') +
+  theme_minimal()
+
+# Add jitter to the data
+set.seed(123)  # for reproducibility
+Theta_results_jittered <- Theta_results |> 
+  mutate(MLE_jittered = MLE + runif(n(), -0.002, 0.002))
+
+# Now plot with the jittered x-values
+ggplot(Theta_results_jittered, aes(x = MLE_jittered, y = mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = q5, ymax = q95), width = 0.001) +
+  geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
+  labs(x = 'MLE', y = 'Posterior Mean', title = 'Raw vs Adjusted Estimates') +
+  theme_minimal()
+
+```
+
+```{r}
+# Simulation showing how to get posterior inference for theta_71 "by hand"
+# In particular:
+# 1. Draw a sample from the posterior for alpha, beta
+# 2. For each draw, draw a sample from the posterior for theta_71 using the *exact* formula: theta_71 ~ Beta(y_71 + alpha, N_71 - y_71 + beta)
+# 3. Plot the posterior for theta_71 and compare to the result from STAN as well as the crude approximation
+
+# Extract posterior draws for alpha and beta from STAN output
+library(posterior)
+alpha_beta_draws <- HB_beta_binomial_fit$draws(c('a', 'b')) |> 
+  as_draws_df()
+```
+
+
+
+## Exercises / Exhibits to add
+
+- Make a picture showing the "raw" and "adjusted" estimates from each experiment
+- Use simulation to explain the re-parameterization of the hyperprior
+- How does the posterior for $\alpha, \beta$ compare to our "crude" approximation?
+- Show how to use the posterior for $(\alpha, \beta)$ to get inference for $\theta_{71}$ "by hand" as in Gelman's example.
+- Show how to generate predictions for a *new experiment* using the posterior for $(\alpha, \beta)$
+
+
 ## Things to add
 - Explain the full model: need a **hyperprior**
 - Explain how it's easy to simulate *forwards* from the model
