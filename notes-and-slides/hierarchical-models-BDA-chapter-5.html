@@ -3404,24 +3404,73 @@ f(\theta | y) &amp;\propto f(y | \theta) \times f(\theta) \\
 <ul>
 <li>Ignores the fact that <span class="math inline">\(\theta_j\)</span> are <em>estimates</em> rather than true parameters.</li>
 <li>As such, <em>understates</em> our true uncertainty about <span class="math inline">\((\alpha, \beta)\)</span>.</li>
-<li>Method of moments formulas assume that <span class="math inline">\(\hat{\theta}_j\)</span> are draws from a Beta distribution but they’re not!</li>
-<li>E.g. several of the <span class="math inline">\(\hat{\theta}_j\)</span> are <em>exactly</em> zero but the Beta distribution is continuous!</li>
+<li>Method of moments assums <span class="math inline">\(\hat{\theta}_j\)</span> are draws from a Beta distribution but they’re not!
+<ul>
+<li>(E.g. several are exactly zero)</li>
+</ul></li>
 <li>Ignores uncertainty in estimates of <span class="math inline">\((\alpha, \beta)\)</span> as well: just plugs in estimates</li>
-<li>What if we wanted to estimate <em>each</em> of the <span class="math inline">\(\theta_j\)</span> simultaneously?</li>
-<li>Shouldn’t re-use the same data twice: need to re-estimate <span class="math inline">\((\alpha, \beta)\)</span> for each <span class="math inline">\(\theta_j\)</span>, data from experiments <em>besides</em> <span class="math inline">\(j\)</span>.</li>
+<li>What if we wanted to estimate <em>each</em> of the <span class="math inline">\(\theta_j\)</span> simultaneously?
+<ul>
+<li>Shouldn’t re-use the same data twice</li>
+<li>Need to re-estimate <span class="math inline">\((\alpha, \beta)\)</span> for each <span class="math inline">\(\theta_j\)</span>, data from experiments <em>besides</em> <span class="math inline">\(j\)</span>.</li>
+</ul></li>
 </ul>
 </section>
-<section id="a-fully-bayesian-hierarchical-model" class="level2">
-<h2 class="anchored" data-anchor-id="a-fully-bayesian-hierarchical-model">A Fully Bayesian Hierarchical Model</h2>
+<section id="solution-mixture-distribution-for-theta_j" class="level2">
+<h2 class="anchored" data-anchor-id="solution-mixture-distribution-for-theta_j">Solution: Mixture Distribution for <span class="math inline">\(\theta_j\)</span></h2>
+<section id="conditional-joint-distribution" class="level3">
+<h3 class="anchored" data-anchor-id="conditional-joint-distribution">Conditional Joint Distribution</h3>
+<p><span class="math display">\[
+f(\theta_1, \dots, \theta_{71} | \alpha, \beta) = f(\theta_1 | \alpha, \beta) \times \dots \times f(\theta_{71} | \alpha, \beta) = \prod_{j = 1}^{J} f(\theta_j | \alpha, \beta)
+\]</span></p>
+</section>
+<section id="unconditional-joint-distribution-law-of-total-prob" class="level3">
+<h3 class="anchored" data-anchor-id="unconditional-joint-distribution-law-of-total-prob">Unconditional Joint Distribution (Law of Total Prob)</h3>
+<p><span class="math display">\[
+\begin{aligned}
+f(\theta_1, \dots, \theta_{71}) &amp;= \iint_{A\mathbin{\times} B} f(\theta_1, \dots, \theta_{71} | \alpha, \beta)\, f(\alpha, \beta)\, \mathrm{d}\alpha \, \mathrm{d}\beta\\
+&amp;= \iint_{A\mathbin{\times} B} \left[\prod_{j = 1}^{J} f(\theta_j | \alpha, \beta) \right]f(\alpha, \beta)\, \mathrm{d}\alpha \, \mathrm{d}\beta
+\end{aligned}
+\]</span></p>
+</section>
+</section>
+<section id="full-hierarchical-bayesian-model" class="level2">
+<h2 class="anchored" data-anchor-id="full-hierarchical-bayesian-model">Full Hierarchical Bayesian Model</h2>
+<p><span class="math display">\[
+\begin{aligned}
+\text{Likelihood:}  &amp;  &amp; y_j | \theta_j &amp;\sim \text{Binomial}(N_j, \theta_j) &amp;\quad \text{ (indep.) }\\
+\text{Conditional Prior:} &amp; &amp; \theta_j | \alpha, \beta &amp;\sim \text{Beta}(\alpha, \beta) &amp;\quad \text{ (indep.) }\\
+\text{Hyperprior:} &amp; &amp; (\alpha, \beta) &amp;\sim f(\alpha, \beta)
+\end{aligned}
+\]</span></p>
 <ul>
-<li>Always start by writing down a full, generative probabilistic model!</li>
-<li>Using the shorthand <span class="math inline">\(\phi\)</span> for <span class="math inline">\((\alpha, \beta)\)</span>, the <em>conditional</em> joint distribution of the <span class="math inline">\(\theta_j\)</span> is <span class="math display">\[
-f(\theta_1, \dots, \theta_{71} | \phi) = f(\theta_1 | \phi) \times \dots \times f(\theta_{71} | \phi) = \prod_{j = 1}^{J} f(\theta_j | \phi)
+<li>Hierarchical Prior for <span class="math inline">\(\theta_j\)</span> has two ingredients:
+<ol type="1">
+<li>Beta prior <em>given</em> <span class="math inline">\((\alpha, \beta)\)</span></li>
+<li>Hyperprior for <span class="math inline">\((\alpha, \beta)\)</span></li>
+</ol></li>
+<li><span class="math inline">\(y_j\)</span> contains information about <span class="math inline">\(\theta_k\)</span> through <span class="math inline">\((\alpha, \beta)\)</span></li>
+<li>Refinements to crude approximation:
+<ul>
+<li>Uncertainty in <span class="math inline">\((\alpha, \beta)\)</span></li>
+<li>Uncertainty in <span class="math inline">\(\theta_j\)</span> due to finite sample size</li>
+</ul></li>
+</ul>
+</section>
+<section id="a-hyperprior-for-alpha-beta" class="level2">
+<h2 class="anchored" data-anchor-id="a-hyperprior-for-alpha-beta">A Hyperprior for <span class="math inline">\((\alpha, \beta)\)</span></h2>
+<ul>
+<li>Parameters of Beta distribution are hard to interpret on their own.</li>
+<li>Instead of putting priors <em>directly</em> on <span class="math inline">\(\alpha\)</span> and <span class="math inline">\(\beta\)</span>, put priors on <span class="math display">\[
+\phi = \frac{\alpha}{\alpha + \beta}, \quad \kappa = \alpha + \beta, \quad
 \]</span></li>
-<li>By the law of total probability, <em>unconditional</em> joint distribution is <span class="math display">\[
-f(\theta_1, \dots, \theta_{71}) = \int f(\theta_1, \dots, \theta_{71} | \phi) \times f(\phi) d\phi = \int \left[\prod_{j = 1}^{J} f(\theta_j | \phi) \times f(\phi)\right] d\phi
-\]</span></li>
-<li>Joint distribution of the <span class="math inline">\(\theta_j\)</span> is a <em>mixture</em> iid conditional distributions <span class="math inline">\(f(\theta_j | \phi)\)</span>, with mixing distribution <span class="math inline">\(f(\phi)\)</span>.</li>
+<li>Inverse Transformation: <span class="math inline">\(\alpha = \kappa \phi, \quad \beta = \kappa(1 - \phi)\)</span></li>
+<li><span class="math inline">\(\phi\)</span> is the <em>mean</em> of the Beta distribution</li>
+<li><span class="math inline">\(\kappa\)</span> is the “number of prior observations”
+<ul>
+<li>Beta-Binomial Posterior Mean: <span class="math inline">\((y + \alpha)/(N + \alpha + \beta)\)</span></li>
+</ul></li>
+<li>Easier to think about <span class="math inline">\((\phi,\kappa)\)</span> than <span class="math inline">\((\alpha, \beta)\)</span>.</li>
 </ul>
 </section>
 <section id="computing" class="level2">
@@ -3489,20 +3538,20 @@ Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup)
 Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 3 Iteration:    1 / 2000 [  0%]  (Warmup) 
 Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
-Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
-Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 4 Iteration:    1 / 2000 [  0%]  (Warmup) 
 Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
-Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
-Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 1 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
 Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
-Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
 Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
+Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
 Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
 Chain 1 finished in 0.3 seconds.

@@ -304,24 +304,65 @@ title(main = 'Prior from Expreiments 1-70: Same Theta')
 
 - Ignores the fact that $\theta_j$ are *estimates* rather than true parameters.
 - As such, *understates* our true uncertainty about $(\alpha, \beta)$.
-- Method of moments formulas assume that $\hat{\theta}_j$ are draws from a Beta distribution but they're not!
-- E.g.\ several of the $\hat{\theta}_j$ are *exactly* zero but the Beta distribution is continuous!
+- Method of moments assums $\hat{\theta}_j$ are draws from a Beta distribution but they're not! 
+    - (E.g. several are exactly zero)
 - Ignores uncertainty in estimates of $(\alpha, \beta)$ as well: just plugs in estimates
 - What if we wanted to estimate *each* of the $\theta_j$ simultaneously? 
-- Shouldn't re-use the same data twice: need to re-estimate $(\alpha, \beta)$ for each $\theta_j$, data from experiments *besides* $j$.
+    - Shouldn't re-use the same data twice
+    - Need to re-estimate $(\alpha, \beta)$ for each $\theta_j$, data from experiments *besides* $j$.
 
-## A Fully Bayesian Hierarchical Model
+## Solution: Mixture Distribution for $\theta_j$
 
-- Always start by writing down a full, generative probabilistic model!
-- Using the shorthand $\phi$ for $(\alpha, \beta)$, the *conditional* joint distribution of the $\theta_j$ is
+### Conditional Joint Distribution 
+
 $$
-f(\theta_1, \dots, \theta_{71} | \phi) = f(\theta_1 | \phi) \times \dots \times f(\theta_{71} | \phi) = \prod_{j = 1}^{J} f(\theta_j | \phi)
+f(\theta_1, \dots, \theta_{71} | \alpha, \beta) = f(\theta_1 | \alpha, \beta) \times \dots \times f(\theta_{71} | \alpha, \beta) = \prod_{j = 1}^{J} f(\theta_j | \alpha, \beta)
 $$
-- By the law of total probability, *unconditional* joint distribution is 
+
+### Unconditional Joint Distribution (Law of Total Prob)
+
 $$
-f(\theta_1, \dots, \theta_{71}) = \int f(\theta_1, \dots, \theta_{71} | \phi) \times f(\phi) d\phi = \int \left[\prod_{j = 1}^{J} f(\theta_j | \phi) \times f(\phi)\right] d\phi
+\begin{aligned}
+f(\theta_1, \dots, \theta_{71}) &= \iint_{A\mathbin{\times} B} f(\theta_1, \dots, \theta_{71} | \alpha, \beta)\, f(\alpha, \beta)\, \mathrm{d}\alpha \, \mathrm{d}\beta\\
+&= \iint_{A\mathbin{\times} B} \left[\prod_{j = 1}^{J} f(\theta_j | \alpha, \beta) \right]f(\alpha, \beta)\, \mathrm{d}\alpha \, \mathrm{d}\beta 
+\end{aligned}
 $$
-- Joint distribution of the $\theta_j$ is a *mixture* iid conditional distributions $f(\theta_j | \phi)$, with mixing distribution $f(\phi)$.
+
+
+## Full Hierarchical Bayesian Model
+
+$$
+\begin{aligned}
+\text{Likelihood:}  &  & y_j | \theta_j &\sim \text{Binomial}(N_j, \theta_j) &\quad \text{ (indep.) }\\
+\text{Conditional Prior:} & & \theta_j | \alpha, \beta &\sim \text{Beta}(\alpha, \beta) &\quad \text{ (indep.) }\\
+\text{Hyperprior:} & & (\alpha, \beta) &\sim f(\alpha, \beta)
+\end{aligned}
+$$
+
+- Hierarchical Prior for $\theta_j$ has two ingredients: 
+    1. Beta prior *given* $(\alpha, \beta)$
+    2. Hyperprior for $(\alpha, \beta)$
+- $y_j$ contains information about $\theta_k$ through $(\alpha, \beta)$
+- Refinements to crude approximation:
+    - Uncertainty in $(\alpha, \beta)$
+    - Uncertainty in $\theta_j$ due to finite sample size
+
+
+
+## A Hyperprior for $(\alpha, \beta)$
+
+- Parameters of Beta distribution are hard to interpret on their own.
+- Instead of putting priors *directly* on $\alpha$ and $\beta$, put priors on
+$$
+\phi = \frac{\alpha}{\alpha + \beta}, \quad \kappa = \alpha + \beta, \quad
+$$
+- Inverse Transformation: $\alpha = \kappa \phi, \quad \beta = \kappa(1 - \phi)$
+- $\phi$ is the *mean* of the Beta distribution
+- $\kappa$ is the "number of prior observations"
+  - Beta-Binomial Posterior Mean: $(y + \alpha)/(N + \alpha + \beta)$
+- Easier to think about $(\phi,\kappa)$ than $(\alpha, \beta)$.
+
+
 
 ## Computing
 - Rather than programming everything from scratch, use a **Probabilistic Programming Language** (PPL)
