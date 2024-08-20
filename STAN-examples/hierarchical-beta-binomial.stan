@@ -1,25 +1,23 @@
 data { 
-  int<lower=1> J; // # of experiments 
-  array[J] int<lower=1> N; // # of trials in each experiment
-  array[J] int<lower=0> Y; // # of "successes" in each experiment
+  int<lower=1> J; 
+  array[J] int<lower=1> N; 
+  array[J] int<lower=0> Y; 
 }
 
 parameters {
-  real<lower=0> a; // canonical beta parameter
-  real<lower=0> b; // canonical beta parameter
-  vector<lower=0, upper=1>[J] Theta; // P(success) in each experiment
+  real<lower=0> a; 
+  real<lower=0> b; 
+  vector<lower=0, upper=1>[J] Theta; 
 }
 
 transformed parameters {
-  real<lower=0, upper=1> gamma = a / (a + b);
+  real<lower=0, upper=1> phi = a / (a + b);
   real<lower=0> kappa = a + b;
 }
 
 model {
-  Y ~ binomial(N, Theta); // Likelihood
-  Theta ~ beta(a, b); // Prior
-  
-  // hyperpriors (specified in terms of gamma and kappa)
+  Y ~ binomial(N, Theta); 
+  Theta ~ beta(a, b); 
   kappa ~ pareto(1, 1.5);
-  gamma ~ beta(1, 1); // uniform
+  phi ~ beta(1, 1);  // Uniform(0,1)
 }

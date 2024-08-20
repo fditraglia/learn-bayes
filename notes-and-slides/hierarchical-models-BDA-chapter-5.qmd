@@ -282,7 +282,7 @@ title(main = 'Beta(1, 1) Prior')
 
 # Contrast with full pooling
 plot_prior_to_posterior(y = 4, N = 14, alpha = 264, beta = 1463)
-title(main = 'Prior from Expreiments 1-70: Same Theta')
+title(main = 'Prior from Experiments 1-70: Same Theta')
 ```
 
 ## Lessons from the Crude Approximation
@@ -351,27 +351,73 @@ $$
 
 ## A Hyperprior for $(\alpha, \beta)$
 
-- Parameters of Beta distribution are hard to interpret on their own.
-- Instead of putting priors *directly* on $\alpha$ and $\beta$, put priors on
+- Hard to interpret parameters of Beta distribution directly.
+- Instead put priors on these *transformed parameters*: 
 $$
 \phi = \frac{\alpha}{\alpha + \beta}, \quad \kappa = \alpha + \beta, \quad
 $$
-- Inverse Transformation: $\alpha = \kappa \phi, \quad \beta = \kappa(1 - \phi)$
 - $\phi$ is the *mean* of the Beta distribution
 - $\kappa$ is the "number of prior observations"
   - Beta-Binomial Posterior Mean: $(y + \alpha)/(N + \alpha + \beta)$
+- Higher $\kappa$ for fixed $\phi$ means *lower variance*
+  - Beta Variance: $\phi(1 - \phi)/(\kappa + 1)$
 - Easier to think about $(\phi,\kappa)$ than $(\alpha, \beta)$.
+- Inverse: $\alpha = \kappa \phi, \quad \beta = \kappa(1 - \phi)$
+
+## The Full Model 
+$$
+\begin{aligned}
+\text{Likelihood:}  &  & y_j | \theta_j &\sim \text{Binomial}(N_j, \theta_j) &\quad \text{ (indep.) }\\
+\text{Conditional Prior:} & & \theta_j | \alpha, \beta &\sim \text{Beta}(\alpha, \beta) &\quad \text{ (indep.) }\\
+\text{Hyperprior:} & & \alpha = \kappa \phi, & \quad \beta = \kappa(1 - \phi) &  \\
+ & & \phi &\sim \text{Uniform}(0, 1) & \quad (\phi, \kappa \text{ indep.}) \\
+ & & \kappa &\sim \text{Pareto}(1, 1.5) & 
+\end{aligned}
+$$
+
+## What is a Pareto Distribution?
+$$
+X \sim \text{Pareto}(x_m, \gamma) \iff f(x) = \frac{\gamma x_m^\gamma}{x^{\gamma + 1}}, \quad x \geq x_m, \quad\gamma > 0 
+$$
+
+- Heavy-tailed distribution; often used for modeling "extreme" events
+- $x_m$ is the *minimum* value of $X$
+- $\gamma$ is the *shape* parameter; **smaller** $\gamma$ means heavier tail
+- Finite mean if $\gamma > 1$, finite variance if $\gamma > 2$
+
+```{r}
+# Plot of Pareto(1, 1.5) density
+x <- seq(from = 0, to = 10, length.out = 500)
+xm <- 1
+gamma <- 1.5
+fx <- (x >= xm) * (gamma * xm^gamma) / x^(gamma + 1) 
+plot(x, fx, type = 'l', lwd = 2, xlab = 'x', ylab = 'Density', 
+     main = 'Pareto(1, 1.5) Density')
+```
 
 
+## Simulating the Model *Forwards*
 
-## Computing
-- Rather than programming everything from scratch, use a **Probabilistic Programming Language** (PPL)
-- I'll use STAN; other options include PyMC3 and Turing
-- Specify model *structure* at a high level; rely on PPL to translate this into efficient code for drawing from the posterior 
-- We'll have a future session on this.
+Using the *parameters* to draw random *data*:
+
+1. Draw $\phi$ from $\text{Uniform}(0, 1)$ and $\kappa$ from $\text{Pareto}(1, 1.5)$
+2. Compute $\alpha = \kappa \phi$ and $\beta = \kappa(1 - \phi)$
+3. For each $j = 1, \dots, 71$:
+    - Draw $\theta_j$ from $\text{Beta}(\alpha, \beta)$
+    - Draw $y_j$ from $\text{Binomial}(N_j, \theta_j)$
+    
+**Same values of $(\alpha,\beta)$ are used for all $\theta_j$ and this is crucial**
 
 
-## Visualizing the Hyper-prior
+## Monte Carlo Inference: Simulating **Backwards** 
+
+Using the *data* to draw random *parameters*:
+
+- Simulate draws from posteriors of $(\alpha, \beta)$ and $\{\theta_j\}_{j=1}^J$ given observed $\{(N_j, y_j)\}_{j=1}^J\}$.
+- Rather than programming from scratch, use **Probabilistic Programming Language** (PPL)
+- Specify the *generative model* (forwards simulation); PPL does the rest.
+- I'll use STAN; other options include PyMC3 and Turing. (Future session)
+
 
 
 ## Sample from the posterior using STAN
@@ -397,7 +443,7 @@ HB_beta_binomial_fit$summary() |>
 ```
 
 
-## Display the posterior mean for $\theta_j$
+## Posterior Means for $\theta_j$ vs MLE
 
 ```{r}
 #| message: false
@@ -411,40 +457,34 @@ Theta_results <- rats |>
   bind_cols(Theta_posterior) |> 
   mutate(MLE = y / N)
 
-# Make a ggplot with MLE on the x-axis, mean on the y-axis, and confidence 
-# "whiskers" constructed from q5 and q95: note the overplotting!
+# Whiskers are 90% posterior credible sets
 ggplot(Theta_results, aes(x = MLE, y = mean)) +
   geom_point() +
   geom_errorbar(aes(ymin = q5, ymax = q95), width = 0.001) +
   geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
-  labs(x = 'MLE', y = 'Posterior Mean', title = 'Raw vs Adjusted Estimates') +
+  labs(x = 'MLE', y = 'Posterior Mean', 
+       title = 'Posterior Mean vs MLE: Hierarchical Model') +
   theme_minimal()
-
-# Add jitter to the data
-set.seed(123)  # for reproducibility
-Theta_results_jittered <- Theta_results |> 
-  mutate(MLE_jittered = MLE + runif(n(), -0.002, 0.002))
-
-# Now plot with the jittered x-values
-ggplot(Theta_results_jittered, aes(x = MLE_jittered, y = mean)) +
-  geom_point() +
-  geom_errorbar(aes(ymin = q5, ymax = q95), width = 0.001) +
-  geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
-  labs(x = 'MLE', y = 'Posterior Mean', title = 'Raw vs Adjusted Estimates') +
-  theme_minimal()
-
 ```
 
-## Display the posterior for $(\alpha, \beta)$
+## Posterior for $(\alpha, \beta)$
 
 
-## Simulation showing how to get posterior inference for $\theta_{71}$ "by hand"
+## Posterior Inference for $\theta_{71}$ "by hand"
+
+- Superfluous given STAN output, but just to compare to what we did above
+- Given posterior draws for $(\alpha, \beta)$, direct sampling from the posterior for $\theta_{71}$ is easy
+- **Exact** formula for the posterior of $\theta_{71}$ given $(\alpha, \beta)$:
+$$
+\theta_{71} | y_{71}, N_{71}, \alpha, \beta \sim \text{Beta}(y_{71} + \alpha, N_{71} - y_{71} + \beta)
+$$
+- Draw a sample from this distribution for each draw of $(\alpha, \beta)$
  
-1. Draw a sample from the posterior for alpha, beta
-2. For each draw, draw a sample from the posterior for theta_71 using the *exact* formula: theta_71 ~ Beta(y_71 + alpha, N_71 - y_71 + beta)
-3. Plot the posterior for theta_71 and compare to the result from STAN as well as the crude approximation
 
 ```{r}
+#| warning: false
+#| message: false
+
 # Extract posterior draws for alpha and beta from STAN output
 library(posterior)
 alpha_beta_draws <- HB_beta_binomial_fit$draws(c('a', 'b')) |> 
@@ -466,29 +506,15 @@ theta_71_sims_HB |>
   geom_vline(xintercept = mean(rats$y[71] / rats$N[71]),) +
   labs(title = 'Posterior for Theta_71', x = expression(theta[71]), y = 'Density') +
   theme_minimal() + 
-  geom_line(data = theta_71_crude, aes(x = x, y = y), color = 'red', linetype = 'dashed') 
+  geom_line(data = theta_71_crude, aes(x = x, y = y), color = 'red', 
+            linetype = 'dashed') 
 ```
 
 
 
 ## Exercises / Exhibits to add
 
-- Make a picture showing the "raw" and "adjusted" estimates from each experiment
-- Use simulation to explain the re-parameterization of the hyperprior
-- How does the posterior for $\alpha, \beta$ compare to our "crude" approximation?
-- Show how to use the posterior for $(\alpha, \beta)$ to get inference for $\theta_{71}$ "by hand" as in Gelman's example.
 - Show how to generate predictions for a *new experiment* using the posterior for $(\alpha, \beta)$
 
-
-## Things to add
-- Explain the full model: need a **hyperprior**
-- Explain how it's easy to simulate *forwards* from the model
-- Bayes does the reverse; this is harder and we'll use Monte-Carlo methods
-- The choice of priors here is a bit tricky. See this [example](https://mc-stan.org/users/documentation/case-studies/pool-binary-trials.html). 
-- To match the example in the book we could set $\alpha = \kappa \phi$ and $\beta = \kappa(1 - \phi)$ and them place a uniform distribution on $\phi$ and a Pareto(1, 1.5) distribution on $\kappa$. 
-- But there's a potential issue here with centered versus non-centered parameterizations in HMC. So an alternative is to work on the logit scale and then use normal priors, in which case we can use the standard trick with non-centered parameterizations.
-- Show them the sense in which this is a vague prior; maybe simulate it forwards using the observe values of $N_j$.
-- Show a STAN implementation but don't get bogged down in the syntax
-- Make a version of figure 5.4 from Gelman and possibly Figure 5.3 as well
 
 
