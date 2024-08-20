@@ -468,6 +468,53 @@ ggplot(Theta_results, aes(x = MLE, y = mean)) +
 ```
 
 ## Posterior for $(\alpha, \beta)$
+```{r}
+#| warning: false
+#| message: false
+
+# Extract posterior draws for alpha and beta from STAN output
+library(posterior)
+alpha_beta_posterior <- HB_beta_binomial_fit$draws(
+  c('a', 'b', 'phi', 'kappa')) |> 
+  as_draws_df()
+
+# Density plot of posterior draws using ggplot
+alpha_beta_posterior |> 
+  ggplot(aes(x = a, y = b)) +
+  geom_density2d_filled() +
+  labs(title = 'Posterior', x = expression(alpha),
+       y = expression(beta)) + 
+  theme_minimal()
+
+# Simulate from prior for (alpha, beta) / (kappa, phi)
+library(distributionsrd)
+library(patchwork)
+nsims <- 4000
+alpha_beta_prior <- tibble(phi = runif(nsims), 
+                           kappa = rpareto(nsims, xmin = 1, k = 1.5),
+                           alpha = kappa * phi,
+                           beta = kappa * (1 - phi))
+
+# Density plot of prior draws using ggplot
+prior_plot <- alpha_beta_prior |> 
+  ggplot(aes(x = phi, y = kappa)) +
+  scale_y_log10() +
+  geom_density2d_filled() +
+  labs(title = 'Prior', x = expression(phi),
+       y = expression(kappa)) + 
+  theme_minimal()
+
+# Density plot of posterior draws using ggplot
+posterior_plot <- alpha_beta_posterior |> 
+  ggplot(aes(x = phi, y = kappa)) +
+  scale_y_log10() +
+  geom_density2d_filled() +
+  labs(title = 'Posterior', x = expression(phi),
+       y = expression(kappa)) + 
+  theme_minimal()
+
+prior_plot + posterior_plot
+```
 
 
 ## Posterior Inference for $\theta_{71}$ "by hand"
@@ -479,32 +526,56 @@ $$
 \theta_{71} | y_{71}, N_{71}, \alpha, \beta \sim \text{Beta}(y_{71} + \alpha, N_{71} - y_{71} + \beta)
 $$
 - Draw a sample from this distribution for each draw of $(\alpha, \beta)$
+- Identical to posterior mean for $\theta_{71}$ from STAN up to sampling error.
+
  
 
 ```{r}
-#| warning: false
-#| message: false
-
-# Extract posterior draws for alpha and beta from STAN output
-library(posterior)
-alpha_beta_draws <- HB_beta_binomial_fit$draws(c('a', 'b')) |> 
-  as_draws_df()
 
 y_71 <- rats$y[71]
 N_71 <- rats$N[71]
 
-theta_71_sims_HB <- alpha_beta_draws |> 
+theta_71_sims_HB <- alpha_beta_posterior |> 
   mutate(theta_71 = rbeta(n(), a + y_71, b + N_71 - y_71))
 
+theta_71_sims_HB |> 
+  pull(theta_71) |>
+  mean()
+
+Theta_posterior |>
+  filter(str_detect(variable, '71')) |>
+  pull(mean)
+```
+
+
+## Comparison with "Crude" Approximation
+
+- Remember how we started out by estimating $(\alpha, \beta)$ using the method of moments?
+- Was all this extra work worth it?
+- The results are *similar* but not identical
+- If we had fewer experiments or more uncertainty in the estimates of $\theta_j$, the differences would be more pronounced.
+
+
+```{r}
 theta_71_crude <- tibble(x = seq(0, 0.6, length.out = 500), 
                          y = dbeta(x, alpha_hat + y_71, beta_hat + N_71 - y_71))
 
+# Compare posterior means for theta_71: cruce versus full hierarchical
+theta_71_crude |> 
+  mutate(theta_71 = rbeta(n(), alpha_hat + y_71, beta_hat + N_71 - y_71)) |> 
+  pull(theta_71) |> 
+  mean()
 
+Theta_posterior |>
+  filter(str_detect(variable, '71')) |>
+  pull(mean)
+
+# Compare posteriors for theta_71: crude versus full hierarchical
 theta_71_sims_HB |>
   ggplot(aes(x = theta_71)) +
   geom_density() +
   geom_vline(xintercept = mean(rats$y[71] / rats$N[71]),) +
-  labs(title = 'Posterior for Theta_71', x = expression(theta[71]), y = 'Density') +
+  labs(title = 'Posterior: Theta_71', x = expression(theta[71]), y = 'Density') +
   theme_minimal() + 
   geom_line(data = theta_71_crude, aes(x = x, y = y), color = 'red', 
             linetype = 'dashed') 
@@ -512,9 +583,29 @@ theta_71_sims_HB |>
 
 
 
-## Exercises / Exhibits to add
+## Predicting a *New Experiment* Using the Posterior
 
-- Show how to generate predictions for a *new experiment* using the posterior for $(\alpha, \beta)$
+Repeat the following steps for each posterior draw of $(\alpha, \beta)$:
+1. Draw $(\alpha, \beta)$ from the posterior
+2. Draw $\theta_{72}$ from $\text{Beta}(\alpha, \beta)$
+3. Draw $y_{72}$ from $\text{Binomial}(N_{72}, \theta_{72})$
+
+```{r}
+N_72 <- 15 # sample size in "new" experiment
+
+# Simulate from posterior predictive for y_72
+y_72_post_predictive <- alpha_beta_posterior |> 
+  mutate(theta_72 = rbeta(n(), a, b),
+         y_72 = rbinom(n(), N_72, theta_72))
+
+# Posterior predictive for y_72: bar plot since discrete
+y_72_post_predictive |> 
+  ggplot(aes(x = y_72)) +
+  geom_bar() +
+  labs(title = 'Posterior Predictive for y_72', x = 'y_72', y = 'Density') +
+  theme_minimal()
+```
+
 
 
 
