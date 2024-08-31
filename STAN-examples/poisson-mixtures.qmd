@@ -1,0 +1,87 @@
+---
+title: "Poisson Mixtures"
+format: 
+  html:
+    embed-resources: true
+---
+
+# Some Background Material 
+- [Review of Poisson Distribution](https://youtu.be/8zNYfvmwhcM?si=Up2CkS1uNlt2W6ie)
+- [Review of Poisson Regression](https://youtu.be/yoRDj3JsEqE?si=fGyGTL50HLzCtCvH) 
+- [Overdispersion / Underdispersion](https://youtu.be/0_IUTi5Azyg?si=As3Sf6deAdv25S-b)
+
+
+# Introduction 
+
+The Poisson distribution is a common choice for modeling count data, but real counts are typically *overdispersed*: their variance exceeds their mean. 
+The Poisson distribution, in contrast, has a mean that equals its variance.
+A simple way to allow for over-dispersion is by using a mixture of Poisson distributions as follows:
+$$
+Y_i|\gamma_i \sim \text{Poisson}(\gamma_i \mu), \quad \gamma_i \sim F_\theta
+$$
+where $\gamma_i$ is an unobserved random variable. 
+In this model, $Y_i$ is Poisson *conditional* on $\gamma_i$ but not unconditionally.
+By the law of iterated expectations:
+$$
+\mathbb{E}[Y_i] = \mathbb{E}\left[ \mathbb{E}\left(Y_i|\gamma_i\right)\right] = \mathbb{E}[ \gamma_i \mu] = \mu \mathbb{E}[\gamma_i]
+$$
+If we impose $\mathbb{E}[\gamma_i] = 1$ then $\mathbb{E}(Y_i)$ will equal $\mu$.
+By the the law of total variance:
+$$
+\begin{align*}
+\text{Var}[Y_i] &= \mathbb{E}\left[ \text{Var}\left(Y_i|\gamma_i\right)\right] + \text{Var}\left(\mathbb{E}\left(Y_i|\gamma_i\right)\right)\\
+&= \mathbb{E}[\mu\gamma_i] + \text{Var}[\gamma_i\mu]\\
+&= \mu \mathbb{E}[\gamma_i] + \mu^2 \text{Var}[\gamma_i]
+\end{align*}
+$$
+Thus, the variance of $Y_i$ is a function of both the mean and the variance of $\gamma_i$.
+If we impose $\mathbb{E}[\gamma_i]=1$ then $\text{Var}(Y_i) = \mu + \mu^2\cdot \text{Var}(\gamma_i)$. 
+Since $\text{Var}(\gamma_i) \geq 0$, this model creates a count distribution with over-dispersion. 
+
+The same idea can be applied to a Poisson regression model, in which case $\mu$ is replaced by $\mu_i$ defined according to
+$$
+\mu_i = \exp\left\{X_i'\beta \right\}
+$$
+In the regression case, if $\mathbb{E}(\gamma_i)=1$, then the *conditional mean* given $X_i$ is unchanged from the plain-vanilla Poisson case but the *conditional variance* is inflated by the variance of $\gamma_i$.
+For the rest of this document we'll consider a simple version of the Poisson regression model, namely
+$$
+\mu_i = \exp\left\{\alpha + \beta X_i\right\} \iff \log \mu_i = \alpha + \beta X_i
+$$
+It's worth seeing what happens in this model if we do *not* constrain $\mathbb{E}(\gamma_i)=1$.
+Suppose that $\mathbb{E}(\gamma_i) = \bar{\gamma}$ and define $\tilde{\gamma}_i \equiv \gamma_i / \bar{\gamma}$ so that $\mathbb{E}(\tilde{\gamma}_i) = 1$. 
+Then we can write 
+$$
+\begin{align*}
+\gamma_i \mu_i  &= \tilde{\gamma}_i \bar{\gamma} \exp\left\{\alpha + \beta X_i\right\} \\
+&= \tilde{\gamma}_i \exp\left\{\alpha + \log \bar{\gamma} +  \beta X_i\right\} \\
+&= \tilde{\gamma}_i \exp\left\{\tilde{\alpha} + \beta X_i\right\} 
+\end{align*}
+$$
+where we define $\tilde{\alpha} = \alpha + \log \bar{\gamma}$.
+Since conditioning on $\tilde{\gamma}_i$ is equivalent to conditioning on $\gamma_i$, we can see that the model with $\mathbb{E}(\gamma_i) = \bar{\gamma}$ is equivalent to the model with $\mathbb{E}(\gamma_i) = 1$ but with a different intercept term. 
+The choice of scaling for $\gamma_i$ is therefore arbitrary and has no effect on the regression slope coefficients. 
+
+Another point to note is that the model in which $\mathbb{E}(\gamma_i)$ is unspecified is not identified, since we can always multiply $\gamma_i$ by a constant and subtract the natural log of that constant from $\alpha$ to obtain the same likelihood.
+So in practice we will always fix the mean of $\gamma_i$. 
+Another way of thinking of this is to view the problem in terms of $\epsilon_i \equiv \log \gamma_i$, in which case we obtain 
+$$
+Y_i|X_i, \epsilon_i \sim \text{Poisson}(\exp\{\alpha + \beta X_i + \epsilon_i\}), \quad \epsilon_i \sim G_\varphi
+$$
+Just as in an ordinary linear regression model, we cannot separately identify the intercept and the mean of the error term. 
+As such we typically fix the mean of $\epsilon_i$ to be zero.
+This would be equivalent to fixing the mean of $\gamma_i$ to be one.
+But, again, we could fix the mean of $\epsilon_i$ to be any value and this would have no effect on the regression *slope* parameters. 
+
+
+A common choice of distribution for $\gamma_i$ is the gamma distribution, which has two parameters: a shape parameter $\alpha$ and a rate parameter $\beta$.
+
+
+
+
+
+
+
+
+
+
+
