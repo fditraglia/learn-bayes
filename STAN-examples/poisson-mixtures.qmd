@@ -35,7 +35,7 @@ $$
 \end{align*}
 $$
 Thus, the variance of $Y_i$ is a function of both the mean and the variance of $\gamma_i$.
-If we impose $\mathbb{E}[\gamma_i]=1$ then $\text{Var}(Y_i) = \mu + \mu^2\cdot \text{Var}(\gamma_i)$. 
+If we impose $\mathbb{E}[\gamma_i]=1$ then $\text{Var}(Y_i) = \mu + \mu^2\, \text{Var}(\gamma_i)$. 
 Since $\text{Var}(\gamma_i) \geq 0$, this model creates a count distribution with over-dispersion. 
 
 The same idea can be applied to a Poisson regression model, in which case $\mu$ is replaced by $\mu_i$ defined according to
@@ -73,10 +73,81 @@ This would be equivalent to fixing the mean of $\gamma_i$ to be one.
 But, again, we could fix the mean of $\epsilon_i$ to be any value and this would have no effect on the regression *slope* parameters. 
 
 
-A common choice of distribution for $\gamma_i$ is the gamma distribution, which has two parameters: a shape parameter $\alpha$ and a rate parameter $\beta$.
+A common choice of distribution for $\gamma_i$ is the gamma distribution, which ahs two parameters: a shape parameter $c > 0$ and a scale parameter $b > 0$ 
+$$
+Z \sim \text{Gamma}(c, b) \iff f(z) = \frac{1}{\Gamma(c)b^c} z^{c-1} \exp\left\{-z/b\right\} 
+$$
+
+## Negative Binomial Example
+
+### Frequentist Approach
+```{r}
+#| warning: false
+#| message: false
+library(MASS)
+library(BenfordTests)
+library(tidyverse)
+library(broom)
+library(tolerance)
+
+set.seed(1234)
+
+# Simulate data from a negative binomial distribution
+n <- 1000
+x <- rnorm(n) 
+alpha <- 0.1
+beta <- 0.5
+phi <- 2
+
+# Sample random populations
+popn <- rbenf(n) |> 
+  exp() |> 
+  as.integer()
+       
 
 
+# This parameterization has a mean = mu and variance = (mu + mu^2 / size)
+y <- rnbinom(n, 
+             mu = (popn / 1000) * exp(alpha + beta * (x - mean(x)) / sd(x)), 
+             size = phi)
 
+
+# Fit a negative binomial regression model
+reg1 <-  glm.nb(y ~ offset(log(popn / 1000)) + I(scale(x)))
+summary(reg1)
+
+plot(x, y)
+# add plot of glm.nb fit
+points(x, predict(reg1, type = "response"), col = "red", lwd = 2)
+```
+
+### Bayesian Approach with STAN
+
+```{r}
+#| warning: false
+#| message: false
+
+library(cmdstanr)
+nb_stan <- cmdstan_model('negative-binomial-regression.stan')
+nb_stan$print()
+
+dat <- list(
+  N = n,
+  y = y,
+  x = x,
+  popn = popn)
+
+nb_fit <- nb_stan$sample(
+  data = dat,
+  seed = 1234,
+  chains = 4, 
+  parallel_chains = 4,
+  refresh = 500
+)
+
+nb_fit$summary() |> 
+  knitr::kable(digits = 3)
+```
 
 
 
