@@ -1,0 +1,72 @@
+---
+title: "SUR Example"
+author: "Frank"
+format: html
+---
+
+This example is taken from the STAN manual article on [seemingly unrelated regressions (SUR)](https://mc-stan.org/docs/stan-users-guide/regression.html#seemingly-unrelated-regressions). Strictly speaking, this isn't really an SUR model at all since the regressors are the *same* in each equation. Instead it's a multivariate regression model.
+
+First is our STAN model:
+```{r}
+#| warning: FALSE
+#| message: FALSE
+library(cmdstanr)
+# this is in ~/learn-bayes/STAN-examples
+SUR_model <- cmdstan_model("SUR.stan")
+SUR_model$print()
+```
+
+Next we generate some data: 
+```{r}
+#| message: FALSE 
+#| warning: FALSE
+library(mvtnorm)
+set.seed(1234)
+
+K <- 2 # number of outcome variables
+J <- 5 # number of predictor variables
+N <- 200 # sample size
+
+x <- matrix(rnorm(n = N * J), nrow = N)
+beta <- matrix(rnorm(n = J * K), nrow = K)
+
+Sigma <- matrix(c(1, 0.5, 
+                  0.5, 1), byrow = TRUE, nrow = 2)
+
+errors <- rmvnorm(n = N, mean = rep(0, K), sigma = Sigma)
+y <- x %*% t(beta) + errors
+```
+
+Next we fit the model: 
+```{r}
+#| message: FALSE
+#| warning: FALSE
+dat <- list(N = N, K = K, J = J, y = y, x = x) 
+
+SUR_model_fit <- SUR_model$sample(
+  data = dat,
+  seed = 123,
+  chains = 4,
+  parallel_chains = 4,
+  refresh = 500
+)
+
+```
+
+Finally we summarize the results:
+```{r}
+# Only display the covariance matrix parameters
+SUR_model_fit$summary() |> 
+  knitr::kable(digits = 2)
+
+#SUR_model_fit$summary(variables = c('L_Omega[2,1]', 'L_Omega[2,2]',
+#                                    'L_sigma[1]', 'L_sigma[2]')) |> 
+#  knitr::kable(digits = 2)
+
+# Compare to true parameters
+ beta # if desired (and beta is small) we can look at the slopes
+
+chol(Sigma)
+
+```
+
