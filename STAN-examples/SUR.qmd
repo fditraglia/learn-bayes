@@ -1,7 +1,9 @@
 ---
 title: "SUR Example"
 author: "Frank"
-format: html
+format: 
+  html:
+    embed-resources: true
 ---
 
 This example is taken from the STAN manual article on [seemingly unrelated regressions (SUR)](https://mc-stan.org/docs/stan-users-guide/regression.html#seemingly-unrelated-regressions). Strictly speaking, this isn't really an SUR model at all since the regressors are the *same* in each equation. Instead it's a multivariate regression model.
